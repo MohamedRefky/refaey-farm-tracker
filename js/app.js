@@ -202,14 +202,19 @@ function detail(a) {
   const isOngoing = !c.end;
 
   let h = `
-    <!-- Top Nav with Print Support -->
+    <!-- Top Nav with Print and Edit Support -->
     <div class="detail-top-nav">
       <button class="back-btn" onclick="S.v='list'; render()">
         <span>→</span> العودة لكل الدورات
       </button>
-      <button class="print-btn" onclick="window.print()" title="طباعة تقرير الدورة">
-        <span>🖨️</span> طباعة كشف الدورة
-      </button>
+      <div style="display: flex; gap: 8px;">
+        <button class="print-btn" onclick="editCycle()" title="تعديل بيانات الدورة">
+          <span>✏️</span> تعديل الدورة
+        </button>
+        <button class="print-btn" onclick="window.print()" title="طباعة تقرير الدورة">
+          <span>🖨️</span> طباعة كشف الدورة
+        </button>
+      </div>
     </div>
 
     <!-- Cycle Hero Summary -->
@@ -390,6 +395,7 @@ function detail(a) {
               <div class="record-value-group">
                 <span class="record-value">${r[1]}</span>
                 <div class="record-actions">
+                  <button class="btn btn-sm btn-outline" onclick="openForm('${S.tab}', ${i})" title="تعديل هذا التسجيل">✏️ تعديل</button>
                   ${S.tab === 'debt' ? `
                     <button class="btn btn-sm ${e.paid ? 'btn-outline' : 'btn-primary'}" onclick="pay(${i})">
                       ${e.paid ? 'اتسدد ✓' : 'سدّد الآن'}
@@ -444,36 +450,49 @@ function render() {
 const m = document.getElementById('m');
 const fm = document.getElementById('fm');
 
-function openForm(kind) {
+function openForm(kind, editIndex = null) {
   const T = K[kind];
+  const isEdit = editIndex !== null;
+  const existing = isEdit ? cur()[kind][editIndex] : null;
+
   let h = `
     <div class="form-header">
-      <div class="form-title">إضافة ${T.t}</div>
+      <div class="form-title">${isEdit ? 'تعديل' : 'إضافة'} ${T.t}</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
     
     <label>التاريخ</label>
-    <input type="date" id="f_d" value="${today()}">
+    <input type="date" id="f_d" value="${isEdit && existing && existing.d ? existing.d : today()}">
   `;
 
   T.f.forEach(x => {
     h += `<label>${x[3]}</label>`;
+    let val = isEdit && existing && existing[x[0]] !== undefined ? existing[x[0]] : '';
+
+    if (kind === 'feed' && isEdit && existing) {
+      if (x[0] === 'unit') {
+        val = existing.unit || (existing.txt && existing.txt.includes('شكارة') ? 'شكارة' : 'كيلو');
+      } else if (x[0] === 'q') {
+        val = existing.q !== undefined ? existing.q : (val === 'شكارة' || (existing.txt && existing.txt.includes('شكارة')) ? existing.kg / bagKg : existing.kg);
+      }
+    }
+
     if (x[1] === 'select') {
       h += `
         <select id="f_${x[0]}">
-          ${x[2].map(o => `<option value="${o}">${o}</option>`).join('')}
+          ${x[2].map(o => `<option value="${o}" ${String(val) === String(o) ? 'selected' : ''}>${o}</option>`).join('')}
         </select>
       `;
     } else {
       h += `
-        <input id="f_${x[0]}" type="${x[1]}" ${x[1] === 'number' ? 'inputmode="decimal" step="any"' : ''} placeholder="${x[3]}">
+        <input id="f_${x[0]}" type="${x[1]}" value="${val !== undefined ? val : ''}" ${x[1] === 'number' ? 'inputmode="decimal" step="any"' : ''} placeholder="${x[3]}">
       `;
     }
   });
 
   h += `
     <div style="display: flex; gap: 10px; margin-top: 24px;">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ البيانات</button>
+      <button class="btn btn-primary" style="flex: 2;" type="submit">${isEdit ? 'حفظ التعديلات' : 'حفظ البيانات'}</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
   `;
@@ -481,7 +500,9 @@ function openForm(kind) {
   fm.innerHTML = h;
   fm.onsubmit = ev => {
     ev.preventDefault();
-    const o = { d: document.getElementById('f_d').value || today() };
+    const o = isEdit ? { ...existing } : {};
+    o.d = document.getElementById('f_d').value || today();
+
     T.f.forEach(x => {
       const el = document.getElementById('f_' + x[0]);
       o[x[0]] = x[1] === 'number' ? (+el.value || 0) : el.value;
@@ -491,18 +512,101 @@ function openForm(kind) {
       o.kg = o.unit === 'شكارة' ? o.q * bagKg : o.q;
       o.txt = o.q + ' ' + o.unit;
     }
-    if (kind === 'debt') {
+    if (kind === 'debt' && !isEdit) {
       o.paid = false;
     }
 
-    cur()[kind].push(o);
+    if (isEdit) {
+      cur()[kind][editIndex] = o;
+      showToast(`تم تعديل ${T.t} بنجاح ✓`);
+    } else {
+      cur()[kind].push(o);
+      showToast(`تمت إضافة ${T.t} بنجاح ✓`);
+    }
+
     saveData();
     closeM();
-    showToast(`تمت إضافة ${T.t} بنجاح ✓`);
     render();
   };
 
   m.classList.add('on');
+}
+
+function editCycle() {
+  const c = cur();
+  if (!c) return;
+
+  fm.innerHTML = `
+    <div class="form-header">
+      <div class="form-title">تعديل بيانات الدورة ✏️</div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+    </div>
+
+    <label>اسم الدورة</label>
+    <input id="edit_nn" value="${c.name || ''}" placeholder="اسم الدورة">
+
+    <label>تاريخ البدء</label>
+    <input type="date" id="edit_ns" value="${c.start || today()}">
+
+    <label>عدد الكتاكيت الأصلي المستلم</label>
+    <input type="number" id="edit_nc" value="${c.n || 0}" inputmode="numeric" placeholder="مثلاً: 1000">
+
+    <label>حالة الدورة</label>
+    <select id="edit_status">
+      <option value="ongoing" ${!c.end ? 'selected' : ''}>شغالة الآن (جارية)</option>
+      <option value="closed" ${c.end ? 'selected' : ''}>مقفولة (مكتملة)</option>
+    </select>
+
+    <div style="display: flex; gap: 10px; margin-top: 24px;">
+      <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديلات الدورة</button>
+      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
+    </div>
+
+    <div style="margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 14px; text-align: center;">
+      <button type="button" class="btn btn-sm btn-danger" onclick="deleteCycle(${c.id})">
+        حذف هذه الدورة وكافة سجلاتها نهائياً 🗑️
+      </button>
+    </div>
+  `;
+
+  fm.onsubmit = ev => {
+    ev.preventDefault();
+    const nn = document.getElementById('edit_nn');
+    const ns = document.getElementById('edit_ns');
+    const nc = document.getElementById('edit_nc');
+    const st = document.getElementById('edit_status');
+
+    c.name = nn.value.trim() || c.name;
+    c.start = ns.value || c.start;
+    c.n = +nc.value || 0;
+
+    if (st.value === 'closed' && !c.end) {
+      c.end = today();
+    } else if (st.value === 'ongoing') {
+      c.end = null;
+    }
+
+    saveData();
+    closeM();
+    showToast('تم حفظ تعديلات الدورة بنجاح ✓');
+    render();
+  };
+
+  m.classList.add('on');
+}
+
+function deleteCycle(id) {
+  if (confirm('تحذير: هل أنت متأكد تماماً من حذف هذه الدورة بالكامل وكافة مصروفاتها ومبيعاتها؟ لا يمكن التراجع عن هذا الإجراء.')) {
+    const idx = C.findIndex(x => x.id === id);
+    if (idx !== -1) {
+      C.splice(idx, 1);
+      saveData();
+      closeM();
+      S.v = 'list';
+      showToast('تم حذف الدورة بنجاح');
+      render();
+    }
+  }
 }
 
 function newCycle() {
