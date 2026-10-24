@@ -2,6 +2,8 @@
 
 > A lightweight, modern, and responsive web application designed for poultry farm management, broiler flock cycle tracking, and production efficiency analytics.
 
+🔗 **Live Demo:** [https://mohamedrefky.github.io/refaey-farm-tracker/](https://mohamedrefky.github.io/refaey-farm-tracker/)
+
 ---
 
 ## 🌟 Key Features
