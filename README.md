@@ -52,12 +52,29 @@ You can host this project online for free with GitHub Pages:
 
 ---
 
+## 📁 Project Architecture
+
+```text
+refaey-farm-tracker/
+├── index.html            # Clean semantic HTML entry point
+├── css/
+│   └── style.css         # Modern design tokens, responsive layout & animations
+├── js/
+│   ├── data.js           # Dataset, localStorage persistence & helpers
+│   ├── calculations.js   # Poultry KPIs, FCR, cost/profit formulas & charts
+│   └── app.js            # UI controller, 1-tap quick actions, modal & themes
+├── README.md
+└── .gitignore
+```
+
+---
+
 ## 🛠 Tech Stack
 
 - **HTML5** (Semantic structure)
-- **Vanilla CSS3** (CSS Custom Properties, Flexbox, CSS Grid)
-- **Vanilla JavaScript** (ES6+, DOM Manipulation, Local State)
-- **Typography:** Tajawal & JetBrains Mono (via Google Fonts)
+- **Vanilla CSS3** (Custom properties, flexbox, CSS grid, micro-animations)
+- **Modular JavaScript (ES6+)** (Separation of concerns: data, math, UI)
+- **Typography:** Cairo & JetBrains Mono (via Google Fonts)
 
 ---
 
