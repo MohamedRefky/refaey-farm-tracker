@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Refaey Farm Tracker | دفتر الدورات</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--card:#000;--line:#292d30;--tx:#f0f0f0;--hi:#fff;--mut:#a1a4a5;--vio:#9281f7;--grn:#3ad389;--red:#ff9592;--amb:#ffca16;--blu:#70b8ff;--hov:#fff;--ico:linear-gradient(to bottom right,#9281f7,#9a54dc);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root[data-theme="light"]{--bg:#fff;--card:#fff;--line:#e3e5e8;--tx:#1a1c1e;--hi:#000;--mut:#6b6f76;--vio:#6a55e8;--grn:#12945a;--red:#d93c3f;--amb:#b8860b;--blu:#2a74d6;--hov:#000}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'Tajawal',system-ui,sans-serif;font-size:16px;line-height:1.5}
+.w{max-width:760px;margin:0 auto;padding:20px 16px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:4px}
+h1{font-size:28px;font-weight:500;margin:0;color:var(--hi);letter-spacing:-.02em}
+h3{font-size:18px;font-weight:500;margin:28px 0 12px;color:var(--hi)}
+.sub{color:var(--mut);margin:0 0 24px;font-size:14px}
+.chick{display:inline-block;animation:hop 1.2s ease-in-out infinite;transform-origin:bottom}
+@keyframes hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-8px) rotate(-6deg)}60%{transform:translateY(0) rotate(4deg)}}
+.btn{background:transparent;color:var(--hi);border:1px solid var(--line);border-radius:6px;padding:12px 16px;font:inherit;font-weight:500;cursor:pointer;transition:border-color .15s ease-out}
+.btn:hover{border-color:var(--hov)}
+.btn.big{width:100%;padding:16px;font-size:18px}
+.btn.sm{padding:6px 12px;font-size:14px}
+.card{border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:12px;background:var(--card)}
+.cy{cursor:pointer;transition:border-color .15s}
+.cy:hover{border-color:var(--hov)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mut{color:var(--mut);font-size:14px}
+.num{font-family:'JetBrains Mono',ui-monospace,monospace;direction:ltr;unicode-bidi:isolate}
+.pill{border:1px solid var(--line);border-radius:999px;padding:2px 12px;font-size:13px;color:var(--mut)}
+.pill.on{color:var(--grn);border-color:var(--grn)}
+.ic{width:44px;height:44px;border-radius:16px;background:var(--ico);display:grid;place-items:center;font-size:22px;flex:none}
+.hero{padding:24px}
+.hero .big{font-size:46px;font-weight:700;line-height:1.1;margin:8px 0}
+.eq{display:flex;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:16px;padding-top:16px}
+.eq div{flex:1;min-width:120px}
+.eq b{display:block;font-size:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.st{border:1px solid var(--line);border-radius:16px;padding:16px}
+.st b{display:block;font-size:24px;font-weight:700;color:var(--hi);margin:2px 0}
+.st small{color:var(--mut);font-size:12px;display:block;line-height:1.4}
+.g{color:var(--grn)!important}.r{color:var(--red)!important}.v{color:var(--vio)}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:20px 0 16px}
+.tab{white-space:nowrap}
+.tab.on{border-color:var(--hi);background:var(--line)}
+.it{display:flex;justify-content:space-between;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}
+.it:last-child{border:0}
+.bt{height:10px;border-radius:5px;background:var(--line);margin-top:8px;overflow:hidden;display:flex}
+.bt i{display:block;height:100%}
+.lg{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:14px;color:var(--mut)}
+.lg span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--c);margin-inline-end:6px}
+.ch{margin-top:18px}
+.ch:first-of-type{margin-top:8px}
+.back{background:none;border:0;color:var(--mut);font:inherit;cursor:pointer;padding:0;margin-bottom:12px}
+#m{position:fixed;inset:0;background:#000d;display:none;align-items:flex-end;justify-content:center;z-index:9}
+#m.on{display:flex}
+#m form{background:var(--bg);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:520px;padding:20px;max-height:90vh;overflow:auto}
+label{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+input,select{width:100%;background:transparent;color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:12px;font:inherit;font-size:16px}
+select option{background:var(--bg)}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="top"><h1 id="gr"></h1><button class="btn sm" id="th">☀︎ / ☾</button></div>
+  <p class="sub" id="dt"></p>
+  <div id="app"></div>
+</div>
+<div id="m"><form id="fm"></form></div>
+<script>
+const cats=['علف','كتاكيت','أدوية وتحصينات','كهرباء وغاز','عمالة','نقل','أخرى'];
+let bagKg=50,nid=10;
+const C=[
+{id:1,name:'دورة أغسطس',start:'2026-08-01',end:'2026-09-10',n:1000,
+exp:[{d:'2026-08-01',cat:'كتاكيت',amt:18000,note:'1000 كتكوت'},{d:'2026-08-05',cat:'علف',amt:22000,note:''},{d:'2026-08-20',cat:'أدوية وتحصينات',amt:3500,note:''},{d:'2026-08-25',cat:'علف',amt:26000,note:''},{d:'2026-09-01',cat:'عمالة',amt:4000,note:''}],
+inc:[{d:'2026-09-08',cnt:480,kg:960,amt:43200,buyer:'تاجر الأحد'},{d:'2026-09-10',cnt:490,kg:990,amt:44500,buyer:'محل الشرقية'}],
+dead:[{d:'2026-08-12',n:18,note:''},{d:'2026-08-28',n:12,note:''}],
+feed:[{d:'2026-08-05',kg:1500,txt:'30 شكارة'},{d:'2026-08-25',kg:1700,txt:'34 شكارة'}],debt:[]},
+{id:2,name:'دورة أكتوبر',start:'2026-10-01',end:null,n:800,
+exp:[{d:'2026-10-01',cat:'كتاكيت',amt:15200,note:'800 كتكوت'},{d:'2026-10-04',cat:'علف',amt:9000,note:''},{d:'2026-10-12',cat:'أدوية وتحصينات',amt:1800,note:''}],
+inc:[],dead:[{d:'2026-10-10',n:9,note:''}],feed:[{d:'2026-10-04',kg:600,txt:'12 شكارة'}],
+debt:[{d:'2026-10-15',who:'أبو علي',dir:'ليا عنده',amt:2000,paid:false}]}];
+const f=n=>Math.round(n).toLocaleString('en-US');
+const fd=d=>new Date(d+'T00:00').toLocaleDateString('ar-EG-u-nu-latn',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const today=()=>new Date().toISOString().slice(0,10);
+const sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
+function calc(c){const e=sum(c.exp,'amt'),i=sum(c.inc,'amt'),dead=sum(c.dead,'n'),sold=sum(c.inc,'cnt'),kgS=sum(c.inc,'kg'),fk=sum(c.feed,'kg'),p=i-e,live=c.n-dead;
+return{e,i,p,dead,sold,fk,live,mort:c.n?dead/c.n*100:0,cpb:live>0?e/live:0,avg:sold?i/sold:0,ppb:sold?p/sold:0,fcr:kgS?fk/kgS:0}}
+let S={v:'list',tab:'exp'};
+const K={
+exp:{t:'مصروف',f:[['cat','select',cats,'النوع'],['amt','number','','المبلغ (جنيه)'],['note','text','','ملاحظة']],r:e=>[e.cat+(e.note?' - '+e.note:''),f(e.amt)+' ج']},
+inc:{t:'إيراد (بيع)',f:[['cnt','number','','عدد الطيور'],['kg','number','','الوزن الكلي (كجم)'],['amt','number','','المبلغ (جنيه)'],['buyer','text','','المشتري']],r:e=>['بيع '+e.cnt+' طائر - '+(e.buyer||''),f(e.amt)+' ج']},
+dead:{t:'نفوق',f:[['n','number','','عدد الطيور النافقة'],['note','text','','ملاحظة']],r:e=>['نفوق '+e.n+(e.note?' - '+e.note:''),e.n]},
+feed:{t:'علف',f:[['unit','select',['شكارة','كيلو'],'الوحدة'],['q','number','','الكمية']],r:e=>['علف '+e.txt,f(e.kg)+' كجم']},
+debt:{t:'مديونية',f:[['dir','select',['ليا عنده','عليا لحد'],'النوع'],['who','text','','الاسم'],['amt','number','','المبلغ (جنيه)']],r:e=>[e.who+' ('+e.dir+')',f(e.amt)+' ج']}};
+const tabs=[['exp','المصروفات'],['inc','الإيرادات'],['dead','النفوق'],['feed','العلف'],['debt','الديون'],['ch','التحليل']];
+const cur=()=>C.find(c=>c.id===S.v);
+function st(l,v,h,cls=''){return `<div class="st"><span class="mut">${l}</span><b class="num ${cls}">${v}</b><small>${h}</small></div>`}
+function bars(items,fmt){const m=Math.max(1,...items.map(x=>Math.abs(x.v)));return items.map(x=>`<div class="ch"><div class="row"><span>${x.n}</span><b class="num ${x.cls||''}">${fmt(x)}</b></div><div class="bt"><i style="width:${Math.max(2,Math.abs(x.v)/m*100)}%;background:${x.c}"></i></div></div>`).join('')}
+function render(){const a=document.getElementById('app');if(S.v==='list')return list(a);detail(a)}
+function profitChart(){return bars(C.map(c=>{const p=calc(c).p;return{n:c.name,v:p,c:p>=0?'var(--grn)':'var(--red)',cls:p>=0?'g':'r',t:(p>=0?'ربح ':'خسارة ')+f(Math.abs(p))+' ج'}}),x=>x.t)}
+function list(a){const tot=C.reduce((s,c)=>s+calc(c).p,0);
+a.innerHTML=`<div class="card hero"><span class="mut">إجمالي أرباح كل الدورات</span><div class="big num ${tot>=0?'g':'r'}">${f(tot)} ج</div><span class="mut">${C.length} دورات مسجلة</span></div>
+<button class="btn big" onclick="newCycle()">+ دورة جديدة</button><h3>دوراتي</h3>`+
+C.slice().reverse().map(c=>{const k=calc(c);return `<div class="card cy" onclick="S.v=${c.id};S.tab='exp';render()"><div class="row"><div class="row" style="gap:12px"><div class="ic">🐔</div><div><b style="font-size:19px;color:var(--hi)">${c.name}</b><div class="mut">${fd(c.start)}</div></div></div><span class="pill ${c.end?'':'on'}">${c.end?'مقفولة':'شغالة'}</span></div><div class="row" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px"><span class="mut">${c.n} طائر</span><span><span class="mut">${k.p>=0?'ربح':'خسارة'} </span><b class="num ${k.p>=0?'g':'r'}" style="font-size:22px">${f(Math.abs(k.p))} ج</b></span></div></div>`}).join('')+
+`<h3>مين كسّب أكتر؟</h3><div class="card">${profitChart()}</div>`}
+function detail(a){const c=cur(),k=calc(c);
+let h=`<button class="back" onclick="S.v='list';render()">→ كل الدورات</button><div class="row"><div class="row" style="gap:12px"><div class="ic">🐔</div><h2 style="margin:0;font-weight:500;color:var(--hi)">${c.name}</h2></div><span class="pill ${c.end?'':'on'}">${c.end?'مقفولة':'شغالة'}</span></div><p class="mut">بدأت ${fd(c.start)}${c.end?'<br>قفلت '+fd(c.end):''}</p>
+<div class="card hero"><span class="mut">${k.p>=0?'صافي الربح':'الخسارة لحد دلوقتي'}</span><div class="big num ${k.p>=0?'g':'r'}">${f(Math.abs(k.p))} ج</div>
+<div class="eq"><div><span class="mut">اللي دخل (بيع)</span><b class="num g">${f(k.i)} ج</b></div><div><span class="mut">اللي خرج (مصاريف)</span><b class="num r">${f(k.e)} ج</b></div></div></div>
+<h3>الطيور</h3><div class="grid">${st('العدد الأصلي',c.n,'اللي بدأت بيه')}${st('نافق',k.dead,'نسبة النفوق '+k.mort.toFixed(1)+'%',k.mort>5?'r':'')}${st('اتباع',k.sold,'متوسط السعر '+f(k.avg)+' ج للطائر')}${st('باقي',Math.max(0,k.live-k.sold),'لسه في المزرعة')}</div>
+<h3>التكلفة والكفاءة</h3><div class="grid">${st('تكلفة الطائر',f(k.cpb)+' ج','المصاريف ÷ الطيور الحية')}${st('ربح الطائر',f(k.ppb)+' ج','الربح ÷ اللي اتباع',k.ppb>=0?'g':'r')}${st('العلف المستهلك',f(k.fk)+' كجم','إجمالي اللي اتشرى')}${st('معامل التحويل',k.fcr?k.fcr.toFixed(2):'-','كيلو علف لكل كيلو وزن بيع (كل ما قل كان أحسن)')}</div>
+<div class="tabs">${tabs.map(t=>`<button class="btn sm tab ${S.tab===t[0]?'on':''}" onclick="S.tab='${t[0]}';render()">${t[1]}</button>`).join('')}</div>`;
+if(S.tab==='ch'){const by={};c.exp.forEach(e=>by[e.cat]=(by[e.cat]||0)+e.amt);const col=['var(--vio)','var(--blu)','var(--amb)','var(--grn)','var(--red)','var(--mut)','var(--hi)'];
+const it=Object.entries(by).sort((x,y)=>y[1]-x[1]).map(([n,v],i)=>({n,v,c:col[i%7],t:f(v)+' ج ('+Math.round(v/k.e*100)+'%)'}));
+const rem=Math.max(0,k.live-k.sold),T=c.n||1;
+h+=`<div class="card"><b style="color:var(--hi)">صرفت فلوسك على إيه؟</b>${it.length?bars(it,x=>x.t):'<p class="mut">لسه مفيش مصروفات</p>'}</div>
+<div class="card"><b style="color:var(--hi)">الطيور راحت فين؟</b><div class="bt" style="height:14px"><i style="width:${k.sold/T*100}%;background:var(--grn)"></i><i style="width:${k.dead/T*100}%;background:var(--red)"></i><i style="width:${rem/T*100}%;background:var(--vio)"></i></div><div class="lg"><span style="--c:var(--grn)">اتباع ${k.sold}</span><span style="--c:var(--red)">نافق ${k.dead}</span><span style="--c:var(--vio)">باقي ${rem}</span></div></div>
+<div class="card"><b style="color:var(--hi)">مقارنة الدورات</b>${profitChart()}</div>`}
+else{const T=K[S.tab],arr=c[S.tab];
+h+=`<button class="btn big" onclick="openForm('${S.tab}')">+ إضافة ${T.t}</button>`;
+if(S.tab==='feed')h+=`<label>وزن الشكارة (كجم)</label><input type="number" value="${bagKg}" onchange="bagKg=+this.value||50">`;
+h+=`<div class="card" style="margin-top:12px">`+(arr.length?arr.slice().reverse().map(e=>{const r=T.r(e);const i=arr.indexOf(e);return `<div class="it"><div><div style="color:var(--hi)">${r[0]}</div><div class="mut">${fd(e.d)}</div></div><div style="text-align:left"><b class="num">${r[1]}</b><br>${S.tab==='debt'?`<button class="btn sm" onclick="pay(${i})">${e.paid?'اتسدد ✓':'سدّد'}</button> `:''}<button class="btn sm" onclick="del(${i})">حذف</button></div></div>`}).join(''):'<p class="mut">مفيش تسجيلات لسه</p>')+`</div>`}
+if(!c.end)h+=`<div style="height:12px"></div><button class="btn big" onclick="closeC()">قفل الدورة</button>`;
+a.innerHTML=h}
+function openForm(kind){const T=K[kind];let h=`<b style="font-size:20px">إضافة ${T.t}</b><label>التاريخ</label><input type="date" id="f_d" value="${today()}">`;
+T.f.forEach(x=>{h+=`<label>${x[3]}</label>`+(x[1]==='select'?`<select id="f_${x[0]}">${x[2].map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="f_${x[0]}" type="${x[1]}" ${x[1]==='number'?'inputmode="decimal"':''}>`)});
+h+=`<div style="height:16px"></div><button class="btn big" type="submit">حفظ</button><div style="height:8px"></div><button class="btn big" type="button" onclick="closeM()">إلغاء</button>`;
+fm.innerHTML=h;fm.onsubmit=ev=>{ev.preventDefault();const o={d:f_d.value||today()};T.f.forEach(x=>o[x[0]]=x[1]==='number'?+document.getElementById('f_'+x[0]).value||0:document.getElementById('f_'+x[0]).value);
+if(kind==='feed'){o.kg=o.unit==='شكارة'?o.q*bagKg:o.q;o.txt=o.q+' '+o.unit}if(kind==='debt')o.paid=false;
+cur()[kind].push(o);closeM();render()};m.classList.add('on')}
+function newCycle(){fm.innerHTML=`<b style="font-size:20px">دورة جديدة</b><label>اسم الدورة</label><input id="nn" value="دورة جديدة"><label>تاريخ البداية</label><input type="date" id="ns" value="${today()}"><label>عدد الطيور</label><input type="number" id="nc" inputmode="numeric"><div style="height:16px"></div><button class="btn big" type="submit">إنشاء</button><div style="height:8px"></div><button class="btn big" type="button" onclick="closeM()">إلغاء</button>`;
+fm.onsubmit=ev=>{ev.preventDefault();C.push({id:nid++,name:nn.value,start:ns.value,end:null,n:+nc.value||0,exp:[],inc:[],dead:[],feed:[],debt:[]});closeM();render()};m.classList.add('on')}
+function closeM(){m.classList.remove('on')}
+function del(i){if(confirm('تحذف التسجيل ده؟')){cur()[S.tab].splice(i,1);render()}}
+function pay(i){const e=cur().debt[i];e.paid=!e.paid;render()}
+function closeC(){if(confirm('تقفل الدورة؟')){cur().end=today();render()}}
+const gr=document.getElementById('gr'),dt=document.getElementById('dt'),m=document.getElementById('m'),fm=document.getElementById('fm');
+gr.innerHTML=(new Date().getHours()<12?'صباح الفل':'مساء الفل')+' يا رفاعي <span class="chick">🐥</span>';
+dt.textContent=fd(today());
+document.getElementById('th').onclick=()=>{const d=document.documentElement;d.dataset.theme=d.dataset.theme==='light'?'dark':'light'};
+m.onclick=e=>{if(e.target===m)closeM()};
+render();
+</script>
+</body>
+</html>
