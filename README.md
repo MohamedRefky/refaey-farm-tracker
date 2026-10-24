@@ -1,55 +1,63 @@
-# 🐥 Refaey Farm Tracker | دفتر متابعة دورات الدواجن
+# 🐥 Refaey Farm Tracker
 
-تطبيق ويب خفيف، سريع، وعصري مخصص لإدارة وحساب كافة تفاصيل **دورات تربية وتسمين الدواجن والمزارع**. يوفر تحليلاً دقيقاً للمصروفات، الإيرادات، الأرباح، ونسب الكفاءة الحيوية للمزرعة.
-
----
-
-## 🌟 المميزات الرئيسية (Features)
-
-- **📊 إدارة الدورات (Flock Cycles):**
-  - إنشاء دورات جديدة ومتابعة الدورات الحالية وقفل الدورة عند انتهاء البيع.
-  - حساب فوري لصافي الأرباح أو الخسائر لكل دورة بشكل منفصل ومقارنتها.
-
-- **🐣 متابعة القطيع والنافق:**
-  - حساب نسبة النفوق (Mortality Rate %) تلقائياً والتنبيه عند ارتفاعها.
-  - حساب أعداد الطيور المباعة والمتبقية في المزرعة لحظياً.
-
-- **⚖️ معادلات الإنتاج والكفاءة (FCR & Costs):**
-  - **معامل التحويل الغذائي (FCR):** حساب كمية العلف المستهلكة مقابل كل كيلو وزن لحم مباع.
-  - **تكلفة الطائر:** حساب دقيق لنصيب الطائر الحي من إجمالي المصاريف.
-  - **ربح الطائر:** متوسط العائد والربح الصافي لكل طائر مباع.
-
-- **💰 الإيرادات والمصروفات:**
-  - تسجيل المصروفات وتصنيفها (كتاكيت، علف، أدوية وتحصينات، عمالة، كهرباء وغاز، نقل، وغيرها).
-  - تسجيل حركات البيع (عدد الطيور، الوزن الكلي بالكيلو، والمشتري).
-  - رسم بياني لتحليل بنود الصرف وأين ذهبت الميزانية.
-
-- **📝 دفتر المديونيات:**
-  - تسجيل ومتابعة الديون ("ليا عنده" أو "عليا لحد") مع إمكانية تعليمها كمدفوعة.
-
-- **🌓 تصميم تفاعلي:**
-  - تصميم عصري سريع يعمل على الهاتف والكمبيوتر.
-  - دعم الوضع المظلم والفاتح (Dark / Light Mode).
-  - لا يتطلب أي سيرفر أو قواعد بيانات خارجية (يعمل مباشرة في المتصفح).
+> A lightweight, modern, and responsive web application designed for poultry farm management, broiler flock cycle tracking, and production efficiency analytics.
 
 ---
 
-## 🚀 طريقة التشغيل (Quick Start)
+## 🌟 Key Features
 
-### 1. محلياً (Local):
-فقط قم بفتح ملف `index.html` في أي متصفح ويب على جهازك أو هاتفك.
+- **📊 Flock Cycle Management:**
+  - Create and track multiple broiler cycles simultaneously.
+  - Close cycles upon completion of sales.
+  - Real-time net profit/loss calculation per cycle with cycle-by-cycle comparisons.
 
-### 2. عبر GitHub Pages (Online):
-1. ارفع المشروع إلى حسابك على GitHub.
-2. اذهب إلى **Settings** > **Pages**.
-3. اختر فرع `main` ثم اضغط **Save**.
-4. سيصبح موقعك متاحاً أونلاين عبر رابط مباشر مجاناً!
+- **🐣 Flock & Mortality Tracking:**
+  - Automated **Mortality Rate (%)** calculation with alerts for abnormal rates.
+  - Real-time counts for active birds, sold birds, and remaining inventory in the farm.
+
+- **⚖️ Production Efficiency & Key Metrics:**
+  - **Feed Conversion Ratio (FCR):** Calculates feed consumed per kilogram of live body weight sold (a lower ratio indicates better feed efficiency).
+  - **Cost per Bird:** Dynamic distribution of total expenses across live birds.
+  - **Profit per Bird:** Average net revenue and profit margin per bird sold.
+
+- **💰 Expense & Income Ledger:**
+  - Categorized expense tracking (Chicks, Feed, Medication/Vaccines, Labor, Utilities, Transport, and Others).
+  - Detailed sales records (bird count, total weight in kg, sale price, and buyer).
+  - Visual breakdown charts showing where budget was allocated.
+
+- **📝 Debt & Receivables Tracker:**
+  - Track receivables ("Owed to me") and payables ("Owed by me").
+  - Simple one-click settlement status toggle.
+
+- **🌓 Interactive & Clean UI:**
+  - Sleek, mobile-first, and responsive interface.
+  - Dark & Light mode toggle.
+  - Zero dependencies or backend server required — runs 100% in the browser.
 
 ---
 
-## 🛠 التقنيات المستخدمة (Tech Stack)
+## 🚀 Quick Start
 
-- **HTML5 & Semantic Markup**
-- **Modern CSS3 (CSS Variables, Flexbox, Grid, Responsive Design)**
-- **Vanilla JavaScript (ES6+)**
-- **Fonts:** Tajawal & JetBrains Mono via Google Fonts
+### 1. Run Locally
+Simply open `index.html` in any modern web browser on your desktop or mobile phone.
+
+### 2. Live Demo via GitHub Pages
+You can host this project online for free with GitHub Pages:
+1. Push this repository to your GitHub account.
+2. Navigate to **Settings** > **Pages**.
+3. Under **Build and deployment**, select the `main` branch as the source and click **Save**.
+4. Your tracker will be live and accessible from anywhere via a public URL!
+
+---
+
+## 🛠 Tech Stack
+
+- **HTML5** (Semantic structure)
+- **Vanilla CSS3** (CSS Custom Properties, Flexbox, CSS Grid)
+- **Vanilla JavaScript** (ES6+, DOM Manipulation, Local State)
+- **Typography:** Tajawal & JetBrains Mono (via Google Fonts)
+
+---
+
+## 📄 License
+This project is open-source and available under the [MIT License](LICENSE).
