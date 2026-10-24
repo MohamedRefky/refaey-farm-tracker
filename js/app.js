@@ -141,7 +141,7 @@ function list(a) {
               <div class="cycle-icon-box">🐔</div>
               <div>
                 <div class="cycle-name">${c.name}</div>
-                <div class="cycle-date">بدأت: ${fd(c.start)}</div>
+                <div class="cycle-date">بدأت: ${fd(c.start)} ${isOngoing ? `• <b style="color:var(--emerald);">اليوم الـ ${Math.max(1, Math.floor((new Date(today()) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)}</b>` : (c.end ? `• استغرقت ${Math.max(1, Math.floor((new Date(c.end) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)} يوم` : '')}</div>
               </div>
             </div>
             <!-- The Glowing Green Light Beacon -->
@@ -220,7 +220,7 @@ function detail(a) {
           <div>
             <h2 style="font-size: 24px; font-weight: 800; color: var(--text-title);">${c.name}</h2>
             <div class="hero-substat-label">
-              بدأت: ${fd(c.start)} ${c.end ? ' • انتهت: ' + fd(c.end) : ''}
+              بدأت: ${fd(c.start)} ${c.end ? ' • انتهت: ' + fd(c.end) + ' (استغرقت ' + (Math.max(1, Math.floor((new Date(c.end) - new Date(c.start))/(1000*60*60*24))+1)) + ' يوم)' : ' • <b style="color:var(--emerald);">عمر الدورة: اليوم الـ ' + (Math.max(1, Math.floor((new Date(today()) - new Date(c.start))/(1000*60*60*24))+1)) + '</b>'}
             </div>
           </div>
         </div>
@@ -589,14 +589,43 @@ function closeC() {
 }
 
 // ==========================================================================
-// 4. HEADER & THEME TOGGLE
+// 4. LIVE REAL-TIME DATE & CLOCK (تحديث التاريخ والساعة لحظياً)
 // ==========================================================================
-const gr = document.getElementById('gr');
-const dt = document.getElementById('dt');
-const hours = new Date().getHours();
-const greetingText = hours < 12 ? 'صباح الخير والرزق' : 'مساء الخير والبركة';
-if (gr) gr.innerHTML = `${greetingText} يا رفاعي <span class="chick-anim">🐥</span>`;
-if (dt) dt.textContent = fd(today());
+function updateLiveClock() {
+  const now = new Date();
+  
+  // Format Date (العربية المحلية بدقة)
+  const dateFormatted = now.toLocaleDateString('ar-EG-u-nu-latn', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+  
+  // Format Time (الساعة والدقيقة الحية)
+  const timeFormatted = now.toLocaleTimeString('ar-EG-u-nu-latn', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  const dt = document.getElementById('dt');
+  if (dt) {
+    dt.textContent = `${dateFormatted} • ${timeFormatted}`;
+  }
+
+  // Live Greeting based on current hour
+  const gr = document.getElementById('gr');
+  if (gr) {
+    const hours = now.getHours();
+    const greetingText = hours < 12 ? 'صباح الخير والرزق' : 'مساء الخير والبركة';
+    gr.innerHTML = `${greetingText} يا رفاعي <span class="chick-anim">🐥</span>`;
+  }
+}
+
+// Run immediately and update every 10 seconds
+updateLiveClock();
+setInterval(updateLiveClock, 10000);
 
 const thBtn = document.getElementById('th');
 const thIcon = document.getElementById('th-icon');

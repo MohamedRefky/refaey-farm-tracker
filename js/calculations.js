@@ -5,10 +5,20 @@
 // Formats number with commas: 10000 -> 10,000
 const f = n => Math.round(n || 0).toLocaleString('en-US');
 
-// Formats date into readable Arabic date
+// Formats date into readable Arabic date (ensures local midnight parsing)
 const fd = d => {
   if (!d) return '';
-  return new Date(d + 'T00:00').toLocaleDateString('ar-EG-u-nu-latn', {
+  const parts = String(d).split('-');
+  if (parts.length === 3) {
+    const dateObj = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    return dateObj.toLocaleDateString('ar-EG-u-nu-latn', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  }
+  return new Date(d).toLocaleDateString('ar-EG-u-nu-latn', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

@@ -89,8 +89,14 @@ function updateNid() {
   nid = C.reduce((m, x) => Math.max(m, x.id), 0) + 1;
 }
 
-// Helper: Today's date in YYYY-MM-DD
-const today = () => new Date().toISOString().slice(0, 10);
+// Local date formatted as YYYY-MM-DD (safe against UTC timezone shifts)
+function today() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 // Sleek Toast Notification
 function showToast(message) {
