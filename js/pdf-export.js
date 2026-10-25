@@ -1,28 +1,21 @@
 /**
  * Refaey Farm Tracker - Professional PDF & Print Export Module
- * Generates clean, un-clipped A4 PDFs with perfect Arabic typography and proper margins.
+ * Generates clean, un-clipped A4 PDFs with perfect Arabic typography and proper multi-page flow.
  */
 
-async function downloadCyclePdf() {
-  const c = cur();
-  if (!c || window.__cyclePdfBusy) return;
-
-  window.__cyclePdfBusy = true;
-  showToast('جاري تجهيز وتنزيل كشف الدورة PDF…');
-
+function buildReportContainer(c) {
   const k = calc(c);
   const safe = v => String(v ?? '').trim() || '—';
   const isOngoing = !c.end;
   const cycleDays = Math.max(1, Math.floor((new Date(c.end || today()) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1);
 
-  // Build the dedicated A4 print/PDF container
   const container = document.createElement('div');
   container.id = 'cycle-pdf-export-container';
 
   container.innerHTML = `
     <style>
       #cycle-pdf-export-container {
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
         width: 750px;
@@ -30,7 +23,7 @@ async function downloadCyclePdf() {
         min-width: 750px;
         background: #ffffff !important;
         color: #0f172a !important;
-        padding: 24px 28px !important;
+        padding: 20px 24px !important;
         box-sizing: border-box !important;
         direction: rtl !important;
         text-align: right !important;
@@ -43,6 +36,8 @@ async function downloadCyclePdf() {
         font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif !important;
         word-spacing: 1px !important;
       }
+
+      /* Clean page-break rules */
       .pdf-header {
         display: flex;
         justify-content: space-between;
@@ -50,6 +45,8 @@ async function downloadCyclePdf() {
         border-bottom: 3px solid #10b981;
         padding-bottom: 12px;
         margin-bottom: 16px;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .pdf-title-box h1 {
         margin: 0 0 6px 0;
@@ -81,8 +78,10 @@ async function downloadCyclePdf() {
         margin: 18px 0 8px 0;
         padding-bottom: 4px;
         border-bottom: 2px solid #e2e8f0;
-        page-break-after: avoid;
-        break-after: avoid;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .pdf-metrics-grid {
         display: grid;
@@ -90,8 +89,8 @@ async function downloadCyclePdf() {
         gap: 8px;
         margin-bottom: 14px;
         width: 100%;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .pdf-card {
         background: #f8fafc;
@@ -100,6 +99,8 @@ async function downloadCyclePdf() {
         padding: 8px 10px;
         min-width: 0;
         overflow: hidden;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .pdf-card-label {
         font-size: 10px;
@@ -125,8 +126,6 @@ async function downloadCyclePdf() {
         table-layout: fixed;
         margin: 6px 0 16px 0;
         font-size: 10.5px;
-        page-break-inside: auto;
-        break-inside: auto;
       }
       .pdf-table th {
         background: #1e293b;
@@ -147,8 +146,8 @@ async function downloadCyclePdf() {
         background: #ffffff;
       }
       .pdf-table tr {
-        page-break-inside: avoid;
-        break-inside: avoid;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .pdf-table tr:nth-child(even) td {
         background: #f8fafc;
@@ -162,12 +161,52 @@ async function downloadCyclePdf() {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      /* Native Print Media Styles - Zero Overlapping on Page 2 */
+      @media print {
+        body > *:not(#cycle-pdf-export-container) {
+          display: none !important;
+        }
+        @page {
+          size: A4 portrait;
+          margin: 10mm 8mm 10mm 8mm;
+        }
+        #cycle-pdf-export-container {
+          position: static !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          border: none !important;
+          background: #ffffff !important;
+        }
+        .pdf-header {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .pdf-metrics-grid {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .pdf-table tr {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .pdf-section-title {
+          page-break-after: avoid !important;
+          break-after: avoid !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
       }
     </style>
 
-    <!-- Header Box -->
+    <!-- Header Box (Only at top of Report) -->
     <div class="pdf-header">
       <div class="pdf-title-box">
         <h1>كشف حساب الدورة : ${safe(c.name)}</h1>
@@ -183,7 +222,7 @@ async function downloadCyclePdf() {
       </div>
     </div>
 
-    <!-- Summary Metrics Grid (3 balanced columns fitting A4 perfectly) -->
+    <!-- Summary Metrics Grid (Only at top of Report) -->
     <div class="pdf-section-title">📊 الملخص المالي والإنتاجي للدورة</div>
     <div class="pdf-metrics-grid">
       <!-- Row 1 -->
@@ -442,6 +481,17 @@ async function downloadCyclePdf() {
     </div>
   `;
 
+  return container;
+}
+
+async function downloadCyclePdf() {
+  const c = cur();
+  if (!c || window.__cyclePdfBusy) return;
+
+  window.__cyclePdfBusy = true;
+  showToast('جاري تجهيز وتنزيل كشف الدورة PDF…');
+
+  const container = buildReportContainer(c);
   document.body.appendChild(container);
 
   try {
@@ -450,8 +500,8 @@ async function downloadCyclePdf() {
     }
 
     const opt = {
-      margin: [8, 6, 8, 6],
-      filename: `كشف دورة - ${safe(c.name).replace(/[\\/:*?"<>|]/g, '-')}.pdf`,
+      margin: [10, 8, 10, 8],
+      filename: `كشف دورة - ${c.name.replace(/[\\/:*?"<>|]/g, '-')}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 2,
@@ -459,7 +509,8 @@ async function downloadCyclePdf() {
         scrollY: 0,
         scrollX: 0,
         windowWidth: 780,
-        letterRendering: true
+        letterRendering: true,
+        logging: false
       },
       jsPDF: {
         unit: 'mm',
@@ -467,7 +518,7 @@ async function downloadCyclePdf() {
         orientation: 'portrait'
       },
       pagebreak: {
-        mode: ['avoid-all', 'css', 'legacy']
+        mode: ['css', 'legacy']
       }
     };
 
@@ -483,4 +534,18 @@ async function downloadCyclePdf() {
     if (container.parentNode) container.parentNode.removeChild(container);
     window.__cyclePdfBusy = false;
   }
+}
+
+function printCycle() {
+  const c = cur();
+  if (!c) return;
+
+  const container = buildReportContainer(c);
+  document.body.appendChild(container);
+
+  window.print();
+
+  setTimeout(() => {
+    if (container.parentNode) container.parentNode.removeChild(container);
+  }, 1000);
 }

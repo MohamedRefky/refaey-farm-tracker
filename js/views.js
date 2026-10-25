@@ -150,6 +150,9 @@ function detail(a) {
         <button class="print-btn" onclick="downloadCyclePdf()" title="تنزيل كشف الدورة بصيغة PDF">
           <span>📄</span> <span>تنزيل PDF</span>
         </button>
+        <button class="print-btn" onclick="printCycle()" title="طباعة مباشرة أو حفظ عبر المتصفح">
+          <span>🖨️</span> <span>طباعة</span>
+        </button>
       </div>
     </div>
 
