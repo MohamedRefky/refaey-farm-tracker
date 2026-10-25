@@ -942,10 +942,315 @@ select option {
   text-decoration: underline;
 }
 
+/* ==========================================================================
+   UI Additions: Validation, Banners, Debt Management & Feed Insights
+   ========================================================================== */
+
+/* Form Alerts & Hint Banners */
+.form-hint-banner {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  color: var(--sky);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-hint-banner.amber {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--amber);
+}
+
+.form-hint-banner.emerald {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--emerald);
+}
+
+.form-error-alert {
+  background: rgba(244, 63, 94, 0.16);
+  border: 1px solid var(--rose);
+  color: #fecdd3;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: shakeAlert 0.3s ease;
+}
+
+:root[data-theme="light"] .form-error-alert {
+  color: #9f1239;
+  background: #ffe4e6;
+  border-color: #fda4af;
+}
+
+@keyframes shakeAlert {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.input-error {
+  border-color: var(--rose) !important;
+  box-shadow: 0 0 0 3px var(--rose-glow) !important;
+}
+
+/* Quick Fill Buttons inside forms */
+.quick-fill-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+
+.quick-fill-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed var(--border-glow);
+  color: var(--emerald);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.quick-fill-btn:hover {
+  background: var(--emerald-light);
+  border-style: solid;
+}
+
+/* Tab Summary Mini Grid */
+.tab-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 640px) {
+  .tab-summary-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.tab-summary-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  transition: var(--transition);
+}
+
+.tab-summary-card:hover {
+  border-color: var(--border-glow);
+}
+
+.tab-summary-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.tab-summary-val {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: var(--font-num);
+  color: var(--text-title);
+  line-height: 1.2;
+}
+
+.tab-summary-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+/* Debt Direction Badges */
+.badge-debt-us {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-debt-them {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--rose);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.badge-paid {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-partial {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-unpaid {
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--rose);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.badge-feed-in {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-feed-out {
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--sky);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+/* Debt Progress Bar */
+.debt-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 8px 0 4px;
+}
+
+:root[data-theme="light"] .debt-progress-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.debt-progress-bar {
+  height: 100%;
+  background: var(--emerald);
+  border-radius: 3px;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Payment History Log */
+.payment-history-box {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-subtle);
+  font-size: 12px;
+}
+
+:root[data-theme="light"] .payment-history-box {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.payment-history-header {
+  font-weight: 800;
+  color: var(--text-title);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.payment-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme="light"] .payment-history-item {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+.payment-history-item:last-child {
+  border-bottom: none;
+}
+
+/* Sale Debt and Paid Tags */
+.sale-debt-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--amber);
+  background: rgba(245, 158, 11, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 3px;
+}
+
+.sale-paid-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--emerald);
+  background: rgba(16, 185, 129, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 3px;
+}
+
+/* Filter Chips Bar */
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.filter-chip:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--text-main);
+}
+
+.filter-chip.active {
+  background: var(--emerald-light);
+  border-color: var(--emerald);
+  color: var(--emerald);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
 /* Print Styles */
 @media print {
   body { background: #fff !important; color: #000 !important; }
-  .top-bar, .quick-actions-bar, .tabs-container, .btn, .footer-note, .theme-btn, #th, #toast { display: none !important; }
+  .top-bar, .quick-actions-bar, .tabs-container, .btn, .footer-note, .theme-btn, #th, #toast, .filter-chips, .quick-fill-row { display: none !important; }
   .card { border: 1px solid #ccc !important; box-shadow: none !important; background: #fff !important; break-inside: avoid; }
   .hero-card { border: 2px solid #000 !important; background: #fafafa !important; }
   .hero-big-number { text-shadow: none !important; }
