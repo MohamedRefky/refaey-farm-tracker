@@ -15,9 +15,9 @@ function buildReportContainer(c) {
   container.innerHTML = `
     <style>
       #cycle-pdf-export-container {
-        position: absolute;
+        position: fixed;
         top: 0;
-        left: 0;
+        left: -9999px;
         width: 750px;
         max-width: 750px;
         min-width: 750px;
@@ -491,10 +491,6 @@ async function downloadCyclePdf() {
   window.__cyclePdfBusy = true;
   showToast('جاري تجهيز وتنزيل كشف الدورة PDF…');
 
-  const prevScrollX = window.scrollX || window.pageXOffset || 0;
-  const prevScrollY = window.scrollY || window.pageYOffset || 0;
-  window.scrollTo(0, 0);
-
   const container = buildReportContainer(c);
   document.body.appendChild(container);
 
@@ -503,12 +499,15 @@ async function downloadCyclePdf() {
       throw new Error('مكتبة تصدير الـ PDF غير محملة');
     }
 
+    // Wait for fonts and allow browser to fully layout the offscreen container
     if (document.fonts?.ready) {
-      try {
-        await document.fonts.ready;
-      } catch (_) {}
+      try { await document.fonts.ready; } catch (_) {}
     }
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, 300));
+
+    // Measure the fully-rendered container
+    const containerWidth = container.scrollWidth || 750;
+    const containerHeight = container.scrollHeight || 1200;
 
     const opt = {
       margin: [10, 8, 10, 8],
@@ -518,11 +517,24 @@ async function downloadCyclePdf() {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
-        scrollY: 0,
         scrollX: 0,
-        windowWidth: 780,
+        scrollY: 0,
+        x: 0,
+        y: 0,
+        width: containerWidth,
+        height: containerHeight,
+        windowWidth: containerWidth,
+        windowHeight: containerHeight,
         letterRendering: true,
-        logging: false
+        logging: false,
+        onclone: function(clonedDoc) {
+          var el = clonedDoc.getElementById('cycle-pdf-export-container');
+          if (el) {
+            el.style.position = 'static';
+            el.style.left = '0';
+            el.style.top = '0';
+          }
+        }
       },
       jsPDF: {
         unit: 'mm',
@@ -542,7 +554,6 @@ async function downloadCyclePdf() {
     showToast('تعذر تنزيل ملف الـ PDF: ' + (error?.message || 'خطأ غير متوقع'));
   } finally {
     if (container.parentNode) container.parentNode.removeChild(container);
-    window.scrollTo(prevScrollX, prevScrollY);
     window.__cyclePdfBusy = false;
   }
 }
