@@ -158,7 +158,23 @@ function saveData() {
 }
 
 function resetDataPrompt() {
-  if (confirm('هل أنت متأكد من استعادة البيانات الافتراضية؟ سيتم مسح التعديلات المحلية.')) {
+  if (typeof showConfirmModal === 'function') {
+    showConfirmModal({
+      icon: '⚠️',
+      title: 'استعادة البيانات الافتراضية',
+      subtitle: 'هل أنت متأكد من رغبتك في استعادة البيانات الافتراضية؟ سيتم مسح أي تعديلات محلية قمت بها.',
+      itemIcon: '🔄',
+      itemTitle: 'إعادة ضبط المصنع للبيانات',
+      itemMeta: 'سيتم استرجاع الدورات التجريبية الافتراضية وتحديث الصفحة.',
+      confirmBtnText: 'نعم، استعادة البيانات الافتراضية',
+      onConfirm: () => {
+        C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
+        saveData();
+        showToast('تمت استعادة البيانات الافتراضية بنجاح');
+        render();
+      }
+    });
+  } else if (confirm('هل أنت متأكد من استعادة البيانات الافتراضية؟ سيتم مسح التعديلات المحلية.')) {
     C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
     saveData();
     showToast('تمت استعادة البيانات الافتراضية بنجاح');

@@ -1401,6 +1401,71 @@ function openPaymentModal(debtIndex) {
   m.classList.add('on');
 }
 
+// ==========================================================================
+// 4.1 CUSTOM CONFIRMATION & WARNING MODAL (نافذة تحذير وتأكيد الحذف المخصصة)
+// ==========================================================================
+function showConfirmModal({
+  icon = '🗑️',
+  title = 'تأكيد الحذف ⚠️',
+  subtitle = 'هل أنت متأكد من رغبتك في حذف هذا العنصر؟',
+  itemIcon = '📄',
+  itemTitle = '',
+  itemMeta = '',
+  warningNote = '',
+  confirmBtnText = 'نعم، احذف نهائياً',
+  onConfirm = () => {}
+}) {
+  const cm = document.getElementById('cm');
+  if (!cm) return;
+
+  cm.innerHTML = `
+    <div class="confirm-box" onclick="event.stopPropagation()">
+      <div class="confirm-icon-badge">${icon}</div>
+      <div class="confirm-title">${title}</div>
+      <div class="confirm-subtitle">${subtitle}</div>
+
+      <div class="confirm-item-card">
+        <div class="confirm-item-icon">${itemIcon}</div>
+        <div style="flex: 1; text-align: right; min-width: 0;">
+          <div class="confirm-item-text">${itemTitle}</div>
+          ${itemMeta ? `<div class="confirm-item-meta">${itemMeta}</div>` : ''}
+        </div>
+      </div>
+
+      ${warningNote ? `
+        <div class="confirm-warning-tag">
+          ⚠️ ${warningNote}
+        </div>
+      ` : ''}
+
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-danger" id="cm_confirm_btn" style="flex: 1;">
+          ${confirmBtnText}
+        </button>
+        <button type="button" class="btn btn-outline" id="cm_cancel_btn" style="flex: 1;" onclick="closeConfirmModal()">
+          إلغاء وتراجع
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('cm_confirm_btn').onclick = () => {
+    closeConfirmModal();
+    onConfirm();
+  };
+
+  cm.onclick = e => {
+    if (e.target === cm) closeConfirmModal();
+  };
+
+  cm.classList.add('on');
+}
+
+function closeConfirmModal() {
+  const cm = document.getElementById('cm');
+  if (cm) cm.classList.remove('on');
+}
+
 // Delete an individual payment record from debt history
 function deletePayment(debtIndex, paymentIndex) {
   const cycle = cur();
@@ -1408,44 +1473,80 @@ function deletePayment(debtIndex, paymentIndex) {
   const d = cycle.debt[debtIndex];
   const payment = d.payments[paymentIndex];
 
-  if (confirm(`هل تريد إلغاء هذه الدفعة المسددة بقيمة (${f(payment.amt)} ج)؟ سيتم استرجاع المبلغ للمديونية المتبقية.`)) {
-    d.paidAmt = Math.max(0, (d.paidAmt || 0) - payment.amt);
-    d.paid = d.paidAmt >= d.amt;
-    d.payments.splice(paymentIndex, 1);
+  showConfirmModal({
+    icon: '↩️',
+    title: 'تأكيد إلغاء دفعة السداد ⚠️',
+    subtitle: 'هل تريد إلغاء هذه الدفعة المسددة؟ سيتم إعادة المبلغ تلقائياً لرصيد المديونية المتبقي.',
+    itemIcon: '💵',
+    itemTitle: `دفعة سداد: ${f(payment.amt)} ج (${d.who})`,
+    itemMeta: `تاريخ السداد: ${fd(payment.d)} ${payment.note ? '• البيان: ' + payment.note : ''}`,
+    confirmBtnText: 'نعم، إلغاء الدفعة واسترجاع الرصيد',
+    onConfirm: () => {
+      d.paidAmt = Math.max(0, (d.paidAmt || 0) - payment.amt);
+      d.paid = d.paidAmt >= d.amt;
+      d.payments.splice(paymentIndex, 1);
 
-    saveData();
-    showToast('تم إلغاء الدفعة واسترجاع الرصيد');
-    render();
-  }
+      saveData();
+      showToast('تم إلغاء الدفعة واسترجاع الرصيد بنجاح');
+      render();
+    }
+  });
 }
 
 // Delete sale with automatic handling of linked debt
 function delSale(i) {
   const cycle = cur();
   const sale = cycle.inc[i];
-  if (confirm('هل أنت متأكد من حذف حركة البيع هذه؟')) {
-    // If there is an associated buyer debt that was generated automatically, delete it as well
-    if (sale.debtRefId || sale.id) {
-      const debtIdx = cycle.debt.findIndex(d => d.id === sale.debtRefId || d.saleId === sale.id);
-      if (debtIdx !== -1) {
-        cycle.debt.splice(debtIdx, 1);
+  const hasLinkedDebt = sale.debtRefId || sale.id;
+  const linkedDebt = hasLinkedDebt ? cycle.debt.find(d => d.id === sale.debtRefId || d.saleId === sale.id) : null;
+
+  showConfirmModal({
+    icon: '🗑️',
+    title: 'تأكيد حذف حركة البيع ⚠️',
+    subtitle: 'هل أنت متأكد من حذف حركة البيع هذه؟ سيتم خصم هذا المبلغ من إجمالي المبيعات وإعادة عدد الطيور المباعة إلى القطيع الحي بالمزرعة.',
+    itemIcon: '📈',
+    itemTitle: `بيع ${sale.cnt} طائر ${sale.buyer ? '(' + sale.buyer + ')' : ''}`,
+    itemMeta: `إجمالي القيمة: ${f(sale.amt)} ج • محصل كاش: ${f(sale.paidAmt)} ج • التاريخ: ${fd(sale.d)}`,
+    warningNote: linkedDebt ? `تنبيه: سيتم أيضاً حذف المديونية المرتبطة بهذا البيع (${f(linkedDebt.amt)} ج على ${linkedDebt.who}) تلقائياً منعاً لتكرار الديون.` : '',
+    confirmBtnText: 'نعم، حذف حركة البيع نهائياً',
+    onConfirm: () => {
+      if (linkedDebt) {
+        const debtIdx = cycle.debt.indexOf(linkedDebt);
+        if (debtIdx !== -1) {
+          cycle.debt.splice(debtIdx, 1);
+        }
       }
+      cycle.inc.splice(i, 1);
+      saveData();
+      showToast('تم حذف حركة البيع وتحديث الأرصدة والديون');
+      render();
     }
-    cycle.inc.splice(i, 1);
-    saveData();
-    showToast('تم حذف حركة البيع وتحديث الأرصدة والديون');
-    render();
-  }
+  });
 }
 
 // Delete debt record
 function delDebt(i) {
-  if (confirm('هل أنت متأكد من حذف هذا السجل للمديونية نهائياً؟')) {
-    cur().debt.splice(i, 1);
-    saveData();
-    showToast('تم حذف المديونية بنجاح');
-    render();
-  }
+  const cycle = cur();
+  const d = cycle.debt[i];
+  const isUs = d.dir === 'لنا';
+  const rem = Math.max(0, d.amt - (d.paidAmt || 0));
+
+  showConfirmModal({
+    icon: '🗑️',
+    title: 'تأكيد حذف المديونية ⚠️',
+    subtitle: 'هل أنت متأكد من رغبتك في حذف هذا السجل للمديونية نهائياً؟',
+    itemIcon: '📝',
+    itemTitle: `${d.who} (${isUs ? '🟢 مستحق لنا عنده' : '🔴 مستحق علينا له'})`,
+    itemMeta: `المبلغ الأصلي: ${f(d.amt)} ج • المسدد: ${f(d.paidAmt || 0)} ج • المتبقي: ${f(rem)} ج`,
+    warningNote: (d.payments && d.payments.length > 0) ? `تحذير: يحتوي هذا السجل على (${d.payments.length}) دفعات مسددة مسجلة سيتم مسحها بالكامل مع السجل.` : '',
+    confirmBtnText: 'نعم، احذف المديونية نهائياً',
+    onConfirm: () => {
+      cycle.debt.splice(i, 1);
+      saveData();
+      showToast('تم حذف المديونية بنجاح');
+      render();
+    }
+  });
 }
 
 // ==========================================================================
@@ -1528,17 +1629,30 @@ function editCycle() {
 }
 
 function deleteCycle(id) {
-  if (confirm('تحذير: هل أنت متأكد تماماً من حذف هذه الدورة بالكامل وكافة مصروفاتها ومبيعاتها؟ لا يمكن التراجع عن هذا الإجراء.')) {
-    const idx = C.findIndex(x => x.id === id);
-    if (idx !== -1) {
-      C.splice(idx, 1);
-      saveData();
-      closeM();
-      S.v = 'list';
-      showToast('تم حذف الدورة بنجاح');
-      render();
+  const cycle = C.find(x => x.id === id);
+  if (!cycle) return;
+
+  showConfirmModal({
+    icon: '🚨',
+    title: 'تحذير شديد: حذف دورة كاملة 🗑️',
+    subtitle: 'أنت على وشك حذف هذه الدورة بالكامل بكافة مصروفاتها ومبيعاتها وسجلاتها. لا يمكن استرجاع هذه البيانات بعد الحذف!',
+    itemIcon: '🐔',
+    itemTitle: `دورة: ${cycle.name}`,
+    itemMeta: `العدد المستلم: ${f(cycle.n)} طائر • بدأت: ${fd(cycle.start)}`,
+    warningNote: 'سيتم مسح كافة سجلات المصروفات، المبيعات، النافق، العلف، والديون المرتبطة بهذه الدورة نهائياً.',
+    confirmBtnText: 'نعم، أنا متأكد - احذف الدورة بالكامل',
+    onConfirm: () => {
+      const idx = C.findIndex(x => x.id === id);
+      if (idx !== -1) {
+        C.splice(idx, 1);
+        saveData();
+        closeM();
+        S.v = 'list';
+        showToast('تم حذف الدورة بنجاح');
+        render();
+      }
     }
-  }
+  });
 }
 
 function newCycle() {
@@ -1612,8 +1726,64 @@ function closeM() {
 }
 
 function del(i) {
-  if (confirm('هل أنت متأكد من حذف هذا التسجيل نهائياً؟')) {
-    cur()[S.tab].splice(i, 1);
+  const cycle = cur();
+  if (!cycle) return;
+  const kind = S.tab;
+
+  if (kind === 'exp') {
+    const e = cycle.exp[i];
+    showConfirmModal({
+      icon: '🗑️',
+      title: 'تأكيد حذف المصروف ⚠️',
+      subtitle: 'هل أنت متأكد من رغبتك في حذف هذا المصروف؟ سيتم خصم هذا المبلغ من إجمالي التكاليف.',
+      itemIcon: '💸',
+      itemTitle: `مصروف: ${e.cat} ${e.note ? '(' + e.note + ')' : ''}`,
+      itemMeta: `المبلغ: ${f(e.amt)} ج • التاريخ: ${fd(e.d)}`,
+      confirmBtnText: 'نعم، احذف المصروف',
+      onConfirm: () => {
+        cycle.exp.splice(i, 1);
+        saveData();
+        showToast('تم حذف المصروف بنجاح');
+        render();
+      }
+    });
+  } else if (kind === 'dead') {
+    const e = cycle.dead[i];
+    showConfirmModal({
+      icon: '🗑️',
+      title: 'تأكيد حذف تسجيل النافق ⚠️',
+      subtitle: 'هل أنت متأكد من حذف هذا السجل للنافق؟ سيتم استرجاع عدد هذه الطيور للرصيد الحي المتبقي بالمزرعة.',
+      itemIcon: '⚠️',
+      itemTitle: `تسجيل نافق: ${e.n} طائر ${e.note ? '(' + e.note + ')' : ''}`,
+      itemMeta: `التاريخ: ${fd(e.d)}`,
+      confirmBtnText: 'نعم، احذف السجل',
+      onConfirm: () => {
+        cycle.dead.splice(i, 1);
+        saveData();
+        showToast('تم حذف تسجيل النافق واسترجاع الطيور');
+        render();
+      }
+    });
+  } else if (kind === 'feed') {
+    const e = cycle.feed[i];
+    const isPurchased = e.type === 'purchased';
+    showConfirmModal({
+      icon: '🗑️',
+      title: 'تأكيد حذف حركة العلف ⚠️',
+      subtitle: 'هل أنت متأكد من حذف هذه الحركة؟ سيتم تحديث رصيد المخزن ومعامل التحويل تلقائياً.',
+      itemIcon: isPurchased ? '📦' : '🌾',
+      itemTitle: `${isPurchased ? 'علف وارد للمخزن' : 'علف مستهلك للطيور'}: ${e.txt || (e.q + ' ' + (e.unit || 'شكارة'))}`,
+      itemMeta: `الكمية: ${f(e.kg)} كجم • التاريخ: ${fd(e.d)}`,
+      confirmBtnText: 'نعم، احذف حركة العلف',
+      onConfirm: () => {
+        cycle.feed.splice(i, 1);
+        saveData();
+        showToast('تم حذف حركة العلف بنجاح');
+        render();
+      }
+    });
+  } else {
+    cycle[kind].splice(i, 1);
     saveData();
     showToast('تم الحذف بنجاح');
     render();
@@ -1621,12 +1791,24 @@ function del(i) {
 }
 
 function closeC() {
-  if (confirm('هل أنت متأكد من إغلاق هذه الدورة؟ (يمكنك دائماً مراجعة سجلاتها وأرباحها في أي وقت)')) {
-    cur().end = today();
-    saveData();
-    showToast('تم إغلاق الدورة بنجاح');
-    render();
-  }
+  const cycle = cur();
+  if (!cycle) return;
+
+  showConfirmModal({
+    icon: '🔒',
+    title: 'تأكيد إغلاق الدورة رسمياً',
+    subtitle: 'هل أنت متأكد من قفل هذه الدورة؟ سيتم تسجيل تاريخ اليوم كنهاية رسمية لانتهاء عمليات البيع والتسمين. (يمكنك دائماً مراجعة سجلاتها وأرباحها في أي وقت)',
+    itemIcon: '🐔',
+    itemTitle: `دورة: ${cycle.name}`,
+    itemMeta: `عمر الدورة حتى اليوم: ${Math.max(1, Math.floor((new Date(today()) - new Date(cycle.start))/(1000*60*60*24))+1)} يوم`,
+    confirmBtnText: 'نعم، إغلاق وقفل الدورة',
+    onConfirm: () => {
+      cycle.end = today();
+      saveData();
+      showToast('تم إغلاق الدورة بنجاح ✓');
+      render();
+    }
+  });
 }
 
 // ==========================================================================
@@ -1698,7 +1880,10 @@ if (m) {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeM();
+  if (e.key === 'Escape') {
+    closeM();
+    closeConfirmModal();
+  }
 });
 
 // Run Initial Render
