@@ -95,9 +95,9 @@ const tabs = [
 const cur = () => C.find(c => c.id === S.v);
 
 // Helper: Render Metric Card HTML
-function statBox(label, val, hint, icon, colorCls = '') {
+function statBox(label, val, hint, icon, colorCls = '', onclickAttr = '') {
   return `
-    <div class="stat-box">
+    <div class="stat-box" ${onclickAttr ? `onclick="${onclickAttr}" style="cursor: pointer;" title="اضغط للتفاصيل والشرح"` : ''}>
       <div class="stat-header">
         <span class="stat-label">${label}</span>
         <span class="stat-icon">${icon}</span>
@@ -330,7 +330,17 @@ function detail(a) {
       ${statBox('تكلفة الطائر', f(k.cpb) + ' ج', 'المصروف ÷ الحي', '💵')}
       ${statBox('ربح الطائر', f(k.ppb) + ' ج', 'الربح ÷ المباع', '📈', k.ppb >= 0 ? 'color-emerald' : 'color-rose')}
       ${statBox('العلف المستهلك', f(k.feedConsumedKg) + ' كجم', ((k.feedConsumedKg / bagKg).toFixed(1)) + ' شكارة أكلتها الطيور', '🌾')}
-      ${statBox('معامل التحويل (FCR)', k.fcr ? k.fcr.toFixed(2) : '-', 'العلف المستهلك ÷ وزن البيع', '⚖️', k.fcr && k.fcr <= 1.6 ? 'color-emerald' : 'color-amber')}
+      ${(() => {
+        const fcrVal = k.fcr ? k.fcr.toFixed(2) : null;
+        let hint = 'العلف المستهلك ÷ وزن البيع • ℹ️ اضغط للشرح';
+        if (fcrVal) {
+          if (k.fcr <= 1.55) hint = `🟢 ممتاز (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
+          else if (k.fcr <= 1.65) hint = `🟢 طبيعي ومربح (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
+          else if (k.fcr <= 1.80) hint = `🟠 متوسط وفيه هدر (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
+          else hint = `🔴 مرتفع وهدر علف (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
+        }
+        return statBox('معامل التحويل (FCR)', fcrVal || '-', hint, '⚖️', k.fcr && k.fcr <= 1.6 ? 'color-emerald' : 'color-amber', 'showFcrModal()');
+      })()}
     </div>
 
     <!-- Navigation Tabs -->
@@ -479,10 +489,22 @@ function renderFeedTab(c, k) {
         <span class="tab-summary-val ${k.feedStockKg > 0 ? 'color-emerald' : 'color-rose'}">${f(k.feedStockKg)} كجم</span>
         <span class="tab-summary-sub">${(k.feedStockKg / bagKg).toFixed(1)} شكارة حالياً بالمخزن</span>
       </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">معامل التحويل (FCR)</span>
+      <div class="tab-summary-card" onclick="showFcrModal()" style="cursor: pointer;" title="اضغط لمعرفة شرح وتفاصيل معامل التحويل">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="tab-summary-label">معامل التحويل (FCR)</span>
+          <span style="font-size: 11px; color: var(--emerald); font-weight: 700;">اضغط للشرح ℹ️</span>
+        </div>
         <span class="tab-summary-val ${k.fcr && k.fcr <= 1.6 ? 'color-emerald' : 'color-amber'}">${k.fcr ? k.fcr.toFixed(2) : '-'}</span>
-        <span class="tab-summary-sub">المستهلك ÷ وزن المباع</span>
+        <span class="tab-summary-sub">
+          ${(() => {
+            if (!k.fcr) return 'المستهلك ÷ وزن المباع • اضغط للشرح ℹ️';
+            const val = k.fcr.toFixed(2);
+            if (k.fcr <= 1.55) return `🟢 ممتاز (${val} كجم علف/كجم لحم) • تفاصيل`;
+            if (k.fcr <= 1.65) return `🟢 طبيعي ومربح (${val} كجم علف/كجم لحم) • تفاصيل`;
+            if (k.fcr <= 1.80) return `🟠 متوسط وفيه هدر (${val} كجم علف/كجم لحم) • تفاصيل`;
+            return `🔴 مرتفع وهدر علف (${val} كجم علف/كجم لحم) • تفاصيل`;
+          })()}
+        </span>
       </div>
     </div>
 
@@ -1781,6 +1803,117 @@ function showConfirmModal({
 function closeConfirmModal() {
   const cm = document.getElementById('cm');
   if (cm) cm.classList.remove('on');
+}
+
+// ==========================================================================
+// 4.2 EDUCATIONAL & INTERACTIVE FCR GUIDE MODAL (دليل وشرح معامل التحويل)
+// ==========================================================================
+function showFcrModal() {
+  const cycle = cur();
+  if (!cycle) return;
+  const k = calc(cycle);
+  const cm = document.getElementById('cm');
+  if (!cm) return;
+
+  const fcrVal = k.fcr ? k.fcr.toFixed(2) : null;
+  let statusBadge = '';
+  let statusText = '';
+  let statusColor = 'var(--emerald)';
+
+  if (!fcrVal) {
+    statusBadge = '⏳ بانتظار تسجيل أوزان البيع';
+    statusText = 'لم يتم تسجيل أوزان بيع بالكيلو بعد. سيبدأ حساب معامل التحويل تلقائياً بمجرد تسجيل أول حركة بيع طيور مع وزنها الإجمالي.';
+    statusColor = 'var(--text-muted)';
+  } else if (k.fcr <= 1.55) {
+    statusBadge = '🌟 سوبر ممتاز (أعلى كفاءة وأقصى ربح)';
+    statusText = `كل 1 كيلو لحم انتجته دورتك كلفك ${fcrVal} كجم علف فقط. هذا أداء استثنائي وتوفير كبير في تكلفة العلف.`;
+    statusColor = 'var(--emerald)';
+  } else if (k.fcr <= 1.65) {
+    statusBadge = '🟢 طبيعي ومربح (ضمن المعدل القياسي)';
+    statusText = `كل 1 كيلو لحم انتجته دورتك كلفك ${fcrVal} كجم علف. هذا هو المعدل الطبيعي والمربح لمعظم مزارع التسمين الناجحة.`;
+    statusColor = 'var(--emerald)';
+  } else if (k.fcr <= 1.80) {
+    statusBadge = '🟠 متوسط وفيه هدر نسبي في العلف';
+    statusText = `كل 1 كيلو لحم كلفك ${fcrVal} كجم علف. الفراخ تستهلك علف زيادة مقارنة بالوزن المكتسب، يُفضل مراجعة التهوية والتدفئة ومنع هدر العلافات.`;
+    statusColor = 'var(--amber)';
+  } else {
+    statusBadge = '🔴 مرتفع جداً (هدر في العلف وخسارة)';
+    statusText = `كل 1 كيلو لحم أخذ ${fcrVal} كجم علف! الفراخ تستهلك علفاً كبيراً دون تحقيق وزن مناسب. قد يكون السبب برودة العنبر، أو علف رديء، أو إصابة معوية (كوكسيديا/كلوسترديا).`;
+    statusColor = 'var(--rose)';
+  }
+
+  cm.innerHTML = `
+    <div class="confirm-box" onclick="event.stopPropagation()" style="max-width: 540px; text-align: right;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 24px;">⚖️</span>
+          <div>
+            <div style="font-size: 17px; font-weight: 800; color: var(--text-title);">دليل معامل التحويل الغذائي (FCR)</div>
+            <div style="font-size: 12px; color: var(--text-muted);">ميزان كفاءة العلف وسر ربحية الدورة</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline" onclick="closeConfirmModal()">✕</button>
+      </div>
+
+      <!-- Current Cycle FCR Spotlight Card -->
+      <div class="card" style="margin-bottom: 14px; padding: 16px; background: rgba(0,0,0,0.25); border-color: ${statusColor};">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">معامل التحويل لدورتك الحالية:</span>
+          <span style="font-size: 28px; font-weight: 800; font-family: var(--font-num); color: ${statusColor};">
+            ${fcrVal ? fcrVal : '-'}
+          </span>
+        </div>
+        <div style="display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; margin-bottom: 8px; background: rgba(255,255,255,0.06); color: ${statusColor}; border: 1px solid ${statusColor};">
+          ${statusBadge}
+        </div>
+        <div style="font-size: 13px; line-height: 1.5; color: var(--text-main);">
+          ${statusText}
+        </div>
+        ${fcrVal ? `
+          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-subtle); font-size: 11px; color: var(--text-muted);">
+            📊 تم حسابه من: علف مستهلك (<b>${f(k.feedConsumedKg)} كجم</b>) ÷ إجمالي وزن البيع (<b>${f(k.kgS)} كجم</b>).
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Golden Rule -->
+      <div class="form-hint-banner emerald" style="margin-bottom: 14px;">
+        <span>💰</span>
+        <span><b>القاعدة الذهبية:</b> كل ما الرقم <u>يقل</u>، كل ما أرباحك <u>تزيد</u>! (علف قليل = لحم كثير = توفير فلوس).</span>
+      </div>
+
+      <!-- Benchmark Guide -->
+      <div style="font-size: 13px; font-weight: 800; color: var(--text-title); margin-bottom: 8px;">
+        📌 كيف تقرأ وتقيّم أي رقم في المزرعة؟
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; font-size: 12px;">
+        <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 6px; background: rgba(16,185,129,0.12); border: 1px solid var(--emerald); color: var(--text-main);">
+          <span>🌟 <b>أقل من 1.55</b>: سوبر ممتاز</span>
+          <span style="color: var(--emerald); font-weight: 700;">أقصى ربحية ممكنة</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 6px; background: rgba(16,185,129,0.06); border: 1px solid var(--border-subtle); color: var(--text-main);">
+          <span>🟢 <b>1.55 إلى 1.65</b>: طبيعي ومربح</span>
+          <span style="color: var(--emerald); font-weight: 700;">المعدل القياسي للمزارع</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 6px; background: rgba(245,158,11,0.08); border: 1px solid var(--amber); color: var(--text-main);">
+          <span>🟠 <b>1.65 إلى 1.80</b>: متوسط وفيه هدر</span>
+          <span style="color: var(--amber); font-weight: 700;">راجع التدفئة والعلافات</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 6px; background: rgba(244,63,94,0.08); border: 1px solid var(--rose); color: var(--text-main);">
+          <span>🔴 <b>أكثر من 1.80</b>: خسارة وهدر علف</span>
+          <span style="color: var(--rose); font-weight: 700;">افحص الأمراض والسموم</span>
+        </div>
+      </div>
+
+      <div style="text-align: center;">
+        <button type="button" class="btn btn-primary btn-full" onclick="closeConfirmModal()">
+          فهمت ذلك، شكراً لك ✓
+        </button>
+      </div>
+    </div>
+  `;
+
+  cm.classList.add('on');
 }
 
 // Delete an individual payment record from debt history
