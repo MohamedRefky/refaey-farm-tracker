@@ -1247,6 +1247,405 @@ select option {
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
 }
 
+/* ==========================================================================
+   Comprehensive Mobile & Tablet Responsive Architecture
+   Fixes spacing, font sizes, overflows, modal presentation, and touch targets
+   ========================================================================== */
+
+/* Dual Action Row (e.g. in Feed Tab) */
+.dual-action-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dual-action-row .btn {
+  flex: 1;
+}
+
+/* Detail Navigation Actions */
+.detail-nav-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Hero Cycle Header in Detail View */
+.hero-cycle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+.hero-cycle-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.hero-cycle-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-title);
+  line-height: 1.2;
+}
+
+/* Debt Actions Row */
+.debt-actions-row {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+/* Form Actions Row */
+.form-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Viewport Styles (max-width: 640px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* Container & Body Spacing */
+  .w {
+    padding: 12px 10px 90px;
+  }
+
+  body::before, body::after {
+    width: 250px;
+    height: 250px;
+    opacity: 0.6;
+  }
+
+  /* Top Bar */
+  .top-bar {
+    gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+  }
+  .brand-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+    border-radius: var(--radius-sm);
+  }
+  .greeting-title {
+    font-size: 16px;
+    gap: 4px;
+  }
+  .greeting-date {
+    font-size: 11px;
+  }
+  .theme-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  /* Section Title */
+  .section-title {
+    font-size: 16px;
+    margin: 18px 0 10px;
+  }
+
+  /* Cards */
+  .card {
+    padding: 14px 12px;
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+  }
+  .hero-card {
+    padding: 16px 12px;
+  }
+  .hero-label {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .hero-big-number {
+    font-size: 28px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .hero-big-number small {
+    font-size: 13px;
+  }
+
+  .hero-stats-row {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 14px;
+    padding-top: 12px;
+  }
+  .hero-substat-label {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+  .hero-substat-value {
+    font-size: 14px;
+    margin-top: 2px;
+  }
+  .hero-substat small {
+    display: none !important;
+  }
+
+  /* Detail View Header */
+  .detail-top-nav {
+    margin-bottom: 10px;
+    gap: 6px;
+  }
+  .back-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .print-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .hero-cycle-name {
+    font-size: 18px;
+  }
+  .cycle-icon-box.hero-icon {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 18px !important;
+  }
+
+  /* Quick Actions Bar (Horizontal Scrollable Ribbon on Mobile) */
+  .quick-actions-bar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    margin: 10px 0 14px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .quick-actions-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .quick-action-btn {
+    flex: 0 0 85px;
+    padding: 10px 6px;
+    font-size: 11px;
+    border-radius: var(--radius-sm);
+  }
+  .quick-action-icon {
+    font-size: 19px;
+  }
+
+  /* Cycle Card on Homepage */
+  .cycle-card {
+    padding: 14px 12px;
+  }
+  .cycle-card-header {
+    margin-bottom: 12px;
+  }
+  .cycle-name {
+    font-size: 16px;
+  }
+  .cycle-date {
+    font-size: 11px;
+  }
+  .cycle-icon-box {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  .badge {
+    padding: 4px 10px;
+    font-size: 11px;
+    gap: 6px;
+  }
+  .cycle-details-grid {
+    padding-top: 10px;
+    gap: 6px;
+  }
+  .cycle-details-grid > div .num {
+    font-size: 14px !important;
+  }
+  .cycle-details-grid > div:last-child .num {
+    font-size: 16px !important;
+  }
+
+  /* Stats Grid (2 columns on mobile) */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat-box {
+    padding: 10px 10px;
+    border-radius: var(--radius-sm);
+  }
+  .stat-label {
+    font-size: 11px;
+  }
+  .stat-icon {
+    font-size: 15px;
+  }
+  .stat-value {
+    font-size: 16px;
+  }
+  .stat-hint {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  /* Tab Summary Grid */
+  .tab-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .tab-summary-card {
+    padding: 10px 10px;
+    border-radius: var(--radius-sm);
+  }
+  .tab-summary-label {
+    font-size: 10px;
+  }
+  .tab-summary-val {
+    font-size: 15px;
+  }
+  .tab-summary-sub {
+    font-size: 9px;
+  }
+
+  /* Tabs Navigation Pills */
+  .tabs-container {
+    gap: 6px;
+    margin: 14px 0 10px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-pill {
+    padding: 7px 12px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  /* Dual Action Buttons (e.g. Feed tab) */
+  .dual-action-row {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .dual-action-row .btn {
+    width: 100%;
+    padding: 11px;
+    font-size: 13px;
+  }
+
+  /* Record Items (Stacked layout on mobile for zero overflow) */
+  .record-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 0;
+  }
+  .record-title {
+    font-size: 14px;
+  }
+  .record-date {
+    font-size: 11px;
+  }
+  .record-value-group {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+  :root[data-theme="light"] .record-value-group {
+    border-top-color: rgba(0, 0, 0, 0.08);
+  }
+  .record-value {
+    font-size: 15px;
+  }
+  .record-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Buttons */
+  .btn-full {
+    padding: 12px;
+    font-size: 14px;
+  }
+  .btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  /* Debt Item Special Mobile Adjustments */
+  .debt-actions-row {
+    justify-content: stretch;
+    gap: 6px;
+  }
+  .debt-actions-row .btn {
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
+  }
+
+  /* Filter Chips */
+  .filter-chips {
+    gap: 6px;
+    margin: 8px 0 10px;
+  }
+  .filter-chip {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  /* Modal Dialog (Native Mobile Bottom-Sheet Experience) */
+  #m {
+    padding: 0;
+    align-items: flex-end;
+  }
+  #m form {
+    max-width: 100%;
+    width: 100%;
+    max-height: 88vh;
+    padding: 20px 16px 28px;
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+  }
+  .form-header {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+  }
+  .form-title {
+    font-size: 17px;
+  }
+  label {
+    font-size: 12px;
+    margin: 10px 0 4px;
+  }
+  input, select {
+    font-size: 16px; /* Essential to prevent iOS auto-zoom */
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+  }
+  .form-actions-row {
+    margin-top: 18px;
+    gap: 8px;
+  }
+  .form-actions-row .btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+  .quick-fill-btn {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+}
+
 /* Print Styles */
 @media print {
   body { background: #fff !important; color: #000 !important; }

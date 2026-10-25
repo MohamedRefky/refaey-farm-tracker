@@ -232,25 +232,25 @@ function detail(a) {
     <!-- Top Nav with Print and Edit Support -->
     <div class="detail-top-nav">
       <button class="back-btn" onclick="S.v='list'; render()">
-        <span>→</span> العودة لكل الدورات
+        <span>→</span> <span class="nav-text">العودة لكل الدورات</span>
       </button>
-      <div style="display: flex; gap: 8px;">
+      <div class="detail-nav-actions">
         <button class="print-btn" onclick="editCycle()" title="تعديل بيانات الدورة">
-          <span>✏️</span> تعديل الدورة
+          <span>✏️</span> <span>تعديل</span>
         </button>
         <button class="print-btn" onclick="window.print()" title="طباعة تقرير الدورة">
-          <span>🖨️</span> طباعة كشف الدورة
+          <span>🖨️</span> <span>طباعة</span>
         </button>
       </div>
     </div>
 
     <!-- Cycle Hero Summary -->
     <div class="card hero-card">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="cycle-icon-box" style="width: 50px; height: 50px; font-size: 24px;">🐔</div>
+      <div class="hero-cycle-header">
+        <div class="hero-cycle-info">
+          <div class="cycle-icon-box hero-icon" style="width: 50px; height: 50px; font-size: 24px;">🐔</div>
           <div>
-            <h2 style="font-size: 24px; font-weight: 800; color: var(--text-title);">${c.name}</h2>
+            <h2 class="hero-cycle-name">${c.name}</h2>
             <div class="hero-substat-label">
               بدأت: ${fd(c.start)} ${c.end ? ' • انتهت: ' + fd(c.end) + ' (استغرقت ' + (Math.max(1, Math.floor((new Date(c.end) - new Date(c.start))/(1000*60*60*24))+1)) + ' يوم)' : ' • <b style="color:var(--emerald);">عمر الدورة: اليوم الـ ' + (Math.max(1, Math.floor((new Date(today()) - new Date(c.start))/(1000*60*60*24))+1)) + '</b>'}
             </div>
@@ -491,11 +491,11 @@ function renderFeedTab(c, k) {
     </div>
 
     <!-- Dual Action Buttons: Feed Consumed vs Feed Purchased -->
-    <div style="display: flex; gap: 10px; margin-bottom: 14px;">
-      <button class="btn btn-primary" style="flex: 1;" onclick="openFeedForm('consumed')">
+    <div class="dual-action-row">
+      <button class="btn btn-primary" onclick="openFeedForm('consumed')">
         <span>🌾</span> + تسجيل استهلاك علف (أكلته الطيور)
       </button>
-      <button class="btn btn-outline" style="flex: 1;" onclick="openFeedForm('purchased')">
+      <button class="btn btn-outline" onclick="openFeedForm('purchased')">
         <span>📦</span> + توريد / شراء علف للمخزن
       </button>
     </div>
@@ -632,7 +632,7 @@ function renderDebtTab(c, k) {
             </div>
 
             <!-- Action Buttons for Debt -->
-            <div style="display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap;">
+            <div class="debt-actions-row">
               ${!isPaid ? `
                 <button class="btn btn-sm btn-primary" onclick="openPaymentModal(${i})">
                   💵 تسجيل سداد / دفعة
@@ -1066,7 +1066,7 @@ function openForm(kind, editIndex = null, prefillType = null) {
   }
 
   h += `
-    <div style="display: flex; gap: 10px; margin-top: 24px;">
+    <div class="form-actions-row">
       <button class="btn btn-primary" style="flex: 2;" type="submit">${isEdit ? 'حفظ التعديلات' : 'حفظ البيانات'}</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
@@ -1355,7 +1355,7 @@ function openPaymentModal(debtIndex) {
     <label>طريقة الدفع أو بيان (اختياري)</label>
     <input type="text" id="p_note" placeholder="مثال: نقداً كاش، فودافون كاش، تحويل بنكي...">
 
-    <div style="display: flex; gap: 10px; margin-top: 24px;">
+    <div class="form-actions-row">
       <button class="btn btn-primary" style="flex: 2;" type="submit">تسجيل السداد والحفظ</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
@@ -1478,7 +1478,7 @@ function editCycle() {
       <option value="closed" ${c.end ? 'selected' : ''}>مقفولة (مكتملة)</option>
     </select>
 
-    <div style="display: flex; gap: 10px; margin-top: 24px;">
+    <div class="form-actions-row">
       <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديلات الدورة</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
@@ -1559,7 +1559,7 @@ function newCycle() {
     <label>عدد الكتاكيت المستلمة *</label>
     <input type="number" id="nc" inputmode="numeric" placeholder="مثلاً: 1000">
 
-    <div style="display: flex; gap: 10px; margin-top: 24px;">
+    <div class="form-actions-row">
       <button class="btn btn-primary" style="flex: 2;" type="submit">إنشاء الدورة</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
