@@ -1,44 +1,44 @@
-# 🐥 Refaey Farm Tracker
+# Refaey Farm Tracker
 
 > A lightweight, modern, and responsive web application designed for poultry farm management, broiler flock cycle tracking, and production efficiency analytics.
 
-🔗 **Live Demo:** [https://mohamedrefky.github.io/refaey-farm-tracker/](https://mohamedrefky.github.io/refaey-farm-tracker/)
+**Live Demo:** [https://mohamedrefky.github.io/refaey-farm-tracker/](https://mohamedrefky.github.io/refaey-farm-tracker/)
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-- **📊 Flock Cycle Management:**
+- **Flock Cycle Management:**
   - Create and track multiple broiler cycles simultaneously.
   - Close cycles upon completion of sales.
   - Real-time net profit/loss calculation per cycle with cycle-by-cycle comparisons.
 
-- **🐣 Flock & Mortality Tracking:**
+- **Flock & Mortality Tracking:**
   - Automated **Mortality Rate (%)** calculation with alerts for abnormal rates.
   - Real-time counts for active birds, sold birds, and remaining inventory in the farm.
 
-- **⚖️ Production Efficiency & Key Metrics:**
+- **Production Efficiency & Key Metrics:**
   - **Feed Conversion Ratio (FCR):** Calculates feed consumed per kilogram of live body weight sold (a lower ratio indicates better feed efficiency).
   - **Cost per Bird:** Dynamic distribution of total expenses across live birds.
   - **Profit per Bird:** Average net revenue and profit margin per bird sold.
 
-- **💰 Expense & Income Ledger:**
+- **Expense & Income Ledger:**
   - Categorized expense tracking (Chicks, Feed, Medication/Vaccines, Labor, Utilities, Transport, and Others).
   - Detailed sales records (bird count, total weight in kg, sale price, and buyer).
   - Visual breakdown charts showing where budget was allocated.
 
-- **📝 Debt & Receivables Tracker:**
+- **Debt & Receivables Tracker:**
   - Track receivables ("Owed to me") and payables ("Owed by me").
   - Simple one-click settlement status toggle.
 
-- **🌓 Interactive & Clean UI:**
+- **Interactive & Clean UI:**
   - Sleek, mobile-first, and responsive interface.
   - Dark & Light mode toggle.
   - Zero dependencies or backend server required — runs 100% in the browser.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Run Locally
 Simply open `index.html` in any modern web browser on your desktop or mobile phone.
@@ -52,7 +52,7 @@ You can host this project online for free with GitHub Pages:
 
 ---
 
-## 📁 Project Architecture
+## Project Architecture
 
 ```text
 refaey-farm-tracker/
@@ -69,7 +69,7 @@ refaey-farm-tracker/
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **HTML5** (Semantic structure)
 - **Vanilla CSS3** (Custom properties, flexbox, CSS grid, micro-animations)
@@ -78,5 +78,5 @@ refaey-farm-tracker/
 
 ---
 
-## 📄 License
+## License
 This project is open-source and available under the [MIT License](LICENSE).

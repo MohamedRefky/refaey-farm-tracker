@@ -12,6 +12,72 @@ let S = {
   openPayments: {}    // tracks expanded payment histories: { [debtId]: true }
 };
 
+// ==========================================================================
+// Money Privacy System (Top-level declarations to avoid TDZ ReferenceError)
+// ==========================================================================
+const MONEY_VISIBILITY_KEY = 'refaey_money_visibility_v1';
+let moneyValuesHidden = false;
+try {
+  const savedMoneyVisibility = localStorage.getItem(MONEY_VISIBILITY_KEY);
+  if (savedMoneyVisibility !== null) moneyValuesHidden = savedMoneyVisibility === 'hidden';
+} catch (e) {
+  // Keep default when storage is unavailable
+}
+
+const moneyTextOriginals = new WeakMap();
+
+function applyMoneyPrivacy(root = document.body) {
+  if (!root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node;
+
+  while ((node = walker.nextNode())) {
+    const parent = node.parentElement;
+    if (!parent || parent.closest('script, style, textarea, input, #cycle-pdf-export')) continue;
+
+    const original = moneyTextOriginals.has(node) ? moneyTextOriginals.get(node) : node.nodeValue;
+    moneyTextOriginals.set(node, original);
+
+    let display = original;
+    if (moneyValuesHidden && parent.closest('.money-privacy-value')) {
+      display = original.replace(/[+-]?[\d,]+(?:\.\d+)?/g, '••••');
+    } else if (moneyValuesHidden) {
+      display = original.replace(/[+-]?\s*[\d,]+(?:\.\d+)?(?=\s*(?:جنيه(?:\s*مصري)?|ج(?:\s*\/\s*[\u0600-\u06FF]+)?)(?=$|[\s).،•:;]))/g, '••••');
+    }
+
+    if (node.nodeValue !== display) node.nodeValue = display;
+  }
+}
+
+function updateMoneyPrivacyButton() {
+  const button = document.getElementById('money-privacy-toggle');
+  const icon = document.getElementById('money-privacy-icon');
+  const label = document.getElementById('money-privacy-label');
+  if (!button) return;
+
+  button.setAttribute('aria-pressed', String(moneyValuesHidden));
+  button.setAttribute('aria-label', 'تبديل إخفاء وإظهار المبالغ المالية');
+  button.title = moneyValuesHidden
+    ? 'المبالغ مخفية لحماية الخصوصية. اضغط لإظهارها؛ وسيتذكر الدفتر اختيارك في المرة القادمة.'
+    : 'المبالغ ظاهرة. اضغط لإخفائها؛ وسيتذكر الدفتر اختيارك في المرة القادمة.';
+  if (icon) icon.textContent = moneyValuesHidden ? '🙈' : '👁️';
+  if (label) label.textContent = moneyValuesHidden ? 'إظهار المبالغ' : 'إخفاء المبالغ';
+}
+
+function toggleMoneyPrivacy() {
+  moneyValuesHidden = !moneyValuesHidden;
+  try {
+    localStorage.setItem(MONEY_VISIBILITY_KEY, moneyValuesHidden ? 'hidden' : 'visible');
+  } catch (e) {
+    // Current session still works
+  }
+  updateMoneyPrivacyButton();
+  applyMoneyPrivacy(document.body);
+  showToast(moneyValuesHidden
+    ? 'تم إخفاء المبالغ، وسيُحفظ اختيارك للزيارة القادمة'
+    : 'تم إظهار المبالغ، وسيُحفظ اختيارك للزيارة القادمة');
+}
+
 // Field Schemas and Display Helpers
 const K = {
   exp: {
@@ -123,7 +189,7 @@ function list(a) {
         <span>📊</span> إجمالي صافي أرباح جميع الدورات
       </div>
       <div class="hero-big-number ${tot >= 0 ? 'color-emerald' : 'color-rose'}">
-        ${f(tot)} <small>جنيه مصري</small>
+        <span class="money-privacy-value">${f(tot)}</span> <small>جنيه مصري</small>
       </div>
 
       <div class="hero-stats-row">
@@ -265,7 +331,7 @@ function detail(a) {
         ${k.p >= 0 ? 'صافي أرباح الدورة حتى الآن (إجمالي)' : 'صافي الخسارة حتى الآن'}
       </div>
       <div class="hero-big-number ${k.p >= 0 ? 'color-emerald' : 'color-rose'}">
-        ${f(Math.abs(k.p))} <small>جنيه مصري</small>
+        <span class="money-privacy-value">${f(Math.abs(k.p))}</span> <small>جنيه مصري</small>
       </div>
 
       <div class="hero-stats-row">
@@ -849,6 +915,7 @@ function render() {
   } else {
     detail(a);
   }
+  applyMoneyPrivacy(a);
 }
 
 // ==========================================================================
@@ -2500,6 +2567,18 @@ function updateLiveClock() {
 
 updateLiveClock();
 setInterval(updateLiveClock, 10000);
+
+const moneyPrivacyButton = document.getElementById('money-privacy-toggle');
+if (moneyPrivacyButton) moneyPrivacyButton.onclick = toggleMoneyPrivacy;
+updateMoneyPrivacyButton();
+
+const moneyPrivacyObserver = new MutationObserver(() => {
+  if (moneyValuesHidden) applyMoneyPrivacy(document.body);
+});
+['app', 'm', 'cm'].forEach(id => {
+  const root = document.getElementById(id);
+  if (root) moneyPrivacyObserver.observe(root, { childList: true, subtree: true });
+});
 
 const thBtn = document.getElementById('th');
 const thIcon = document.getElementById('th-icon');
