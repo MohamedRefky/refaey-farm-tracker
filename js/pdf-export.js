@@ -491,13 +491,24 @@ async function downloadCyclePdf() {
   window.__cyclePdfBusy = true;
   showToast('جاري تجهيز وتنزيل كشف الدورة PDF…');
 
+  const prevScrollX = window.scrollX || window.pageXOffset || 0;
+  const prevScrollY = window.scrollY || window.pageYOffset || 0;
+  window.scrollTo(0, 0);
+
   const container = buildReportContainer(c);
   document.body.appendChild(container);
 
   try {
     if (typeof window.html2pdf !== 'function') {
-      throw new Error('html2pdf library is not loaded');
+      throw new Error('مكتبة تصدير الـ PDF غير محملة');
     }
+
+    if (document.fonts?.ready) {
+      try {
+        await document.fonts.ready;
+      } catch (_) {}
+    }
+    await new Promise(r => setTimeout(r, 150));
 
     const opt = {
       margin: [10, 8, 10, 8],
@@ -506,6 +517,7 @@ async function downloadCyclePdf() {
       html2canvas: {
         scale: 2,
         useCORS: true,
+        backgroundColor: '#ffffff',
         scrollY: 0,
         scrollX: 0,
         windowWidth: 780,
@@ -526,26 +538,12 @@ async function downloadCyclePdf() {
     showToast('تم تنزيل كشف الدورة PDF بنجاح وبكامل البيانات ✓');
 
   } catch (error) {
-    console.error('Direct PDF export error, falling back to print view', error);
-    // Graceful native print fallback if canvas export was blocked
-    window.print();
-    showToast('تم فتح نافذة الطباعة / الحفظ كـ PDF للمتصفح ✓');
+    console.error('Direct PDF export error:', error);
+    showToast('تعذر تنزيل ملف الـ PDF: ' + (error?.message || 'خطأ غير متوقع'));
   } finally {
     if (container.parentNode) container.parentNode.removeChild(container);
+    window.scrollTo(prevScrollX, prevScrollY);
     window.__cyclePdfBusy = false;
   }
 }
 
-function printCycle() {
-  const c = cur();
-  if (!c) return;
-
-  const container = buildReportContainer(c);
-  document.body.appendChild(container);
-
-  window.print();
-
-  setTimeout(() => {
-    if (container.parentNode) container.parentNode.removeChild(container);
-  }, 1000);
-}
