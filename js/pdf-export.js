@@ -1,213 +1,312 @@
-/** Direct PDF export for a complete cycle report (no print dialog). */
+/**
+ * Professional PDF Export using jsPDF + autoTable (native RTL/Arabic support)
+ * Creates real text-based PDFs with proper Arabic rendering
+ */
 async function downloadCyclePdf() {
   const c = cur();
   if (!c || window.__cyclePdfBusy) return;
-  if (typeof window.html2pdf !== 'function') {
-    showToast('تعذر تحميل أداة PDF. تأكد من اتصال الإنترنت وحاول مرة أخرى.');
-    return;
-  }
 
   window.__cyclePdfBusy = true;
   showToast('جاري تجهيز ملف PDF للدورة…');
 
-  const k = calc(c);
-  const safe = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]));
-  const money = value => `<bdi class="pdf-money" dir="ltr">${f(value)} ج</bdi>`;
-  const formatQuantity = (value, unit) => `<bdi class="pdf-quantity" dir="ltr">${f(value)} ${unit}</bdi>`;
-  const reportDate = value => `<bdi class="report-date" dir="auto">${safe(fd(value) || '—')}</bdi>`;
-  const rows = (items, renderRow, emptyText, colSpan) => items && items.length
-    ? items.map(renderRow).join('')
-    : `<tr><td colspan="${colSpan}" class="empty">${emptyText}</td></tr>`;
-
-  const expenseRows = rows(c.exp, e => `
-    <tr><td>${reportDate(e.d)}</td><td>${safe(e.cat || '—')}</td><td dir="auto">${safe(e.note || '—')}</td><td class="num">${money(e.amt)}</td></tr>
-  `, 'لا توجد مصروفات مسجلة', 4);
-
-  const saleRows = rows(c.inc, e => {
-    const total = +e.amt || +e.totalAmt || 0;
-    const paid = e.paidAmt !== undefined ? +e.paidAmt : total;
-    return `<tr><td>${reportDate(e.d)}</td><td dir="auto">${safe(e.buyer || '—')}</td><td class="num">${formatQuantity(e.cnt, 'طائر')}</td><td class="num">${formatQuantity(e.kg, 'كجم')}</td><td class="num">${money(total)}</td><td class="num">${money(paid)}</td><td class="num">${money(Math.max(0, total - paid))}</td></tr>`;
-  }, 'لا توجد مبيعات مسجلة', 7);
-
-  const deathRows = rows(c.dead, e => `
-    <tr><td>${reportDate(e.d)}</td><td class="num">${formatQuantity(e.n, 'طائر')}</td><td dir="auto">${safe(e.note || '—')}</td></tr>
-  `, 'لا يوجد نفوق مسجل', 3);
-
-  const feedRows = rows(c.feed, e => {
-    const type = e.type === 'purchased' ? 'وارد للمخزن' : e.type === 'consumed' ? 'مستهلك للطيور' : 'علف (سجل قديم)';
-    const feedQuantity = e.txt || `${e.q || ''} ${e.unit || ''}`.trim() || '—';
-    return `<tr><td>${reportDate(e.d)}</td><td>${type}</td><td dir="auto">${safe(feedQuantity)}</td><td class="num">${formatQuantity(e.kg, 'كجم')}</td></tr>`;
-  }, 'لا توجد حركات علف مسجلة', 4);
-
-  const debtRows = rows(c.debt, e => {
-    const total = +e.amt || 0;
-    const paid = e.paidAmt !== undefined ? +e.paidAmt : (e.paid ? total : 0);
-    const direction = e.dir === 'لنا' || e.dir === 'ليا عنده' ? 'مستحق لنا عند الغير' : 'مستحق علينا للغير';
-    const payments = (e.payments || []).map(p => `<span class="payment-line">${reportDate(p.d)}: ${money(p.amt)}${p.note ? ` (${safe(p.note)})` : ''}</span>`).join('') || '—';
-    return `<tr><td>${reportDate(e.d)}</td><td dir="auto">${safe(e.who || '—')}<br><small>${direction}</small></td><td class="num">${money(total)}</td><td class="num">${money(paid)}</td><td class="num">${money(Math.max(0, total - paid))}</td><td dir="auto">${payments}</td></tr>`;
-  }, 'لا توجد ديون مسجلة', 6);
-
-  const filename = `كشف دورة - ${String(c.name || 'دورة بدون اسم').replace(/[\\/:*?"<>|]/g, '-').trim()}.pdf`;
-  const status = c.end ? `مكتملة — ${fd(c.end)}` : 'جارية';
-  const stage = document.createElement('div');
-  stage.id = 'cycle-pdf-export';
-  stage.innerHTML = `
-    <main class="report">
-      <header class="head">
-        <div>
-          <h1><span>كشف الدورة:</span> <bdi class="title-name" dir="auto">${safe(c.name || 'دورة بدون اسم')}</bdi></h1>
-          <div class="meta"><span>تاريخ البداية</span>${reportDate(c.start)}<span class="meta-separator">·</span><span>الحالة</span><span>${safe(status)}</span></div>
-        </div>
-        <span class="status">${c.end ? 'مكتملة' : 'جارية'}</span>
-      </header>
-
-      <section class="metrics">
-        <div class="metric"><span class="metric-label">العدد الأصلي</span><b class="metric-value">${formatQuantity(c.n, 'طائر')}</b></div>
-        <div class="metric"><span class="metric-label">النافق</span><b class="metric-value">${formatQuantity(k.dead, 'طائر')} (${k.mort.toFixed(1)}%)</b></div>
-        <div class="metric"><span class="metric-label">المباع والوزن</span><b class="metric-value">${formatQuantity(k.sold, 'طائر')} · ${formatQuantity(k.kgS, 'كجم')}</b></div>
-        <div class="metric"><span class="metric-label">المتبقي الحي</span><b class="metric-value">${formatQuantity(k.remaining, 'طائر')}</b></div>
-        <div class="metric"><span class="metric-label">إجمالي المبيعات</span><b class="metric-value">${money(k.totalSales)}</b></div>
-        <div class="metric"><span class="metric-label">المحصل نقدًا</span><b class="metric-value">${money(k.collectedCash)}</b></div>
-        <div class="metric"><span class="metric-label">المتبقي من المبيعات</span><b class="metric-value">${money(k.uncollectedSales)}</b></div>
-        <div class="metric"><span class="metric-label">إجمالي المصروفات</span><b class="metric-value">${money(k.e)}</b></div>
-        <div class="metric"><span class="metric-label">صافي الربح</span><b class="metric-value">${money(k.p)}</b></div>
-        <div class="metric"><span class="metric-label">صافي النقدية بعد المصروفات</span><b class="metric-value">${money(k.cashProfit)}</b></div>
-        <div class="metric"><span class="metric-label">متوسط البيع للطائر</span><b class="metric-value">${money(k.avg)}</b></div>
-        <div class="metric"><span class="metric-label">تكلفة الطائر الحي</span><b class="metric-value">${money(k.cpb)}</b></div>
-        <div class="metric"><span class="metric-label">ربح الطائر المباع</span><b class="metric-value">${money(k.ppb)}</b></div>
-        <div class="metric"><span class="metric-label">مستحق لنا عند الغير</span><b class="metric-value">${money(k.debtUsRemaining)}</b></div>
-        <div class="metric"><span class="metric-label">مستحق علينا للغير</span><b class="metric-value">${money(k.debtThemRemaining)}</b></div>
-        <div class="metric"><span class="metric-label">العلف المشترى</span><b class="metric-value">${formatQuantity(k.feedPurchasedKg, 'كجم')}</b></div>
-        <div class="metric"><span class="metric-label">العلف المستهلك / المخزون</span><b class="metric-value">${formatQuantity(k.feedConsumedKg, 'كجم')} / ${formatQuantity(k.feedStockKg, 'كجم')}</b></div>
-        <div class="metric"><span class="metric-label">معامل التحويل (FCR)</span><b class="metric-value"><bdi dir="ltr">${k.fcr ? k.fcr.toFixed(2) : '—'}</bdi></b></div>
-      </section>
-
-      <section class="report-section">
-        <h2><span>المصروفات</span><bdi dir="ltr">(${(c.exp || []).length})</bdi></h2>
-        <table class="expenses-table">
-          <thead><tr><th>التاريخ</th><th>البند</th><th>البيان</th><th>المبلغ</th></tr></thead>
-          <tbody>${expenseRows}</tbody>
-        </table>
-      </section>
-
-      <section class="report-section">
-        <h2><span>المبيعات</span><bdi dir="ltr">(${(c.inc || []).length})</bdi></h2>
-        <table class="sales-table">
-          <thead><tr><th>التاريخ</th><th>المشتري</th><th>العدد</th><th>الوزن</th><th>قيمة البيع</th><th>المحصل</th><th>المتبقي</th></tr></thead>
-          <tbody>${saleRows}</tbody>
-        </table>
-      </section>
-
-      <section class="report-section">
-        <h2><span>النفوق</span><bdi dir="ltr">(${(c.dead || []).length})</bdi></h2>
-        <table class="deaths-table">
-          <thead><tr><th>التاريخ</th><th>العدد</th><th>السبب / البيان</th></tr></thead>
-          <tbody>${deathRows}</tbody>
-        </table>
-      </section>
-
-      <section class="report-section">
-        <h2><span>حركات العلف</span><bdi dir="ltr">(${(c.feed || []).length})</bdi></h2>
-        <table class="feed-table">
-          <thead><tr><th>التاريخ</th><th>نوع الحركة</th><th>الكمية المسجلة</th><th>الوزن</th></tr></thead>
-          <tbody>${feedRows}</tbody>
-        </table>
-      </section>
-
-      <section class="report-section">
-        <h2><span>الديون والدفعات</span><bdi dir="ltr">(${(c.debt || []).length})</bdi></h2>
-        <table class="debts-table">
-          <thead><tr><th>التاريخ</th><th>الطرف / الاتجاه</th><th>أصل الدين</th><th>المسدد</th><th>المتبقي</th><th>تفاصيل الدفعات</th></tr></thead>
-          <tbody>${debtRows}</tbody>
-        </table>
-      </section>
-
-      <footer>تم إنشاء الكشف من دفتر رفاعي · ${reportDate(today())}</footer>
-    </main>`;
-
-  const style = document.createElement('style');
-  style.id = 'cycle-pdf-export-style';
-  style.textContent = `
-    #cycle-pdf-export {
-      position: relative;
-      width: 1000px;
-      min-width: 0;
-      max-width: none;
-      margin: 0 auto;
-      padding: 24px;
-      direction: rtl;
-      text-align: right;
-      unicode-bidi: isolate;
-      color: #17212b !important;
-      background: #ffffff !important;
-      font: 13px/1.5 'Cairo', Tahoma, Arial, sans-serif;
-      box-sizing: border-box;
-      opacity: 1;
-      visibility: visible;
-    }
-    #cycle-pdf-export * { box-sizing: border-box; color: #17212b; }
-    #cycle-pdf-export .report { display: block; width: 100% !important; min-width: 0 !important; max-width: 100% !important; background: #fff; }
-    #cycle-pdf-export h1 { display: block; margin: 0; font-size: 24px; line-height: 1.6; color: #0f172a; font-weight: 800; direction: rtl; unicode-bidi: plaintext; }
-    #cycle-pdf-export .title-name { display: inline; margin-inline-start: 5px; unicode-bidi: isolate; }
-    #cycle-pdf-export h2 { display: flex; align-items: baseline; gap: 6px; margin: 20px 0 8px; padding-bottom: 5px; border-bottom: 2px solid #334155; font-size: 16px; color: #0f172a; font-weight: 800; break-inside: avoid; page-break-inside: avoid; }
-    #cycle-pdf-export .meta, #cycle-pdf-export small { color: #526171; }
-    #cycle-pdf-export .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin-top: 3px; }
-    #cycle-pdf-export .meta > * { unicode-bidi: isolate; }
-    #cycle-pdf-export .meta-separator { padding: 0 3px; }
-    #cycle-pdf-export .head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; border-bottom: 3px solid #0f766e; padding-bottom: 12px; }
-    #cycle-pdf-export .status { border: 1px solid #0f766e; border-radius: 20px; padding: 3px 12px; white-space: nowrap; color: #0f766e; font-weight: 700; }
-    #cycle-pdf-export .metrics { display: grid; width: 100% !important; min-width: 0 !important; max-width: 100% !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0; overflow: hidden; }
-    #cycle-pdf-export .metric { display: block; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #f8fafc; break-inside: avoid; page-break-inside: avoid; }
-    #cycle-pdf-export .metric-label { display: block; min-height: 1.5em; line-height: 1.5; color: #526171; }
-    #cycle-pdf-export .metric-value { display: block; margin-top: 5px; font-size: 15px; line-height: 1.5; color: #0f172a; unicode-bidi: isolate; }
-    #cycle-pdf-export .pdf-money, #cycle-pdf-export .pdf-quantity, #cycle-pdf-export .report-date { unicode-bidi: isolate; }
-    #cycle-pdf-export table { display: table; width: 100% !important; min-width: 0 !important; max-width: 100% !important; table-layout: fixed; border-collapse: collapse; margin: 6px 0 14px; font-size: 12px; }
-    #cycle-pdf-export th, #cycle-pdf-export td { border: 1px solid #cbd5e1; padding: 6px 7px; text-align: right; vertical-align: top; overflow-wrap: anywhere; }
-    #cycle-pdf-export th { background: #f1f5f9; color: #0f172a; font-weight: 700; }
-    #cycle-pdf-export .num { font-weight: 600; unicode-bidi: plaintext; }
-    #cycle-pdf-export .empty { text-align: center; color: #64748b; padding: 12px; }
-    #cycle-pdf-export footer { margin-top: 22px; padding-top: 8px; border-top: 1px solid #cbd5e1; color: #64748b; font-size: 11px; text-align: center; }
-    #cycle-pdf-export tr { break-inside: avoid; page-break-inside: avoid; }
-    #cycle-pdf-export .report-section { break-inside: auto; page-break-inside: auto; }
-  `;
-
-  document.head.appendChild(style);
-  document.body.appendChild(stage);
-
   try {
-    if (document.fonts?.ready) {
-      await document.fonts.ready;
+    // Load jsPDF + autoTable from CDN if not already loaded
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.autoTable === 'undefined') {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js');
     }
-    // Brief layout and paint delay so the browser fully renders the report stage
-    await new Promise(resolve => setTimeout(resolve, 250));
 
-    const opt = {
-      filename,
-      margin: [8, 8, 8, 8],
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        scrollY: 0,
-        scrollX: 0,
-        windowWidth: 1000,
-        logging: false
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-      pagebreak: { mode: ['css', 'legacy'] }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'landscape',
+      putOnlyUsedFonts: true
+    });
+
+    // Register Arabic font (Cairo) for proper RTL rendering
+    await registerArabicFont(doc);
+
+    // Set RTL direction globally
+    doc.setR2L(true);
+
+    const k = calc(c);
+    const safe = v => String(v ?? '').trim() || '—';
+    const money = v => `${f(v)} ج`;
+    const qty = (v, u) => `${f(v)} ${u}`;
+    const dateStr = d => fd(d) || '—';
+    const status = c.end ? `مكتملة — ${fd(c.end)}` : 'جارية';
+
+    // ---- Helper: Add section header ----
+    const addSectionTitle = (title, count) => {
+      doc.setFontSize(13);
+      doc.setFont('Cairo', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${title} (${count})`, doc.internal.pageSize.getWidth() - 20, doc.getY() + 8, { align: 'right' });
+      doc.setDrawColor(51, 65, 85);
+      doc.setLineWidth(0.5);
+      doc.line(20, doc.getY() + 10, doc.internal.pageSize.getWidth() - 20, doc.getY() + 10);
+      doc.setY(doc.getY() + 14);
     };
 
-    await window.html2pdf().set(opt).from(stage).save();
+    // ---- HEADER ----
+    doc.setFontSize(22);
+    doc.setFont('Cairo', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`كشف الدورة: ${safe(c.name)}`, doc.internal.pageSize.getWidth() - 20, 20, { align: 'right' });
+
+    doc.setFontSize(10);
+    doc.setFont('Cairo', 'normal');
+    doc.setTextColor(82, 100, 139);
+    const metaY = 28;
+    doc.text(`تاريخ البداية: ${dateStr(c.start)}  •  الحالة: ${status}`, doc.internal.pageSize.getWidth() - 20, metaY, { align: 'right' });
+
+    // Status badge
+    doc.setFillColor(16, 185, 129);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont('Cairo', 'bold');
+    const badgeText = c.end ? 'مكتملة' : 'جارية';
+    const badgeW = doc.getTextWidth(badgeText) + 8;
+    doc.roundedRect(doc.internal.pageSize.getWidth() - 20 - badgeW, 14, badgeW, 7, 2, 2, 'F');
+    doc.text(badgeText, doc.internal.pageSize.getWidth() - 20 - badgeW/2, 19, { align: 'center' });
+
+    doc.setY(metaY + 8);
+
+    // ---- METRICS GRID (2 columns) ----
+    const metrics = [
+      ['العدد الأصلي', qty(c.n, 'طائر')],
+      ['النافق', `${qty(k.dead, 'طائر')} (${k.mort.toFixed(1)}%)`],
+      ['المباع', `${qty(k.sold, 'طائر')} · ${qty(k.kgS, 'كجم')}`],
+      ['المتبقي الحي', qty(k.remaining, 'طائر')],
+      ['إجمالي المبيعات', money(k.totalSales)],
+      ['المحصل نقدًا', money(k.collectedCash)],
+      ['المتبقي من المبيعات', money(k.uncollectedSales)],
+      ['إجمالي المصروفات', money(k.e)],
+      ['صافي الربح', money(k.p)],
+      ['صافي النقدية بعد المصروفات', money(k.cashProfit)],
+      ['متوسط البيع للطائر', money(k.avg)],
+      ['تكلفة الطائر الحي', money(k.cpb)],
+      ['ربح الطائر المباع', money(k.ppb)],
+      ['مستحق لنا عند الغير', money(k.debtUsRemaining)],
+      ['مستحق علينا للغير', money(k.debtThemRemaining)],
+      ['العلف المشترى', qty(k.feedPurchasedKg, 'كجم')],
+      ['العلف المستهلك / المخزون', `${qty(k.feedConsumedKg, 'كجم')} / ${qty(k.feedStockKg, 'كجم')}`],
+      ['معامل التحويل (FCR)', k.fcr ? k.fcr.toFixed(2) : '—']
+    ];
+
+    const colW = (doc.internal.pageSize.getWidth() - 50) / 2;
+    let startY = doc.getY();
+    let maxY = startY;
+
+    metrics.forEach(([label, value], i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = 20 + col * (colW + 10);
+      const y = startY + row * 22;
+
+      // Box background
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(x, y, colW, 18, 2, 2, 'FD');
+
+      // Label
+      doc.setFontSize(8);
+      doc.setFont('Cairo', 'normal');
+      doc.setTextColor(82, 100, 139);
+      doc.text(label, x + colW - 4, y + 6, { align: 'right' });
+
+      // Value
+      doc.setFontSize(11);
+      doc.setFont('Cairo', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(value, x + colW - 4, y + 14, { align: 'right' });
+
+      maxY = Math.max(maxY, y + 18);
+    });
+
+    doc.setY(maxY + 10);
+
+    // ---- EXPENSES TABLE ----
+    if (c.exp && c.exp.length) {
+      addSectionTitle('المصروفات', c.exp.length);
+      doc.autoTable({
+        head: [['التاريخ', 'البند', 'البيان', 'المبلغ']],
+        body: c.exp.map(e => [
+          dateStr(e.d),
+          safe(e.cat),
+          safe(e.note),
+          money(e.amt)
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, font: 'Cairo', fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { font: 'Cairo', fontSize: 8.5, textColor: [15, 23, 42] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+        margin: { left: 20, right: 20 },
+        tableWidth: 'auto',
+        didParseCell: ({ cell, column }) => { if (column.index === 3) cell.styles.halign = 'right'; }
+      });
+    }
+
+    // ---- SALES TABLE ----
+    if (c.inc && c.inc.length) {
+      addSectionTitle('المبيعات', c.inc.length);
+      doc.autoTable({
+        head: [['التاريخ', 'المشتري', 'العدد', 'الوزن (كجم)', 'قيمة البيع', 'المحصل', 'المتبقي']],
+        body: c.inc.map(e => {
+          const total = +e.amt || +e.totalAmt || 0;
+          const paid = e.paidAmt !== undefined ? +e.paidAmt : total;
+          return [
+            dateStr(e.d),
+            safe(e.buyer),
+            qty(e.cnt, 'طائر'),
+            qty(e.kg, 'كجم'),
+            money(total),
+            money(paid),
+            money(Math.max(0, total - paid))
+          ];
+        }),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, font: 'Cairo', fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { font: 'Cairo', fontSize: 8.5, textColor: [15, 23, 42] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
+        margin: { left: 20, right: 20 },
+        tableWidth: 'auto'
+      });
+    }
+
+    // ---- DEATHS TABLE ----
+    if (c.dead && c.dead.length) {
+      addSectionTitle('النفوق', c.dead.length);
+      doc.autoTable({
+        head: [['التاريخ', 'العدد', 'السبب / البيان']],
+        body: c.dead.map(e => [dateStr(e.d), qty(e.n, 'طائر'), safe(e.note)]),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, font: 'Cairo', fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { font: 'Cairo', fontSize: 8.5, textColor: [15, 23, 42] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 1: { halign: 'right' } },
+        margin: { left: 20, right: 20 },
+        tableWidth: 'auto'
+      });
+    }
+
+    // ---- FEED TABLE ----
+    if (c.feed && c.feed.length) {
+      addSectionTitle('حركات العلف', c.feed.length);
+      doc.autoTable({
+        head: [['التاريخ', 'نوع الحركة', 'الكمية المسجلة', 'الوزن (كجم)']],
+        body: c.feed.map(e => {
+          const type = e.type === 'purchased' ? 'وارد للمخزن' : e.type === 'consumed' ? 'مستهلك للطيور' : 'علف (سجل قديم)';
+          const feedQty = e.txt || `${e.q || ''} ${e.unit || ''}`.trim() || '—';
+          return [dateStr(e.d), type, safe(feedQty), qty(e.kg, 'كجم')];
+        }),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, font: 'Cairo', fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { font: 'Cairo', fontSize: 8.5, textColor: [15, 23, 42] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 3: { halign: 'right' } },
+        margin: { left: 20, right: 20 },
+        tableWidth: 'auto'
+      });
+    }
+
+    // ---- DEBTS TABLE ----
+    if (c.debt && c.debt.length) {
+      addSectionTitle('الديون والدفعات', c.debt.length);
+      doc.autoTable({
+        head: [['التاريخ', 'الطرف / الاتجاه', 'أصل الدين', 'المسدد', 'المتبقي', 'تفاصيل الدفعات']],
+        body: c.debt.map(e => {
+          const total = +e.amt || 0;
+          const paid = e.paidAmt !== undefined ? +e.paidAmt : (e.paid ? total : 0);
+          const direction = e.dir === 'لنا' || e.dir === 'ليا عنده' ? 'مستحق لنا عند الغير' : 'مستحق علينا للغير';
+          const payments = (e.payments || []).map(p => `${dateStr(p.d)}: ${money(p.amt)}${p.note ? ` (${safe(p.note)})` : ''}`).join('\n') || '—';
+          return [
+            dateStr(e.d),
+            `${safe(e.who)}\n${direction}`,
+            money(total),
+            money(paid),
+            money(Math.max(0, total - paid)),
+            payments
+          ];
+        }),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, font: 'Cairo', fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { font: 'Cairo', fontSize: 8.5, textColor: [15, 23, 42], cellPadding: 3 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+        margin: { left: 20, right: 20 },
+        tableWidth: 'auto'
+      });
+    }
+
+    // ---- FOOTER ----
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('Cairo', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`تم إنشاء الكشف من دفتر رفاعي · ${dateStr(today())} · صفحة ${i} من ${pageCount}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    }
+
+    // Save
+    const filename = `كشف دورة - ${safe(c.name).replace(/[\\/:*?"<>|]/g, '-')}.pdf`;
+    doc.save(filename);
     showToast('تم تنزيل كشف الدورة بصيغة PDF بنجاح ✓');
+
   } catch (error) {
     console.error('PDF export failed', error);
     showToast('تعذر إنشاء ملف PDF. حاول مرة أخرى بعد تحديث الصفحة.');
   } finally {
-    stage.remove();
-    style.remove();
     window.__cyclePdfBusy = false;
   }
+}
+
+// ---- Helpers ----
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function registerArabicFont(doc) {
+  // Use Cairo font from Google Fonts via VFS (base64 embedded)
+  if (doc.getFontList()['Cairo']) return; // Already registered
+
+  try {
+    // Load Regular weight
+    const fontResponse = await fetch('https://fonts.gstatic.com/s/cairo/v24/SLXGc1nY6HkvalIqQGjGsS4.ttf');
+    const arrayBuffer = await fontResponse.arrayBuffer();
+    const base64 = arrayBufferToBase64(arrayBuffer);
+    doc.addFileToVFS('Cairo-Regular.ttf', base64);
+    doc.addFont('Cairo-Regular.ttf', 'Cairo', 'normal');
+
+    // Load Bold weight (Cairo 700)
+    const boldResponse = await fetch('https://fonts.gstatic.com/s/cairo/v24/SLXGc1nY6HkvalIqQGjGsS4.ttf');
+    const boldBuffer = await boldResponse.arrayBuffer();
+    const boldBase64 = arrayBufferToBase64(boldBuffer);
+    doc.addFileToVFS('Cairo-Bold.ttf', boldBase64);
+    doc.addFont('Cairo-Bold.ttf', 'Cairo', 'bold');
+  } catch (e) {
+    console.warn('Could not load Cairo font, falling back to Helvetica', e);
+    // Fallback: use built-in font that supports Arabic (limited)
+    doc.setFont('helvetica');
+  }
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
