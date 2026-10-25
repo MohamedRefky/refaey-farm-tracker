@@ -77,7 +77,7 @@ async function downloadCyclePdf() {
   const style = document.createElement('style');
   style.id = 'cycle-pdf-export-style';
   style.textContent = `
-    #cycle-pdf-export { position:absolute; left:-12000px; top:0; width:1200px; padding:32px; direction:rtl; color:#17212b; background:#fff; font:14px/1.6 Cairo,Tahoma,Arial,sans-serif; }
+    #cycle-pdf-export { position:fixed; left:0; top:0; z-index:2147483000; width:1200px; padding:32px; direction:rtl; color:#17212b; background:#fff; font:14px/1.6 Cairo,Tahoma,Arial,sans-serif; }
     #cycle-pdf-export * { box-sizing:border-box; }
     #cycle-pdf-export .report { width:100%; }
     #cycle-pdf-export h1 { margin:0; font-size:26px; }
