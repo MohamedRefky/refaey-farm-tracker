@@ -260,27 +260,29 @@ function detail(a) {
     </div>
 
     <!-- Quick Educational Explainer Banner Directly in UI -->
-    <div class="card" style="padding: 14px 16px; margin: 10px 0 16px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md);">
-      <div style="display: flex; align-items: flex-start; gap: 12px;">
-        <span style="font-size: 24px; flex-shrink: 0; line-height: 1;">💡</span>
-        <div style="flex: 1; font-size: 13px; line-height: 1.5;">
-          <div style="font-weight: 800; color: var(--emerald); font-size: 14px; margin-bottom: 3px;">
-            يعني إيه «معامل التحويل الغذائي (FCR)» بالبلدي؟
-          </div>
-          <div style="color: var(--text-main);">
-            هو المقياس الأهم لمكسب المزرعة: <b>«الفراخ أكلت كام كيلو علف عشان تديك 1 كيلو لحم؟»</b>
-          </div>
-          <div style="margin-top: 6px; font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 12px;">
-            <span>🎯 <b>المعدل المربح القياسي:</b> من 1.50 إلى 1.65 كجم علف/كيلو لحم.</span>
-            <span>💰 <b>القاعدة الذهبية:</b> كل ما الرقم يقل... أرباحك تزيد!</span>
-          </div>
-          ${isOngoing && k.remaining > 0 && k.fcr ? `
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-subtle); font-size: 11px; color: var(--amber);">
-              ⏳ <b>تنبيه لدورتك الحالية:</b> ما زال عندك <b>${f(k.remaining)} طائر</b> في العنبر لم يُباعوا بعد. الرقم الحالي (${k.fcr.toFixed(2)}) سيعتدل تلقائياً ليصبح دقيقاً عند بيع باقي الفراخ.
+    <div class="card fcr-banner-card">
+      <div class="fcr-banner-layout">
+        <div class="fcr-banner-main">
+          <span class="fcr-banner-icon">💡</span>
+          <div class="fcr-banner-text">
+            <div class="fcr-banner-title">
+              يعني إيه «معامل التحويل الغذائي (FCR)» بالبلدي؟
             </div>
-          ` : ''}
+            <div class="fcr-banner-desc">
+              هو المقياس الأهم لمكسب المزرعة: <b>«الفراخ أكلت كام كيلو علف عشان تديك 1 كيلو لحم؟»</b>
+            </div>
+            <div class="fcr-banner-tags">
+              <span>🎯 <b>المعدل المربح القياسي:</b> من 1.50 إلى 1.65 كجم علف/كيلو لحم.</span>
+              <span>💰 <b>القاعدة الذهبية:</b> كل ما الرقم يقل... أرباحك تزيد!</span>
+            </div>
+            ${isOngoing && k.remaining > 0 && k.fcr ? `
+              <div class="fcr-banner-alert">
+                ⏳ <b>تنبيه لدورتك الحالية:</b> ما زال عندك <b>${f(k.remaining)} طائر</b> في العنبر لم يُباعوا بعد. الرقم الحالي (${k.fcr.toFixed(2)}) سيعتدل تلقائياً ليصبح دقيقاً عند بيع باقي الفراخ.
+              </div>
+            ` : ''}
+          </div>
         </div>
-        <button type="button" class="btn btn-sm btn-outline" onclick="showFcrModal()" style="flex-shrink: 0; font-size: 11px; padding: 6px 12px; align-self: center;">
+        <button type="button" class="btn btn-sm btn-outline fcr-banner-btn" onclick="showFcrModal()">
           شرح كامل ℹ️
         </button>
       </div>
