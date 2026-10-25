@@ -57,7 +57,7 @@ async function downloadCyclePdf() {
     <main class="report">
       <header class="head">
         <div>
-          <h1><span>كشف الدورة</span><bdi class="title-name" dir="auto">${safe(c.name || 'دورة بدون اسم')}</bdi></h1>
+          <h1><span>كشف الدورة:</span> <bdi class="title-name" dir="auto">${safe(c.name || 'دورة بدون اسم')}</bdi></h1>
           <div class="meta"><span>تاريخ البداية</span>${reportDate(c.start)}<span class="meta-separator">·</span><span>الحالة</span><span>${safe(status)}</span></div>
         </div>
         <span class="status">${c.end ? 'مكتملة' : 'جارية'}</span>
@@ -133,6 +133,7 @@ async function downloadCyclePdf() {
     #cycle-pdf-export {
       position: relative;
       width: 1000px;
+      min-width: 0;
       max-width: none;
       margin: 0 auto;
       padding: 24px;
@@ -147,9 +148,9 @@ async function downloadCyclePdf() {
       visibility: visible;
     }
     #cycle-pdf-export * { box-sizing: border-box; color: #17212b; }
-    #cycle-pdf-export .report { width: 100%; background: #fff; }
-    #cycle-pdf-export h1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; }
-    #cycle-pdf-export h1 > * { unicode-bidi: isolate; }
+    #cycle-pdf-export .report { display: block; width: 100% !important; min-width: 0 !important; max-width: 100% !important; background: #fff; }
+    #cycle-pdf-export h1 { display: block; margin: 0; font-size: 24px; line-height: 1.6; color: #0f172a; font-weight: 800; direction: rtl; unicode-bidi: plaintext; }
+    #cycle-pdf-export .title-name { display: inline; margin-inline-start: 5px; unicode-bidi: isolate; }
     #cycle-pdf-export h2 { display: flex; align-items: baseline; gap: 6px; margin: 20px 0 8px; padding-bottom: 5px; border-bottom: 2px solid #334155; font-size: 16px; color: #0f172a; font-weight: 800; break-inside: avoid; page-break-inside: avoid; }
     #cycle-pdf-export .meta, #cycle-pdf-export small { color: #526171; }
     #cycle-pdf-export .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin-top: 3px; }
@@ -157,12 +158,12 @@ async function downloadCyclePdf() {
     #cycle-pdf-export .meta-separator { padding: 0 3px; }
     #cycle-pdf-export .head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; border-bottom: 3px solid #0f766e; padding-bottom: 12px; }
     #cycle-pdf-export .status { border: 1px solid #0f766e; border-radius: 20px; padding: 3px 12px; white-space: nowrap; color: #0f766e; font-weight: 700; }
-    #cycle-pdf-export .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
-    #cycle-pdf-export .metric { min-width: 0; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #f8fafc; break-inside: avoid; page-break-inside: avoid; }
+    #cycle-pdf-export .metrics { display: grid; width: 100% !important; min-width: 0 !important; max-width: 100% !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0; overflow: hidden; }
+    #cycle-pdf-export .metric { display: block; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #f8fafc; break-inside: avoid; page-break-inside: avoid; }
     #cycle-pdf-export .metric-label { display: block; min-height: 1.5em; line-height: 1.5; color: #526171; }
     #cycle-pdf-export .metric-value { display: block; margin-top: 5px; font-size: 15px; line-height: 1.5; color: #0f172a; unicode-bidi: isolate; }
     #cycle-pdf-export .pdf-money, #cycle-pdf-export .pdf-quantity, #cycle-pdf-export .report-date { unicode-bidi: isolate; }
-    #cycle-pdf-export table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 6px 0 14px; font-size: 12px; }
+    #cycle-pdf-export table { display: table; width: 100% !important; min-width: 0 !important; max-width: 100% !important; table-layout: fixed; border-collapse: collapse; margin: 6px 0 14px; font-size: 12px; }
     #cycle-pdf-export th, #cycle-pdf-export td { border: 1px solid #cbd5e1; padding: 6px 7px; text-align: right; vertical-align: top; overflow-wrap: anywhere; }
     #cycle-pdf-export th { background: #f1f5f9; color: #0f172a; font-weight: 700; }
     #cycle-pdf-export .num { font-weight: 600; unicode-bidi: plaintext; }
