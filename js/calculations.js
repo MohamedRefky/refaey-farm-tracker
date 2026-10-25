@@ -5,13 +5,14 @@
 // Formats number with commas: 10000 -> 10,000
 const f = n => Math.round(n || 0).toLocaleString('en-US');
 
-// Formats date into readable Arabic date (ensures local midnight parsing)
+// Formats date into readable Arabic date (ensures Egypt Africa/Cairo timezone)
 const fd = d => {
   if (!d) return '';
   const parts = String(d).split('-');
   if (parts.length === 3) {
     const dateObj = new Date(+parts[0], +parts[1] - 1, +parts[2]);
     return dateObj.toLocaleDateString('ar-EG-u-nu-latn', {
+      timeZone: 'Africa/Cairo',
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -19,6 +20,7 @@ const fd = d => {
     });
   }
   return new Date(d).toLocaleDateString('ar-EG-u-nu-latn', {
+    timeZone: 'Africa/Cairo',
     weekday: 'long',
     day: 'numeric',
     month: 'long',

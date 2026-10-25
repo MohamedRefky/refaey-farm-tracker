@@ -295,7 +295,7 @@ function detail(a) {
     <div class="quick-actions-bar">
       <button class="quick-action-btn" onclick="quickAdd('exp')">
         <span class="quick-action-icon">💸</span>
-        <span>+ مصروف</span>
+        <span>+ مصروف / علف</span>
       </button>
       <button class="quick-action-btn" onclick="quickAdd('inc')">
         <span class="quick-action-icon">📈</span>
@@ -304,10 +304,6 @@ function detail(a) {
       <button class="quick-action-btn" onclick="quickAdd('dead')">
         <span class="quick-action-icon">⚠️</span>
         <span>+ نافق</span>
-      </button>
-      <button class="quick-action-btn" onclick="openFeedForm('consumed')">
-        <span class="quick-action-icon">🌾</span>
-        <span>+ استهلاك علف</span>
       </button>
       <button class="quick-action-btn" onclick="quickAdd('debt')">
         <span class="quick-action-icon">📝</span>
@@ -780,9 +776,9 @@ function quickAdd(kind) {
 }
 
 // Quick Feed form with predefined movement type
-function openFeedForm(type) {
+function openFeedForm(type = 'consumed') {
   S.tab = 'feed';
-  openForm('feed', null, type);
+  openForm('exp', null, { cat: 'علف', mode: type });
 }
 
 function togglePaymentsHistory(id) {
@@ -874,15 +870,25 @@ function validateTransaction(kind, data, isEdit, editIndex, cycle) {
     }
   }
 
-  if (kind === 'exp') {
-    if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
-      return { valid: false, field: 'f_amt', message: 'يرجى إدخال مبلغ المصروف بشكل صحيح (أكبر من الصفر).' };
-    }
-  }
-
-  if (kind === 'feed') {
-    if (!data.q || isNaN(data.q) || +data.q <= 0) {
-      return { valid: false, field: 'f_q', message: 'يرجى إدخال كمية العلف برقم صحيح أكبر من الصفر.' };
+  if (kind === 'exp' || kind === 'feed') {
+    if (data.cat === 'علف') {
+      if (data.feed_mode === 'purchased') {
+        if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
+          return { valid: false, field: 'f_amt', message: 'يرجى إدخال المبلغ المدفوع لشراء العلف بشكل صحيح (أكبر من الصفر).' };
+        }
+        if (!data.feed_q || isNaN(data.feed_q) || +data.feed_q <= 0) {
+          return { valid: false, field: 'f_feed_q', message: 'يرجى إدخال كمية العلف المشتراة برقم صحيح أكبر من الصفر.' };
+        }
+      } else {
+        // Consumed feed (وجبة أكلتها الطيور)
+        if (!data.feed_q || isNaN(data.feed_q) || +data.feed_q <= 0) {
+          return { valid: false, field: 'f_feed_q', message: 'يرجى إدخال كمية العلف التي أكلتها الطيور اليوم برقم صحيح أكبر من الصفر.' };
+        }
+      }
+    } else {
+      if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
+        return { valid: false, field: 'f_amt', message: 'يرجى إدخال مبلغ المصروف بشكل صحيح (أكبر من الصفر).' };
+      }
     }
   }
 
@@ -907,16 +913,40 @@ function validateTransaction(kind, data, isEdit, editIndex, cycle) {
 }
 
 // Display Form Modal with Rich Context and Guidance
-function openForm(kind, editIndex = null, prefillType = null) {
-  const T = K[kind];
+function openForm(kind, editIndex = null, prefillData = null) {
   const isEdit = editIndex !== null;
   const cycle = cur();
-  const existing = isEdit ? cycle[kind][editIndex] : null;
   const k = calc(cycle);
+
+  const isFeedKind = kind === 'feed';
+  const isExpKind = kind === 'exp';
+  const isUnified = isFeedKind || isExpKind;
+
+  let existing = null;
+  let linkedRef = null;
+
+  if (isEdit) {
+    if (isFeedKind) {
+      existing = cycle.feed[editIndex];
+      linkedRef = existing && existing.expRefId ? cycle.exp.find(x => x.id === existing.expRefId) : (existing ? cycle.exp.find(x => x.feedRefId === existing.id) : null);
+    } else {
+      existing = cycle[kind] ? cycle[kind][editIndex] : null;
+      if (isExpKind && existing && (existing.cat === 'علف' || existing.feedRefId)) {
+        linkedRef = existing.feedRefId ? cycle.feed.find(f => f.id === existing.feedRefId) : cycle.feed.find(f => f.expRefId === existing.id);
+      }
+    }
+  }
+
+  let titleText = '';
+  if (isUnified) {
+    titleText = isEdit ? 'تعديل المصروف أو العلف' : 'تسجيل مصروف أو حركة علف';
+  } else {
+    titleText = (isEdit ? 'تعديل ' : 'تسجيل ') + (K[kind] ? K[kind].t : '');
+  }
 
   let h = `
     <div class="form-header">
-      <div class="form-title">${isEdit ? 'تعديل' : 'إضافة'} ${T.t}</div>
+      <div class="form-title">${titleText}</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
 
@@ -941,7 +971,7 @@ function openForm(kind, editIndex = null, prefillType = null) {
         <span>الطيور الحية المتبقية بالدورة: <b>${f(avail)} طائر</b></span>
       </div>
     `;
-  } else if (kind === 'feed') {
+  } else if (isUnified) {
     h += `
       <div class="form-hint-banner">
         <span>🏬</span>
@@ -950,14 +980,118 @@ function openForm(kind, editIndex = null, prefillType = null) {
     `;
   }
 
-  // Date Field (Always First)
+  // Date Field (Always First, with live Egyptian time indication)
+  const dateVal = isEdit && existing && existing.d ? existing.d : today();
   h += `
-    <label>التاريخ</label>
-    <input type="date" id="f_d" value="${isEdit && existing && existing.d ? existing.d : today()}">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 0 6px;">
+      <label style="margin: 0;">التاريخ *</label>
+      <span style="font-size: 11px; color: var(--emerald); font-weight: 700;">🇪🇬 توقيت مصر الفعلي</span>
+    </div>
+    <input type="date" id="f_d" value="${dateVal}" onchange="updateDateDisplay(this.value)">
+    <div id="f_d_display" style="font-size: 11px; color: var(--text-muted); margin: 3px 0 10px; font-weight: 600;">
+      ${fd(dateVal)}
+    </div>
   `;
 
-  // Render fields according to kind
-  if (kind === 'inc') {
+  if (isUnified) {
+    let catVal = 'علف';
+    let feedMode = 'purchased';
+
+    if (isEdit) {
+      if (isFeedKind) {
+        catVal = 'علف';
+        feedMode = existing ? (existing.type || 'consumed') : 'consumed';
+      } else if (existing) {
+        catVal = existing.cat || 'علف';
+        feedMode = (existing.cat === 'علف') ? 'purchased' : 'purchased';
+      }
+    } else if (prefillData) {
+      if (typeof prefillData === 'string') {
+        catVal = 'علف';
+        feedMode = prefillData;
+      } else {
+        catVal = prefillData.cat || 'علف';
+        feedMode = prefillData.mode || 'purchased';
+      }
+    }
+
+    const amtVal = isEdit ? (existing && existing.amt !== undefined ? existing.amt : (linkedRef ? linkedRef.amt : '')) : '';
+    const feedUnitVal = (linkedRef && linkedRef.unit) || (existing && existing.unit) || 'شكارة';
+    const feedQVal = isEdit ? ((linkedRef && linkedRef.q !== undefined) ? linkedRef.q : (existing && existing.q !== undefined ? existing.q : '')) : '';
+    const feedNoteVal = (linkedRef && (linkedRef.note || linkedRef.txt)) || (existing && (existing.note || existing.txt)) || '';
+    const stdNoteVal = isEdit && existing ? (existing.note || '') : '';
+
+    h += `
+      <label>تصنيف المصروف أو المعاملة *</label>
+      <select id="f_cat" onchange="onExpenseCatChange()">
+        <option value="علف" ${catVal === 'علف' ? 'selected' : ''}>🌾 علف (شراء للمخزن أو وجبة أكلتها الطيور)</option>
+        <option value="كتاكيت" ${catVal === 'كتاكيت' ? 'selected' : ''}>🐣 كتاكيت (شراء دفعة كتاكيت)</option>
+        <option value="أدوية وتحصينات" ${catVal === 'أدوية وتحصينات' ? 'selected' : ''}>💊 أدوية وتحصينات وبيطري</option>
+        <option value="كهرباء وغاز" ${catVal === 'كهرباء وغاز' ? 'selected' : ''}>⚡ كهرباء وغاز وتدفئة ومياه</option>
+        <option value="نشارة وفرشة" ${catVal === 'نشارة وفرشة' ? 'selected' : ''}>🪵 نشارة وفرشة تبن</option>
+        <option value="عمالة" ${catVal === 'عمالة' ? 'selected' : ''}>👷 عمالة وإشراف</option>
+        <option value="نقل" ${catVal === 'نقل' ? 'selected' : ''}>🚚 نقل ومشال</option>
+        <option value="أخرى" ${catVal === 'أخرى' ? 'selected' : ''}>📦 مصاريف ونثريات أخرى</option>
+      </select>
+
+      <!-- Feed Specialization Section -->
+      <div id="feed_sub_section" style="display: ${catVal === 'علف' ? 'block' : 'none'};">
+        <label style="margin-top: 10px;">نوع حركة العلف *</label>
+        <div class="feed-choice-container">
+          <div class="feed-choice-card ${feedMode === 'purchased' ? 'active' : ''}" id="feed_choice_purchased" onclick="selectFeedMode('purchased')">
+            <span class="feed-choice-icon">📦</span>
+            <div class="feed-choice-text">
+              <div class="feed-choice-title">شراء وتوريد للمخزن</div>
+              <div class="feed-choice-desc">دفع فلوس كاش + إضافة شكاير للمخزن</div>
+            </div>
+          </div>
+          <div class="feed-choice-card ${feedMode === 'consumed' ? 'active feed-consumed' : ''}" id="feed_choice_consumed" onclick="selectFeedMode('consumed')">
+            <span class="feed-choice-icon">🌾</span>
+            <div class="feed-choice-text">
+              <div class="feed-choice-title">علف أكلته الطيور اليوم</div>
+              <div class="feed-choice-desc">وجبة اليوم - بدون دفع كاش اليوم</div>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="f_feed_mode" value="${feedMode}">
+
+        <div id="consumed_info_banner" class="form-hint-banner" style="background: rgba(14,165,233,0.12); border-color: var(--sky); color: var(--sky); margin: 6px 0 14px; display: ${feedMode === 'consumed' ? 'flex' : 'none'};">
+          <span style="font-size: 18px;">💡</span>
+          <span style="font-size: 12px; line-height: 1.4;"><b>وجبة استهلاك يومية:</b> لا تتطلب دفع كاش اليوم؛ لأن العلف مسحوب من مخزن المزرعة مسبقاً. سيتم خصمها من رصيد المخزن واحتسابها في معامل التحويل (FCR).</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label>الوحدة</label>
+            <select id="f_feed_unit" onchange="updateFeedLiveHint()">
+              <option value="شكارة" ${feedUnitVal === 'شكارة' ? 'selected' : ''}>شكارة (${bagKg} كجم)</option>
+              <option value="كيلو" ${feedUnitVal === 'كيلو' ? 'selected' : ''}>كيلوجرام (كجم)</option>
+            </select>
+          </div>
+          <div>
+            <label>الكمية *</label>
+            <input id="f_feed_q" type="number" inputmode="decimal" step="any" value="${feedQVal}" placeholder="الكمية" oninput="updateFeedLiveHint()">
+          </div>
+        </div>
+        <div id="feed_live_hint" style="margin: 6px 0 12px; font-size: 12px; font-weight: 700; color: var(--text-muted);"></div>
+
+        <label>نوع العلف أو بيان (اختياري)</label>
+        <input id="f_feed_note" type="text" value="${feedNoteVal}" placeholder="مثال: بادي 23%، نامي 21%، ناهي 19%...">
+      </div>
+
+      <!-- Money Amount Field (Hidden only when Feed Consumed is active) -->
+      <div id="f_amt_wrapper" style="display: ${catVal === 'علف' && feedMode === 'consumed' ? 'none' : 'block'};">
+        <label>المبلغ المدفوع (جنيه) *</label>
+        <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="المبلغ المدفوع بالجنيه">
+      </div>
+
+      <!-- Standard Note Field (Visible when category is NOT feed) -->
+      <div id="std_note_wrapper" style="display: ${catVal !== 'علف' ? 'block' : 'none'};">
+        <label>ملاحظة أو بيان (اختياري)</label>
+        <input id="f_std_note" type="text" value="${stdNoteVal}" placeholder="مثلاً: دفعة كتاكيت ساسو، فاتورة كهرباء...">
+      </div>
+    `;
+  } else if (kind === 'inc') {
     // Specialized Sales Form with Cash Collection & Debt Separation
     const cntVal = isEdit && existing ? existing.cnt : '';
     const kgVal = isEdit && existing ? (existing.kg || '') : '';
@@ -990,36 +1124,19 @@ function openForm(kind, editIndex = null, prefillType = null) {
       <label>اسم المشتري / التاجر (مطلوب إذا كان هناك متبقي آجل)</label>
       <input id="f_buyer" type="text" value="${buyerVal}" placeholder="مثال: تاجر الأحد، محل البركة...">
     `;
-  } else if (kind === 'feed') {
-    // Specialized Feed Form separating Purchased vs Consumed
-    const defaultType = prefillType || (isEdit && existing ? existing.type : 'consumed');
-    const unitVal = isEdit && existing ? (existing.unit || 'شكارة') : 'شكارة';
-    const qVal = isEdit && existing ? (existing.q !== undefined ? existing.q : (existing.kg / bagKg)) : '';
+  } else if (kind === 'dead') {
+    const nVal = isEdit && existing ? existing.n : '';
     const noteVal = isEdit && existing ? (existing.note || '') : '';
 
     h += `
-      <label>نوع حركة العلف *</label>
-      <select id="f_type" onchange="updateFeedHint()">
-        <option value="consumed" ${defaultType === 'consumed' ? 'selected' : ''}>🌾 علف مستهلك للطيور (أكلته الطيور - يدخل في معامل التحويل FCR)</option>
-        <option value="purchased" ${defaultType === 'purchased' ? 'selected' : ''}>📦 علف مشترى / وارد للمخزن (استلام وتوريد للمزرعة)</option>
-      </select>
+      <label>عدد الطيور النافقة *</label>
+      <input id="f_n" type="number" inputmode="numeric" value="${nVal}" placeholder="مثلاً: 5">
 
-      <label>الوحدة</label>
-      <select id="f_unit" onchange="updateFeedHint()">
-        <option value="شكارة" ${unitVal === 'شكارة' ? 'selected' : ''}>شكارة (${bagKg} كجم)</option>
-        <option value="كيلو" ${unitVal === 'كيلو' ? 'selected' : ''}>كيلوجرام (كجم)</option>
-      </select>
-
-      <label>الكمية *</label>
-      <input id="f_q" type="number" inputmode="decimal" step="any" value="${qVal}" placeholder="الكمية بالشكارة أو الكيلو" oninput="updateFeedHint()">
-
-      <div id="feed_hint_box" style="margin-bottom: 12px; font-size: 13px; font-weight: 700; color: var(--text-muted);"></div>
-
-      <label>نوع العلف أو بيان (اختياري)</label>
-      <input id="f_note" type="text" value="${noteVal}" placeholder="مثال: بادي 23%، نامي 21%، ناهي 19%...">
+      <label>سبب النفوق / ملاحظة (اختياري)</label>
+      <input id="f_note" type="text" value="${noteVal}" placeholder="مثلاً: موجة حر، فرز أولي...">
     `;
   } else if (kind === 'debt') {
-    // Specialized Debt Form with simplified direction
+    // Specialized Debt Form
     const dirVal = isEdit && existing ? existing.dir : 'لنا';
     const whoVal = isEdit && existing ? existing.who : '';
     const amtVal = isEdit && existing ? existing.amt : '';
@@ -1045,24 +1162,6 @@ function openForm(kind, editIndex = null, prefillType = null) {
       <label>بيان المديونية أو ملاحظة (اختياري)</label>
       <input id="f_note" type="text" value="${noteVal}" placeholder="مثلاً: باقي دفعة بيع، حساب توريد كتاكيت...">
     `;
-  } else {
-    // Standard Expense or Dead Bird Form
-    T.f.forEach(x => {
-      h += `<label>${x[3]}</label>`;
-      let val = isEdit && existing && existing[x[0]] !== undefined ? existing[x[0]] : '';
-
-      if (x[1] === 'select') {
-        h += `
-          <select id="f_${x[0]}">
-            ${x[2].map(o => `<option value="${o}" ${String(val) === String(o) ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
-        `;
-      } else {
-        h += `
-          <input id="f_${x[0]}" type="${x[1]}" value="${val !== undefined ? val : ''}" ${x[1] === 'number' ? 'inputmode="decimal" step="any"' : ''} placeholder="${x[3]}">
-        `;
-      }
-    });
   }
 
   h += `
@@ -1076,7 +1175,7 @@ function openForm(kind, editIndex = null, prefillType = null) {
 
   // Trigger live calculation hints
   if (kind === 'inc') updateSaleCalculations();
-  if (kind === 'feed') updateFeedHint();
+  if (isUnified) updateFeedLiveHint();
 
   // Form Submit Handler with Solid Validation
   fm.onsubmit = ev => {
@@ -1086,16 +1185,23 @@ function openForm(kind, editIndex = null, prefillType = null) {
     const dVal = document.getElementById('f_d').value || today();
     let dataObj = { d: dVal };
 
-    if (kind === 'inc') {
+    if (isUnified) {
+      dataObj.cat = document.getElementById('f_cat').value;
+      dataObj.feed_mode = document.getElementById('f_feed_mode') ? document.getElementById('f_feed_mode').value : 'purchased';
+      dataObj.amt = document.getElementById('f_amt') ? document.getElementById('f_amt').value.trim() : '';
+      dataObj.feed_unit = document.getElementById('f_feed_unit') ? document.getElementById('f_feed_unit').value : 'شكارة';
+      dataObj.feed_q = document.getElementById('f_feed_q') ? document.getElementById('f_feed_q').value.trim() : '';
+      dataObj.feed_note = document.getElementById('f_feed_note') ? document.getElementById('f_feed_note').value.trim() : '';
+      dataObj.std_note = document.getElementById('f_std_note') ? document.getElementById('f_std_note').value.trim() : '';
+      dataObj.note = dataObj.cat === 'علف' ? dataObj.feed_note : dataObj.std_note;
+    } else if (kind === 'inc') {
       dataObj.cnt = document.getElementById('f_cnt').value.trim();
       dataObj.kg = document.getElementById('f_kg').value.trim();
       dataObj.amt = document.getElementById('f_amt').value.trim();
       dataObj.paidAmt = document.getElementById('f_paidAmt').value.trim();
       dataObj.buyer = document.getElementById('f_buyer').value.trim();
-    } else if (kind === 'feed') {
-      dataObj.type = document.getElementById('f_type').value;
-      dataObj.unit = document.getElementById('f_unit').value;
-      dataObj.q = document.getElementById('f_q').value.trim();
+    } else if (kind === 'dead') {
+      dataObj.n = document.getElementById('f_n').value.trim();
       dataObj.note = document.getElementById('f_note').value.trim();
     } else if (kind === 'debt') {
       dataObj.dir = document.getElementById('f_dir').value;
@@ -1103,33 +1209,180 @@ function openForm(kind, editIndex = null, prefillType = null) {
       dataObj.amt = document.getElementById('f_amt').value.trim();
       dataObj.paidAmt = document.getElementById('f_paidAmt').value.trim();
       dataObj.note = document.getElementById('f_note').value.trim();
-    } else {
-      T.f.forEach(x => {
-        dataObj[x[0]] = document.getElementById('f_' + x[0]).value.trim();
-      });
     }
 
     // Run strict validation
-    const valRes = validateTransaction(kind, dataObj, isEdit, editIndex, cycle);
+    const valRes = validateTransaction(isUnified ? 'exp' : kind, dataObj, isEdit, editIndex, cycle);
     if (!valRes.valid) {
       showFormError(valRes.message, valRes.field);
       return;
     }
 
-    // Construct final record
+    if (isUnified) {
+      if (dataObj.cat === 'علف') {
+        const qNum = +dataObj.feed_q;
+        const totalKg = dataObj.feed_unit === 'شكارة' ? qNum * bagKg : qNum;
+        const feedTxt = qNum + ' ' + dataObj.feed_unit + (dataObj.feed_note ? ' (' + dataObj.feed_note + ')' : '');
+
+        if (dataObj.feed_mode === 'purchased') {
+          const amtNum = +dataObj.amt;
+          let targetExp = isExpKind && isEdit ? cycle.exp[editIndex] : linkedRef;
+          let targetFeed = isFeedKind && isEdit ? cycle.feed[editIndex] : linkedRef;
+
+          if (targetExp && targetFeed) {
+            targetExp.d = dataObj.d;
+            targetExp.amt = amtNum;
+            targetExp.cat = 'علف';
+            targetExp.note = dataObj.feed_note;
+
+            targetFeed.d = dataObj.d;
+            targetFeed.type = 'purchased';
+            targetFeed.q = qNum;
+            targetFeed.unit = dataObj.feed_unit;
+            targetFeed.kg = totalKg;
+            targetFeed.note = dataObj.feed_note;
+            targetFeed.txt = feedTxt;
+            showToast('تم تعديل شراء العلف ورصيد المخزن بنجاح ✓');
+          } else if (targetExp && !targetFeed) {
+            targetExp.d = dataObj.d;
+            targetExp.amt = amtNum;
+            targetExp.cat = 'علف';
+            targetExp.note = dataObj.feed_note;
+            const newFeedId = Date.now() + Math.floor(Math.random() * 1000);
+            targetExp.feedRefId = newFeedId;
+            cycle.feed.push({
+              id: newFeedId,
+              d: dataObj.d,
+              type: 'purchased',
+              q: qNum,
+              unit: dataObj.feed_unit,
+              kg: totalKg,
+              note: dataObj.feed_note,
+              txt: feedTxt,
+              expRefId: targetExp.id
+            });
+            showToast('تم تحديث المصروف وإضافة العلف للمخزن ✓');
+          } else if (!targetExp && targetFeed) {
+            targetFeed.d = dataObj.d;
+            targetFeed.type = 'purchased';
+            targetFeed.q = qNum;
+            targetFeed.unit = dataObj.feed_unit;
+            targetFeed.kg = totalKg;
+            targetFeed.note = dataObj.feed_note;
+            targetFeed.txt = feedTxt;
+            const newExpId = Date.now() + Math.floor(Math.random() * 1000);
+            targetFeed.expRefId = newExpId;
+            cycle.exp.push({
+              id: newExpId,
+              d: dataObj.d,
+              cat: 'علف',
+              amt: amtNum,
+              note: dataObj.feed_note,
+              feedRefId: targetFeed.id
+            });
+            showToast('تم تحديث حركة العلف والمصروف المالي ✓');
+          } else {
+            const newExpId = Date.now() + Math.floor(Math.random() * 1000);
+            const newFeedId = newExpId + 1;
+            cycle.exp.push({
+              id: newExpId,
+              d: dataObj.d,
+              cat: 'علف',
+              amt: amtNum,
+              note: dataObj.feed_note,
+              feedRefId: newFeedId
+            });
+            cycle.feed.push({
+              id: newFeedId,
+              d: dataObj.d,
+              type: 'purchased',
+              q: qNum,
+              unit: dataObj.feed_unit,
+              kg: totalKg,
+              note: dataObj.feed_note,
+              txt: feedTxt,
+              expRefId: newExpId
+            });
+            showToast('تم تسجيل شراء وتوريد العلف للمخزن بنجاح ✓');
+          }
+        } else {
+          // Consumed feed
+          let targetFeed = isFeedKind && isEdit ? cycle.feed[editIndex] : null;
+          if (targetFeed) {
+            targetFeed.d = dataObj.d;
+            targetFeed.type = 'consumed';
+            targetFeed.q = qNum;
+            targetFeed.unit = dataObj.feed_unit;
+            targetFeed.kg = totalKg;
+            targetFeed.note = dataObj.feed_note;
+            targetFeed.txt = feedTxt;
+            if (targetFeed.expRefId) {
+              const oldExpIdx = cycle.exp.findIndex(x => x.id === targetFeed.expRefId);
+              if (oldExpIdx !== -1) cycle.exp.splice(oldExpIdx, 1);
+              delete targetFeed.expRefId;
+            }
+            showToast('تم حفظ تعديل استهلاك العلف اليومي ✓');
+          } else {
+            const newFeedId = Date.now() + Math.floor(Math.random() * 1000);
+            cycle.feed.push({
+              id: newFeedId,
+              d: dataObj.d,
+              type: 'consumed',
+              q: qNum,
+              unit: dataObj.feed_unit,
+              kg: totalKg,
+              note: dataObj.feed_note,
+              txt: feedTxt
+            });
+            showToast('تم تسجيل استهلاك وجبة العلف بنجاح 🌾');
+          }
+        }
+      } else {
+        // Standard expense
+        const amtNum = +dataObj.amt;
+        if (isExpKind && isEdit) {
+          const targetExp = cycle.exp[editIndex];
+          targetExp.d = dataObj.d;
+          targetExp.cat = dataObj.cat;
+          targetExp.amt = amtNum;
+          targetExp.note = dataObj.note;
+          if (targetExp.feedRefId) {
+            const oldFeedIdx = cycle.feed.findIndex(f => f.id === targetExp.feedRefId);
+            if (oldFeedIdx !== -1) cycle.feed.splice(oldFeedIdx, 1);
+            delete targetExp.feedRefId;
+          }
+          showToast(`تم تعديل مصروف (${targetExp.cat}) بنجاح ✓`);
+        } else {
+          cycle.exp.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            d: dataObj.d,
+            cat: dataObj.cat,
+            amt: amtNum,
+            note: dataObj.note
+          });
+          showToast(`تمت إضافة مصروف (${dataObj.cat}) بنجاح ✓`);
+        }
+      }
+
+      saveData();
+      closeM();
+      render();
+      return;
+    }
+
+    // Kind is inc, dead, or debt
     const o = isEdit ? { ...existing } : { id: Date.now() + Math.floor(Math.random() * 1000) };
     o.d = dataObj.d;
 
     if (kind === 'inc') {
       o.cnt = +dataObj.cnt;
       o.kg = dataObj.kg !== '' ? +dataObj.kg : 0;
-      o.amt = +dataObj.amt; // Total Sale Value
+      o.amt = +dataObj.amt;
       o.paidAmt = dataObj.paidAmt !== '' ? +dataObj.paidAmt : o.amt;
       o.buyer = dataObj.buyer;
 
       const remainingSaleAmt = Math.max(0, o.amt - o.paidAmt);
 
-      // Auto-link remaining debt to buyer in Debt section
       if (remainingSaleAmt > 0) {
         let linkedDebt = null;
         if (isEdit && o.debtRefId) {
@@ -1163,20 +1416,15 @@ function openForm(kind, editIndex = null, prefillType = null) {
           o.debtRefId = newDebtId;
         }
       } else if (remainingSaleAmt === 0 && (o.debtRefId || o.id)) {
-        // If sale was edited and fully settled, update or mark linked debt as paid
         const linkedDebt = cycle.debt.find(d => d.id === o.debtRefId || d.saleId === o.id);
         if (linkedDebt) {
           linkedDebt.paidAmt = linkedDebt.amt;
           linkedDebt.paid = true;
         }
       }
-    } else if (kind === 'feed') {
-      o.type = dataObj.type;
-      o.unit = dataObj.unit;
-      o.q = +dataObj.q;
+    } else if (kind === 'dead') {
+      o.n = +dataObj.n;
       o.note = dataObj.note;
-      o.kg = o.unit === 'شكارة' ? o.q * bagKg : o.q;
-      o.txt = o.q + ' ' + o.unit + (o.note ? ' (' + o.note + ')' : '');
     } else if (kind === 'debt') {
       o.dir = dataObj.dir;
       o.who = dataObj.who;
@@ -1185,21 +1433,14 @@ function openForm(kind, editIndex = null, prefillType = null) {
       o.paid = o.paidAmt >= o.amt;
       o.note = dataObj.note;
       o.payments = isEdit && existing.payments ? existing.payments : [];
-    } else if (kind === 'dead') {
-      o.n = +dataObj.n;
-      o.note = dataObj.note;
-    } else if (kind === 'exp') {
-      o.cat = dataObj.cat;
-      o.amt = +dataObj.amt;
-      o.note = dataObj.note;
     }
 
     if (isEdit) {
       cycle[kind][editIndex] = o;
-      showToast(`تم تعديل ${T.t} بنجاح ✓`);
+      showToast(`تم تعديل ${K[kind].t} بنجاح ✓`);
     } else {
       cycle[kind].push(o);
-      showToast(`تمت إضافة ${T.t} بنجاح ✓`);
+      showToast(`تمت إضافة ${K[kind].t} بنجاح ✓`);
     }
 
     saveData();
@@ -1261,20 +1502,96 @@ function updateSaleCalculations() {
   `;
 }
 
-// Live helper text for feed form
-function updateFeedHint() {
-  const hintEl = document.getElementById('feed_hint_box');
+// Interactive handlers for unified Expense & Feed Form
+function onExpenseCatChange() {
+  const catEl = document.getElementById('f_cat');
+  if (!catEl) return;
+  const cat = catEl.value;
+  const feedSec = document.getElementById('feed_sub_section');
+  const amtWrapper = document.getElementById('f_amt_wrapper');
+  const stdNoteWrapper = document.getElementById('std_note_wrapper');
+  const feedMode = document.getElementById('f_feed_mode') ? document.getElementById('f_feed_mode').value : 'purchased';
+
+  if (cat === 'علف') {
+    if (feedSec) feedSec.style.display = 'block';
+    if (stdNoteWrapper) stdNoteWrapper.style.display = 'none';
+    if (amtWrapper) amtWrapper.style.display = feedMode === 'consumed' ? 'none' : 'block';
+    updateFeedLiveHint();
+  } else {
+    if (feedSec) feedSec.style.display = 'none';
+    if (stdNoteWrapper) stdNoteWrapper.style.display = 'block';
+    if (amtWrapper) amtWrapper.style.display = 'block';
+  }
+}
+
+function selectFeedMode(mode) {
+  const modeInput = document.getElementById('f_feed_mode');
+  if (modeInput) modeInput.value = mode;
+
+  const cardPurchased = document.getElementById('feed_choice_purchased');
+  const cardConsumed = document.getElementById('feed_choice_consumed');
+  const amtWrapper = document.getElementById('f_amt_wrapper');
+  const banner = document.getElementById('consumed_info_banner');
+
+  if (cardPurchased && cardConsumed) {
+    if (mode === 'purchased') {
+      cardPurchased.classList.add('active');
+      cardConsumed.classList.remove('active', 'feed-consumed');
+      if (amtWrapper) amtWrapper.style.display = 'block';
+      if (banner) banner.style.display = 'none';
+    } else {
+      cardPurchased.classList.remove('active');
+      cardConsumed.classList.add('active', 'feed-consumed');
+      if (amtWrapper) amtWrapper.style.display = 'none';
+      if (banner) banner.style.display = 'flex';
+    }
+  }
+
+  updateFeedLiveHint();
+}
+
+function updateFeedLiveHint() {
+  const hintEl = document.getElementById('feed_live_hint');
   if (!hintEl) return;
-  const unit = document.getElementById('f_unit').value;
-  const q = +document.getElementById('f_q').value || 0;
+
+  const unitEl = document.getElementById('f_feed_unit');
+  const qEl = document.getElementById('f_feed_q');
+  const modeEl = document.getElementById('f_feed_mode');
+  if (!unitEl || !qEl) return;
+
+  const unit = unitEl.value;
+  const q = +qEl.value || 0;
+  const mode = modeEl ? modeEl.value : 'purchased';
   const totalKg = unit === 'شكارة' ? q * bagKg : q;
   const totalBags = (totalKg / bagKg).toFixed(1);
 
+  const cycle = cur();
+  const k = calc(cycle);
+
   if (q > 0) {
-    hintEl.textContent = `الكمية الإجمالية تعادل: ${f(totalKg)} كجم (${totalBags} شكارة على وزن ${bagKg} كجم/شكارة)`;
+    if (mode === 'purchased') {
+      hintEl.innerHTML = `📦 الكمية تعادل: <b>${f(totalKg)} كجم</b> (${totalBags} شكارة) ستضاف إلى رصيد المخزن.`;
+      hintEl.style.color = 'var(--emerald)';
+    } else {
+      const remAfter = Math.max(0, k.feedStockKg - totalKg);
+      hintEl.innerHTML = `🌾 الكمية تعادل: <b>${f(totalKg)} كجم</b> (${totalBags} شكارة) ستخصم من المخزن (المتبقي الحالي بالمخزن: ${f(k.feedStockKg)} كجم).`;
+      hintEl.style.color = 'var(--sky)';
+    }
   } else {
     hintEl.textContent = '';
   }
+}
+
+// Live date text updater for Egypt local date display
+function updateDateDisplay(val) {
+  const disp = document.getElementById('f_d_display');
+  if (disp && val) {
+    disp.textContent = fd(val);
+  }
+}
+
+function updateFeedHint() {
+  updateFeedLiveHint();
 }
 
 // Helper: Show formatted validation alert in modal
@@ -1732,18 +2049,26 @@ function del(i) {
 
   if (kind === 'exp') {
     const e = cycle.exp[i];
+    const isFeed = e.cat === 'علف' || e.feedRefId;
+    const linkedFeed = isFeed ? (cycle.feed.find(f => f.id === e.feedRefId || f.expRefId === e.id)) : null;
+
     showConfirmModal({
       icon: '🗑️',
       title: 'تأكيد حذف المصروف ⚠️',
       subtitle: 'هل أنت متأكد من رغبتك في حذف هذا المصروف؟ سيتم خصم هذا المبلغ من إجمالي التكاليف.',
-      itemIcon: '💸',
+      itemIcon: isFeed ? '🌾' : '💸',
       itemTitle: `مصروف: ${e.cat} ${e.note ? '(' + e.note + ')' : ''}`,
       itemMeta: `المبلغ: ${f(e.amt)} ج • التاريخ: ${fd(e.d)}`,
+      warningNote: linkedFeed ? `تنبيه: سيتم أيضاً حذف حركة توريد العلف من المخزن (${f(linkedFeed.kg)} كجم) تلقائياً لتحديث رصيد المخزن بدقة.` : '',
       confirmBtnText: 'نعم، احذف المصروف',
       onConfirm: () => {
+        if (linkedFeed) {
+          const feedIdx = cycle.feed.indexOf(linkedFeed);
+          if (feedIdx !== -1) cycle.feed.splice(feedIdx, 1);
+        }
         cycle.exp.splice(i, 1);
         saveData();
-        showToast('تم حذف المصروف بنجاح');
+        showToast('تم حذف المصروف وتحديث رصيد المخزن بنجاح');
         render();
       }
     });
@@ -1767,6 +2092,8 @@ function del(i) {
   } else if (kind === 'feed') {
     const e = cycle.feed[i];
     const isPurchased = e.type === 'purchased';
+    const linkedExp = isPurchased ? (cycle.exp.find(x => x.id === e.expRefId || x.feedRefId === e.id)) : null;
+
     showConfirmModal({
       icon: '🗑️',
       title: 'تأكيد حذف حركة العلف ⚠️',
@@ -1774,11 +2101,16 @@ function del(i) {
       itemIcon: isPurchased ? '📦' : '🌾',
       itemTitle: `${isPurchased ? 'علف وارد للمخزن' : 'علف مستهلك للطيور'}: ${e.txt || (e.q + ' ' + (e.unit || 'شكارة'))}`,
       itemMeta: `الكمية: ${f(e.kg)} كجم • التاريخ: ${fd(e.d)}`,
+      warningNote: linkedExp ? `تنبيه: سيتم أيضاً حذف المصروف المالي المرتبط بهذا العلف (${f(linkedExp.amt)} ج) من المصروفات تلقائياً منعاً للازدواج.` : '',
       confirmBtnText: 'نعم، احذف حركة العلف',
       onConfirm: () => {
+        if (linkedExp) {
+          const expIdx = cycle.exp.indexOf(linkedExp);
+          if (expIdx !== -1) cycle.exp.splice(expIdx, 1);
+        }
         cycle.feed.splice(i, 1);
         saveData();
-        showToast('تم حذف حركة العلف بنجاح');
+        showToast('تم حذف حركة العلف وتحديث المصروفات بنجاح');
         render();
       }
     });
@@ -1818,6 +2150,7 @@ function updateLiveClock() {
   const now = new Date();
   
   const dateFormatted = now.toLocaleDateString('ar-EG-u-nu-latn', {
+    timeZone: 'Africa/Cairo',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -1825,6 +2158,7 @@ function updateLiveClock() {
   });
   
   const timeFormatted = now.toLocaleTimeString('ar-EG-u-nu-latn', {
+    timeZone: 'Africa/Cairo',
     hour: '2-digit',
     minute: '2-digit',
     hour12: true
@@ -1832,13 +2166,18 @@ function updateLiveClock() {
 
   const dt = document.getElementById('dt');
   if (dt) {
-    dt.textContent = `${dateFormatted} • ${timeFormatted}`;
+    dt.textContent = `${dateFormatted} • ${timeFormatted} (توقيت مصر 🇪🇬)`;
   }
 
   const gr = document.getElementById('gr');
   if (gr) {
-    const hours = now.getHours();
-    const greetingText = hours < 12 ? 'صباح الخير والرزق' : 'مساء الخير والبركة';
+    const cairoHourStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Cairo',
+      hour: 'numeric',
+      hour12: false
+    }).format(now);
+    const hours = parseInt(cairoHourStr, 10);
+    const greetingText = (hours >= 4 && hours < 12) ? 'صباح الخير والرزق' : 'مساء الخير والبركة';
     gr.innerHTML = `${greetingText} يا رفاعي <span class="chick-anim">🐥</span>`;
   }
 }

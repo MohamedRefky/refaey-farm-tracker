@@ -14,11 +14,11 @@ const initialCycles = [
     end: '2026-09-10',
     n: 1000,
     exp: [
-      { d: '2026-08-01', cat: 'كتاكيت', amt: 18000, note: '1000 كتكوت ساسو' },
-      { d: '2026-08-05', cat: 'علف', amt: 22000, note: 'علف بادي 23%' },
-      { d: '2026-08-20', cat: 'أدوية وتحصينات', amt: 3500, note: 'تحصينات واستقبال' },
-      { d: '2026-08-25', cat: 'علف', amt: 26000, note: 'علف نامي 21%' },
-      { d: '2026-09-01', cat: 'عمالة', amt: 4000, note: 'يوميات وعمالة' }
+      { id: 1, d: '2026-08-01', cat: 'كتاكيت', amt: 18000, note: '1000 كتكوت ساسو' },
+      { id: 10, d: '2026-08-05', cat: 'علف', amt: 22000, note: '30 شكارة (بادي 23%)', feedRefId: 11 },
+      { id: 3, d: '2026-08-20', cat: 'أدوية وتحصينات', amt: 3500, note: 'تحصينات واستقبال' },
+      { id: 20, d: '2026-08-25', cat: 'علف', amt: 26000, note: '34 شكارة (نامي 21%)', feedRefId: 13 },
+      { id: 5, d: '2026-09-01', cat: 'عمالة', amt: 4000, note: 'يوميات وعمالة' }
     ],
     inc: [
       { id: 1, d: '2026-09-08', cnt: 480, kg: 960, amt: 43200, paidAmt: 43200, buyer: 'تاجر الأحد' },
@@ -29,10 +29,10 @@ const initialCycles = [
       { d: '2026-08-28', n: 12, note: 'موجة حر' }
     ],
     feed: [
-      { id: 11, d: '2026-08-05', type: 'purchased', kg: 1500, q: 30, unit: 'شكارة', txt: '30 شكارة (بادي 23%)' },
-      { id: 12, d: '2026-08-06', type: 'consumed', kg: 1400, q: 28, unit: 'شكارة', txt: '28 شكارة (استهلاك أسبوعي)' },
-      { id: 13, d: '2026-08-25', type: 'purchased', kg: 1700, q: 34, unit: 'شكارة', txt: '34 شكارة (نامي 21%)' },
-      { id: 14, d: '2026-08-26', type: 'consumed', kg: 1600, q: 32, unit: 'شكارة', txt: '32 شكارة (استهلاك أسبوعي)' }
+      { id: 11, d: '2026-08-05', type: 'purchased', kg: 1500, q: 30, unit: 'شكارة', txt: '30 شكارة (بادي 23%)', note: 'بادي 23%', expRefId: 10 },
+      { id: 12, d: '2026-08-06', type: 'consumed', kg: 1400, q: 28, unit: 'شكارة', txt: '28 شكارة (استهلاك أسبوعي)', note: 'استهلاك أسبوعي' },
+      { id: 13, d: '2026-08-25', type: 'purchased', kg: 1700, q: 34, unit: 'شكارة', txt: '34 شكارة (نامي 21%)', note: 'نامي 21%', expRefId: 20 },
+      { id: 14, d: '2026-08-26', type: 'consumed', kg: 1600, q: 32, unit: 'شكارة', txt: '32 شكارة (استهلاك أسبوعي)', note: 'استهلاك أسبوعي' }
     ],
     debt: [
       {
@@ -189,13 +189,22 @@ function updateNid() {
   nid = C.reduce((m, x) => Math.max(m, x.id), 0) + 1;
 }
 
-// Local date formatted as YYYY-MM-DD (safe against UTC timezone shifts)
+// Local date formatted as YYYY-MM-DD locked to Egypt real-time (Africa/Cairo)
 function today() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Cairo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+  } catch (e) {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 }
 
 // Sleek Toast Notification
