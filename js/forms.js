@@ -822,9 +822,6 @@ function openPaymentModal(debtIndex) {
       </button>
     </div>
 
-    <label>طريقة الدفع أو بيان (اختياري)</label>
-    <input type="text" id="p_note" placeholder="مثال: نقداً كاش، فودافون كاش، تحويل بنكي...">
-
     <div class="form-actions-row">
       <button class="btn btn-primary" style="flex: 2;" type="submit">تسجيل السداد والحفظ</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
@@ -837,7 +834,6 @@ function openPaymentModal(debtIndex) {
 
     const pAmtVal = document.getElementById('p_amt').value.trim();
     const pDVal = document.getElementById('p_d').value || today();
-    const pNoteVal = document.getElementById('p_note').value.trim();
 
     if (!pAmtVal || isNaN(pAmtVal) || +pAmtVal <= 0) {
       showFormError('يرجى إدخال مبلغ سداد صحيح أكبر من الصفر.', 'p_amt');
@@ -855,8 +851,7 @@ function openPaymentModal(debtIndex) {
     d.payments.push({
       id: Date.now() + Math.floor(Math.random() * 1000),
       d: pDVal,
-      amt: paymentAmt,
-      note: pNoteVal
+      amt: paymentAmt
     });
 
     d.paidAmt = (d.paidAmt || 0) + paymentAmt;
