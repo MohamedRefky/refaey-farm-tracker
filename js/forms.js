@@ -1040,12 +1040,6 @@ function del(i) {
 // ==========================================================================
 // CYCLE & MULTI-FLOCK MANAGEMENT (Create, Edit, Add Flock, Delete, Close)
 // ==========================================================================
-function buildFlockDatalistHtml() {
-  const defaults = ['أبيض', 'ساسو', 'كوب', 'روص', 'بلدي'];
-  const combined = [...new Set([...allFlockNames(), ...defaults])];
-  return `<datalist id="flock_names_list">${combined.map(n => `<option value="${n}">`).join('')}</datalist>`;
-}
-
 function buildFlockRowHtml(idx, flock = {}, isLocked = false, lockCount = 0) {
   const safeName = String(flock.name || '').replace(/"/g, '&quot;');
   const countVal = flock.count !== undefined && flock.count !== '' ? flock.count : '';
@@ -1063,7 +1057,7 @@ function buildFlockRowHtml(idx, flock = {}, isLocked = false, lockCount = 0) {
         `}
       </div>
       <label>اسم النوع (كتابة باليد) *</label>
-      <input type="text" class="flock-name-input" list="flock_names_list" value="${safeName}" placeholder="مثلاً: ساسو، كوب، أبيض...">
+      <input type="text" class="flock-name-input" value="${safeName}" placeholder="اكتب اسم النوع هنا...">
       <div class="flock-row-inputs-grid">
         <div>
           <label>العدد (طائر) *</label>
@@ -1200,7 +1194,6 @@ function editCycle() {
     </div>
 
     <div id="form_error_container"></div>
-    ${buildFlockDatalistHtml()}
 
     <label>اسم الدورة *</label>
     <input id="edit_nn" value="${c.name || ''}" placeholder="اسم الدورة">
@@ -1293,7 +1286,6 @@ function openAddFlockModal() {
     </div>
 
     <div id="form_error_container"></div>
-    ${buildFlockDatalistHtml()}
 
     <div class="form-hint-banner">
       <span>💡</span>
@@ -1301,7 +1293,7 @@ function openAddFlockModal() {
     </div>
 
     <label>اسم النوع (كتابة باليد) *</label>
-    <input id="af_name" type="text" list="flock_names_list" placeholder="مثلاً: ساسو، كوب، بلدي...">
+    <input id="af_name" type="text" placeholder="اكتب اسم النوع هنا...">
 
     <label>عدد الكتاكيت *</label>
     <input id="af_count" type="number" inputmode="numeric" placeholder="مثلاً: 200">
@@ -1393,7 +1385,6 @@ function newCycle() {
     </div>
 
     <div id="form_error_container"></div>
-    ${buildFlockDatalistHtml()}
 
     <label>اسم الدورة (مثال: دورة نوفمبر، دفعة رقم 3) *</label>
     <input id="nn" value="دورة جديدة" placeholder="اسم الدورة">
