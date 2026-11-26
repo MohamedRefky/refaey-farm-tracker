@@ -31,10 +31,45 @@ const fd = d => {
 // Safe array property summation
 const sum = (arr, key) => (arr || []).reduce((s, x) => s + (+x[key] || 0), 0);
 
+// Look up a flock type name safely
+function flockName(c, id) {
+  const flock = ((c && c.flocks) || []).find(x => x.id === id);
+  return flock ? flock.name : 'نوع غير محدد';
+}
+
+// Available birds in a flock type (excludes the record being edited)
+function flockAvailability(c, flockId, kind, editIndex) {
+  if (!c) return 0;
+  const flock = (c.flocks || []).find(x => x.id === flockId);
+  if (!flock) return 0;
+
+  let used = 0;
+  (c.inc || []).forEach((x, i) => {
+    if (x.flockId === flockId && !(kind === 'inc' && i === editIndex)) used += +x.cnt || 0;
+  });
+  (c.dead || []).forEach((x, i) => {
+    if (x.flockId === flockId && !(kind === 'dead' && i === editIndex)) used += +x.n || 0;
+  });
+
+  return Math.max(0, (+flock.count || 0) - used);
+}
+
+// Number of linked records for a flock type
+function flockRecordCounts(c, flockId) {
+  const sales = ((c && c.inc) || []).filter(x => x.flockId === flockId).length;
+  const deaths = ((c && c.dead) || []).filter(x => x.flockId === flockId).length;
+  return { sales, deaths, total: sales + deaths };
+}
+
 // Key Poultry Production & Financial Metrics
 function calc(c) {
   if (!c) return {};
-  const e = sum(c.exp, 'amt');
+  const flocks = c.flocks || [];
+  const chickCount = flocks.reduce((s, x) => s + (+x.count || 0), 0);
+  const chickCost = flocks.reduce((s, x) => s + (+x.cost || 0), 0);
+  const otherExp = sum(c.exp, 'amt');
+  const e = chickCost + otherExp;          // إجمالي تكلفة الدورة
+  const n = chickCount || (+c.n || 0);     // إجمالي الكتاكيت
 
   // 1. Sales & Revenue Metrics (الفصل بين قيمة البيع والمبلغ المحصل نقداً)
   const incList = c.inc || [];
@@ -49,17 +84,42 @@ function calc(c) {
   const dead = sum(c.dead, 'n');
   const sold = sum(c.inc, 'cnt');
   const kgS = sum(c.inc, 'kg');
-  const live = Math.max(0, (c.n || 0) - dead);
+  const live = Math.max(0, n - dead);
   const remaining = Math.max(0, live - sold);
 
-  // 3. Feed Metrics (إجمالي العلف المشترى للدورة)
-  const feedList = c.feed || [];
-  const feedPurchasedKg = feedList.reduce((s, x) => s + (+x.kg || 0), 0);
-  const feedConsumedKg = feedPurchasedKg;
-  const feedStockKg = feedPurchasedKg;
-  const fk = feedPurchasedKg;
+  // 3. Per-type metrics (costs are allocated by chick count)
+  const flockStats = flocks.map(flock => {
+    const count = +flock.count || 0;
+    const cost = +flock.cost || 0;
+    const sales = incList.filter(x => x.flockId === flock.id);
+    const soldCnt = sales.reduce((s, x) => s + (+x.cnt || 0), 0);
+    const revenue = sales.reduce((s, x) => s + (+x.amt || 0), 0);
+    const deadCnt = (c.dead || []).filter(x => x.flockId === flock.id).reduce((s, x) => s + (+x.n || 0), 0);
+    const sharedCost = n > 0 ? otherExp * (count / n) : 0;
+    const totalCost = cost + sharedCost;
 
-  // 4. Debt Metrics (تفصيل الديون واتجاهاتها: لنا عند الغير وعلينا للغير)
+    return {
+      id: flock.id,
+      name: flock.name,
+      count,
+      cost,
+      sold: soldCnt,
+      dead: deadCnt,
+      remaining: Math.max(0, count - soldCnt - deadCnt),
+      revenue,
+      avgPrice: soldCnt ? revenue / soldCnt : 0,
+      sharedCost,
+      totalCost,
+      profit: revenue - totalCost,
+      mort: count ? (deadCnt / count) * 100 : 0,
+      share: n ? (count / n) * 100 : 0
+    };
+  });
+
+  // 4. Feed Metrics (إجمالي العلف المشترى للدورة)
+  const feedPurchasedKg = (c.feed || []).reduce((s, x) => s + (+x.kg || 0), 0);
+
+  // 5. Debt Metrics (تفصيل الديون واتجاهاتها: لنا عند الغير وعلينا للغير)
   const debtList = c.debt || [];
   let debtUsTotal = 0;
   let debtUsRemaining = 0;
@@ -83,6 +143,9 @@ function calc(c) {
 
   return {
     e,
+    chickCost,
+    otherExp,
+    chickCount: n,
     i,
     totalSales,
     collectedCash,
@@ -92,17 +155,15 @@ function calc(c) {
     dead,
     sold,
     kgS,
-    fk,
-    feedConsumedKg,
     feedPurchasedKg,
-    feedStockKg,
     live,
     remaining,
+    flockStats,
     debtUsTotal,
     debtUsRemaining,
     debtThemTotal,
     debtThemRemaining,
-    mort: c.n ? (dead / c.n) * 100 : 0,
+    mort: n ? (dead / n) * 100 : 0,
     cpb: live > 0 ? e / live : 0,
     avg: sold ? i / sold : 0,
     ppb: sold ? p / sold : 0

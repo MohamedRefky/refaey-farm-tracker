@@ -264,7 +264,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
 
   if (isUnified) {
     const amtVal = isEdit ? (existing && existing.amt !== undefined ? existing.amt : (linkedRef ? linkedRef.amt : '')) : '';
-    const feedUnitVal = (linkedRef && linkedRef.unit) || (existing && existing.unit) || 'شكارة';
+    const feedUnitVal = (linkedRef && linkedRef.unit) || (existing && existing.unit) || 'شكارة (50 كجم)';
     const feedQVal = isEdit ? ((linkedRef && linkedRef.q !== undefined) ? linkedRef.q : (existing && existing.q !== undefined ? existing.q : '')) : '';
     const feedNoteVal = (linkedRef && (linkedRef.note || linkedRef.txt)) || (existing && (existing.note || existing.txt)) || '';
     const stdNoteVal = isEdit && existing ? (existing.note || '') : '';
@@ -300,8 +300,9 @@ function openForm(kind, editIndex = null, prefillData = null) {
           <div>
             <label>الوحدة</label>
             <select id="f_feed_unit" onchange="updateFeedLiveHint()">
-              <option value="شكارة" ${feedUnitVal === 'شكارة' ? 'selected' : ''}>شكارة (${bagKg} كجم)</option>
-              <option value="كيلو" ${feedUnitVal === 'كيلو' ? 'selected' : ''}>كيلوجرام (كجم)</option>
+              <option value="شكارة (50 كجم)" ${(!feedUnitVal || feedUnitVal === 'شكارة' || feedUnitVal.includes('50')) ? 'selected' : ''}>شكارة (50 كجم)</option>
+              <option value="شكارة (100 كجم)" ${feedUnitVal && feedUnitVal.includes('100') ? 'selected' : ''}>شكارة (100 كجم)</option>
+              <option value="كيلوجرام (كجم)" ${feedUnitVal && feedUnitVal.includes('كيلو') ? 'selected' : ''}>كيلوجرام (كجم)</option>
             </select>
           </div>
           <div>
@@ -418,7 +419,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
     if (isUnified) {
       dataObj.cat = document.getElementById('f_cat').value || 'علف';
       dataObj.amt = document.getElementById('f_amt') ? document.getElementById('f_amt').value.trim() : '';
-      dataObj.feed_unit = document.getElementById('f_feed_unit') ? document.getElementById('f_feed_unit').value : 'شكارة';
+      dataObj.feed_unit = document.getElementById('f_feed_unit') ? document.getElementById('f_feed_unit').value : 'شكارة (50 كجم)';
       dataObj.feed_q = document.getElementById('f_feed_q') ? document.getElementById('f_feed_q').value.trim() : '';
       dataObj.feed_note = document.getElementById('f_feed_note') ? document.getElementById('f_feed_note').value.trim() : '';
       dataObj.std_note = document.getElementById('f_std_note') ? document.getElementById('f_std_note').value.trim() : '';
@@ -450,7 +451,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
     if (isUnified) {
       if (dataObj.cat === 'علف') {
         const qNum = +dataObj.feed_q;
-        const totalKg = dataObj.feed_unit === 'شكارة' ? qNum * bagKg : qNum;
+        const factor = getUnitKgFactor(dataObj.feed_unit);
+        const totalKg = qNum * factor;
         const feedTxt = qNum + ' ' + dataObj.feed_unit + (dataObj.feed_note ? ' (' + dataObj.feed_note + ')' : '');
         const amtNum = +dataObj.amt;
         let targetExp = isExpKind && isEdit ? cycle.exp[editIndex] : linkedRef;
@@ -747,11 +749,11 @@ function updateFeedLiveHint() {
 
   const unit = unitEl.value;
   const q = +qEl.value || 0;
-  const totalKg = unit === 'شكارة' ? q * bagKg : q;
-  const totalBags = (totalKg / bagKg).toFixed(1);
+  const factor = getUnitKgFactor(unit);
+  const totalKg = q * factor;
 
   if (q > 0) {
-    hintEl.innerHTML = `📦 الكمية تعادل: <b>${f(totalKg)} كجم</b> (${totalBags} شكارة)`;
+    hintEl.innerHTML = `📦 الكمية تعادل: <b>${f(totalKg)} كجم</b> (${f(q)} ${unit})`;
     hintEl.style.color = 'var(--emerald)';
   } else {
     hintEl.textContent = '';

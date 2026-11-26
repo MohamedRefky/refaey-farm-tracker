@@ -2,8 +2,8 @@
  * Refaey Farm Tracker - Data Layer & Persistence
  */
 
-// Available expense categories
-const cats = ['علف', 'كتاكيت', 'دواء', 'غاز', 'مصاريف أخرى'];
+// Available expense categories (chick cost is tracked per flock type, not here)
+const cats = ['علف', 'دواء', 'غاز', 'مصاريف أخرى'];
 
 // Default sample data for demo/new users
 const initialCycles = [
@@ -13,20 +13,23 @@ const initialCycles = [
     start: '2026-08-01',
     end: '2026-09-10',
     n: 1000,
+    flocks: [
+      { id: 101, name: 'ساسو', count: 500, cost: 9000 },
+      { id: 102, name: 'كوب', count: 500, cost: 9000 }
+    ],
     exp: [
-      { id: 1, d: '2026-08-01', cat: 'كتاكيت', amt: 18000, note: '1000 كتكوت ساسو' },
       { id: 10, d: '2026-08-05', cat: 'علف', amt: 22000, note: '30 شكارة (بادي 23%)', feedRefId: 11 },
       { id: 3, d: '2026-08-20', cat: 'دواء', amt: 3500, note: 'تحصينات واستقبال' },
       { id: 20, d: '2026-08-25', cat: 'علف', amt: 26000, note: '34 شكارة (نامي 21%)', feedRefId: 13 },
       { id: 5, d: '2026-09-01', cat: 'مصاريف أخرى', amt: 4000, note: 'يوميات وعمالة' }
     ],
     inc: [
-      { id: 1, d: '2026-09-08', cnt: 480, kg: 960, amt: 43200, paidAmt: 43200, buyer: 'تاجر الأحد' },
-      { id: 2, d: '2026-09-10', cnt: 490, kg: 990, amt: 44500, paidAmt: 40000, buyer: 'محل الشرقية', debtRefId: 101 }
+      { id: 1, d: '2026-09-08', flockId: 101, cnt: 480, amt: 43200, paidAmt: 43200, buyer: 'تاجر الأحد' },
+      { id: 2, d: '2026-09-10', flockId: 102, cnt: 488, amt: 44500, paidAmt: 40000, buyer: 'محل الشرقية', debtRefId: 101 }
     ],
     dead: [
-      { d: '2026-08-12', n: 18, note: 'نافق الأسبوع الأول' },
-      { d: '2026-08-28', n: 12, note: 'موجة حر' }
+      { id: 1, d: '2026-08-12', flockId: 101, n: 18, note: 'نافق الأسبوع الأول' },
+      { id: 2, d: '2026-08-28', flockId: 102, n: 12, note: 'موجة حر' }
     ],
     feed: [
       { id: 11, d: '2026-08-05', type: 'purchased', kg: 1500, q: 30, unit: 'شكارة', txt: '30 شكارة (بادي 23%)', note: 'بادي 23%', expRefId: 10 },
@@ -53,15 +56,18 @@ const initialCycles = [
     start: '2026-10-01',
     end: null,
     n: 800,
+    flocks: [
+      { id: 201, name: 'أبيض', count: 500, cost: 9500 },
+      { id: 202, name: 'ساسو', count: 300, cost: 5700 }
+    ],
     exp: [
-      { d: '2026-10-01', cat: 'كتاكيت', amt: 15200, note: '800 كتكوت أبيض' },
-      { d: '2026-10-04', cat: 'علف', amt: 9000, note: 'علف بادي' },
-      { d: '2026-10-12', cat: 'دواء', amt: 1800, note: 'فيتامينات ومضاد سموم' }
+      { id: 30, d: '2026-10-04', cat: 'علف', amt: 9000, note: 'علف بادي', feedRefId: 21 },
+      { id: 31, d: '2026-10-12', cat: 'دواء', amt: 1800, note: 'فيتامينات ومضاد سموم' }
     ],
     inc: [],
-    dead: [{ d: '2026-10-10', n: 9, note: 'فرز طبيعي' }],
+    dead: [{ id: 21, d: '2026-10-10', flockId: 201, n: 9, note: 'فرز طبيعي' }],
     feed: [
-      { id: 21, d: '2026-10-04', type: 'purchased', kg: 600, q: 12, unit: 'شكارة', txt: '12 شكارة بادي' }
+      { id: 21, d: '2026-10-04', type: 'purchased', kg: 600, q: 12, unit: 'شكارة', txt: '12 شكارة بادي', note: 'بادي', expRefId: 30 }
     ],
     debt: [
       {
@@ -80,41 +86,94 @@ const initialCycles = [
 ];
 
 // Persistent State Storage
-const STORAGE_KEY = 'refaey_farm_cycles_v6';
+const STORAGE_KEY = 'refaey_farm_cycles_v7';
+const LEGACY_STORAGE_KEYS = ['refaey_farm_cycles_v6', 'refaey_farm_cycles_v5'];
 let C = [];
+
+// Keeps the legacy total count in sync with the flock types
+function syncCycleCount(c) {
+  if (!c) return 0;
+  c.n = (c.flocks || []).reduce((s, f) => s + (+f.count || 0), 0);
+  return c.n;
+}
+
+// Unique flock type names used before (for input suggestions)
+function allFlockNames() {
+  const names = [];
+  C.forEach(c => (c.flocks || []).forEach(f => {
+    const name = (f.name || '').trim();
+    if (name && !names.includes(name)) names.push(name);
+  }));
+  return names;
+}
 
 function normalizeData(cycles) {
   if (!Array.isArray(cycles)) return [];
   cycles.forEach(c => {
-    // Normalize expenses to 5 standard categories
-    c.exp = (c.exp || []).map(e => {
+    // Old versions stored chick cost as an expense. Capture it before normalizing.
+    const legacyChickExpenses = (c.exp || []).filter(e => e.cat === 'كتاكيت');
+    const legacyChickCost = legacyChickExpenses.reduce((s, e) => s + (+e.amt || 0), 0);
+
+    // Normalize expenses to the 4 shared categories (chicks live in flocks now)
+    c.exp = (c.exp || []).filter(e => e.cat !== 'كتاكيت').map(e => {
       let cat = e.cat;
       if (cat === 'أدوية وتحصينات' || cat === 'بيطري' || cat === 'أدوية') cat = 'دواء';
       else if (cat === 'كهرباء وغاز' || cat === 'تدفئة' || cat === 'كهرباء') cat = 'غاز';
-      else if (cat === 'علف' || cat === 'كتاكيت' || cat === 'دواء' || cat === 'غاز') { /* keep */ }
+      else if (cat === 'علف' || cat === 'دواء' || cat === 'غاز' || cat === 'مصاريف أخرى') { /* keep */ }
       else cat = 'مصاريف أخرى';
       return { ...e, cat };
     });
-    c.dead = c.dead || [];
-    
-    // Normalize sales
-    c.inc = (c.inc || []).map(e => {
+
+    // Normalize flock types (create one legacy type when upgrading old data)
+    if (!Array.isArray(c.flocks) || c.flocks.length === 0) {
+      const legacyCount = +c.n || 0;
+      c.flocks = [{
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        name: 'الدفعة الأساسية',
+        count: legacyCount,
+        cost: legacyChickCost
+      }];
+    } else {
+      c.flocks = c.flocks.map((f, i) => ({
+        ...f,
+        id: f.id || Date.now() + i,
+        name: (f.name || '').trim() || ('نوع ' + (i + 1)),
+        count: +f.count || 0,
+        cost: +f.cost || 0
+      }));
+    }
+
+    const flockIds = c.flocks.map(f => f.id);
+    syncCycleCount(c);
+
+    // Normalize mortalities (always attached to a flock type)
+    c.dead = (c.dead || []).map((d, i) => ({
+      ...d,
+      id: d.id || Date.now() + i,
+      flockId: flockIds.includes(d.flockId) ? d.flockId : flockIds[0],
+      n: +d.n || 0
+    }));
+
+    // Normalize sales (count-based only)
+    c.inc = (c.inc || []).map((e, i) => {
       const amt = +e.amt || +e.totalAmt || 0;
       const paidAmt = e.paidAmt !== undefined ? +e.paidAmt : amt;
       return {
         ...e,
-        id: e.id || Date.now() + Math.random(),
+        id: e.id || Date.now() + i,
+        flockId: flockIds.includes(e.flockId) ? e.flockId : flockIds[0],
+        cnt: +e.cnt || 0,
         amt,
         paidAmt
       };
     });
 
-    // Normalize feed (only purchased feed is retained)
+    // Normalize feed (purchased / incoming feed only)
     c.feed = (c.feed || [])
       .filter(e => e.type !== 'consumed')
-      .map(e => ({
+      .map((e, i) => ({
         ...e,
-        id: e.id || Date.now() + Math.random(),
+        id: e.id || Date.now() + i,
         type: 'purchased',
         kg: +e.kg || 0,
         q: e.q !== undefined ? +e.q : (+e.kg || 0) / (bagKg || 50),
@@ -122,7 +181,7 @@ function normalizeData(cycles) {
       }));
 
     // Normalize debts
-    c.debt = (c.debt || []).map(d => {
+    c.debt = (c.debt || []).map((d, i) => {
       const amt = +d.amt || 0;
       let dir = d.dir;
       if (dir === 'ليا عنده' || dir === 'لنا') dir = 'لنا';
@@ -132,7 +191,7 @@ function normalizeData(cycles) {
       const paidAmt = d.paidAmt !== undefined ? +d.paidAmt : (d.paid ? amt : 0);
       return {
         ...d,
-        id: d.id || Date.now() + Math.random(),
+        id: d.id || Date.now() + i,
         dir,
         amt,
         paidAmt,
@@ -147,10 +206,28 @@ function normalizeData(cycles) {
 function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    // Also check older v5 storage if v6 not yet set
-    const oldSaved = !saved ? localStorage.getItem('refaey_farm_cycles_v5') : null;
-    const raw = saved ? JSON.parse(saved) : (oldSaved ? JSON.parse(oldSaved) : JSON.parse(JSON.stringify(initialCycles)));
-    C = normalizeData(raw);
+    if (saved) {
+      C = normalizeData(JSON.parse(saved));
+      return;
+    }
+
+    // First run on v7: migrate old data and keep a safety backup
+    let raw = null;
+    for (const key of LEGACY_STORAGE_KEYS) {
+      const legacy = localStorage.getItem(key);
+      if (legacy) {
+        try {
+          localStorage.setItem(key + '_backup', legacy);
+        } catch (backupErr) {
+          // Backup is best-effort; migration still proceeds
+        }
+        raw = JSON.parse(legacy);
+        break;
+      }
+    }
+
+    C = normalizeData(raw || JSON.parse(JSON.stringify(initialCycles)));
+    saveData();
   } catch (e) {
     C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
   }

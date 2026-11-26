@@ -7,7 +7,7 @@
 let S = {
   v: 'list',          // 'list' for all cycles or cycle ID
   tab: 'exp',         // 'exp', 'inc', 'dead', 'feed', 'debt', 'ch'
-  feedFilter: 'all',  // 'all', 'consumed', 'purchased'
+  incFilter: 'all',   // 'all' or a flock type id
   debtFilter: 'all',  // 'all', 'us', 'them', 'unpaid'
   openPayments: {}    // tracks expanded payment histories: { [debtId]: true }
 };
@@ -28,8 +28,8 @@ const K = {
     t: 'حركة بيع طيور (إيراد)',
     icon: '📈',
     f: [
+      ['flockId', 'select', '', 'نوع الفراخ المباعة'],
       ['cnt', 'number', '', 'عدد الطيور المباعة'],
-      ['kg', 'number', '', 'الوزن الإجمالي (كجم)'],
       ['amt', 'number', '', 'إجمالي قيمة البيع (جنيه)'],
       ['paidAmt', 'number', '', 'المبلغ المحصل نقداً الآن (كاش)'],
       ['buyer', 'text', '', 'اسم المشتري / التاجر']
@@ -43,10 +43,17 @@ const K = {
     t: 'طيور نافقة',
     icon: '⚠️',
     f: [
+      ['flockId', 'select', '', 'نوع الفراخ النافقة'],
       ['n', 'number', '', 'عدد الطيور النافقة'],
       ['note', 'text', '', 'سبب النفوق / ملاحظة (اختياري)']
     ],
-    r: e => ['نفوق ' + e.n + ' طائر' + (e.note ? ' - ' + e.note : ''), e.n + ' طيور']
+    r: e => {
+      const flock = e.flockId ? flockName(cur(), e.flockId) : '';
+      return [
+        'نفوق ' + e.n + ' طائر' + (flock ? ' - ' + flock : '') + (e.note ? ' - ' + e.note : ''),
+        e.n + ' طيور'
+      ];
+    }
   },
   feed: {
     t: 'شراء علف',
