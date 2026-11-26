@@ -119,8 +119,7 @@ function calc(c) {
     mort: c.n ? (dead / c.n) * 100 : 0,
     cpb: live > 0 ? e / live : 0,
     avg: sold ? i / sold : 0,
-    ppb: sold ? p / sold : 0,
-    fcr: kgS ? fk / kgS : 0
+    ppb: sold ? p / sold : 0
   };
 }
 

@@ -18,7 +18,6 @@
   - Real-time counts for active birds, sold birds, and remaining inventory in the farm.
 
 - **Production Efficiency & Key Metrics:**
-  - **Feed Conversion Ratio (FCR):** Calculates feed consumed per kilogram of live body weight sold (a lower ratio indicates better feed efficiency).
   - **Cost per Bird:** Dynamic distribution of total expenses across live birds.
   - **Profit per Bird:** Average net revenue and profit margin per bird sold.
 
@@ -61,7 +60,7 @@ refaey-farm-tracker/
 │   └── style.css         # Modern design tokens, responsive layout & animations
 ├── js/
 │   ├── data.js           # Dataset, localStorage persistence & helpers
-│   ├── calculations.js   # Poultry KPIs, FCR, cost/profit formulas & charts
+│   ├── calculations.js   # Poultry KPIs, cost/profit formulas & charts
 │   └── app.js            # UI controller, 1-tap quick actions, modal & themes
 ├── README.md
 └── .gitignore

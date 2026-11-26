@@ -228,61 +228,12 @@ function detail(a) {
       ${statBox('المتبقي بالمزرعة', f(k.remaining), 'طيور حية متاحة', '🏠')}
     </div>
 
-    <!-- Production Efficiency & Cost Grid with Interactive Explanations -->
-    <div class="section-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-      <span>مؤشرات الكفاءة والتكلفة الحيوية</span>
-      <button type="button" class="btn btn-sm btn-outline" onclick="showEfficiencyGuideModal('all')" style="font-size: 11px; padding: 4px 10px; border-color: var(--primary); color: var(--emerald); font-weight: 700;">
-        💡 دليل فهم الأرقام للمربي
-      </button>
-    </div>
+    <!-- Production Efficiency & Cost Grid -->
+    <div class="section-title">مؤشرات الكفاءة والتكلفة الحيوية</div>
     <div class="stats-grid">
-      ${statBox('تكلفة الطائر الحي', f(k.cpb) + ' ج', 'المصروف ÷ الحي • اضغط للشرح ℹ️', '💵', '', 'showEfficiencyGuideModal("cpb")')}
-      ${statBox('ربح الطائر المباع', f(k.ppb) + ' ج', (k.ppb >= 0 ? 'صافي مكسب الفرخة' : 'صافي عجز الفرخة') + ' • اضغط للشرح ℹ️', '📈', k.ppb >= 0 ? 'color-emerald' : 'color-rose', 'showEfficiencyGuideModal("ppb")')}
-      ${statBox('العلف المستهلك', f(k.feedConsumedKg) + ' كجم', ((k.feedConsumedKg / bagKg).toFixed(1)) + ' شكارة أكلتها الطيور • اضغط للشرح ℹ️', '🌾', '', 'showEfficiencyGuideModal("feed")')}
-      ${(() => {
-        const fcrVal = k.fcr ? k.fcr.toFixed(2) : null;
-        let hint = 'العلف المستهلك ÷ وزن البيع • اضغط للشرح ℹ️';
-        if (!fcrVal) {
-          hint = 'بانتظار تسجيل أوزان البيع • اضغط للشرح ℹ️';
-        } else if (isOngoing && k.remaining > 0) {
-          hint = `⏳ دورة جارية (${fcrVal} كجم/كجم لحم) • اضغط للشرح ℹ️`;
-        } else {
-          if (k.fcr <= 1.55) hint = `🟢 ممتاز (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
-          else if (k.fcr <= 1.65) hint = `🟢 طبيعي ومربح (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
-          else if (k.fcr <= 1.80) hint = `🟠 متوسط وفيه هدر (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
-          else hint = `🔴 مرتفع وهدر علف (${fcrVal} كجم علف/كجم لحم) • اضغط للشرح ℹ️`;
-        }
-        return statBox('معامل التحويل (FCR)', fcrVal || '-', hint, '⚖️', k.fcr && k.fcr <= 1.6 ? 'color-emerald' : (isOngoing && k.remaining > 0 ? 'color-sky' : 'color-amber'), 'showFcrModal()');
-      })()}
-    </div>
-
-    <!-- Quick Educational Explainer Banner Directly in UI -->
-    <div class="card fcr-banner-card">
-      <div class="fcr-banner-layout">
-        <div class="fcr-banner-main">
-          <span class="fcr-banner-icon">💡</span>
-          <div class="fcr-banner-text">
-            <div class="fcr-banner-title">
-              يعني إيه «معامل التحويل الغذائي (FCR)» بالبلدي؟
-            </div>
-            <div class="fcr-banner-desc">
-              هو المقياس الأهم لمكسب المزرعة: <b>«الفراخ أكلت كام كيلو علف عشان تديك 1 كيلو لحم؟»</b>
-            </div>
-            <div class="fcr-banner-tags">
-              <span>🎯 <b>المعدل المربح القياسي:</b> من 1.50 إلى 1.65 كجم علف/كيلو لحم.</span>
-              <span>💰 <b>القاعدة الذهبية:</b> كل ما الرقم يقل... أرباحك تزيد!</span>
-            </div>
-            ${isOngoing && k.remaining > 0 && k.fcr ? `
-              <div class="fcr-banner-alert">
-                ⏳ <b>تنبيه لدورتك الحالية:</b> ما زال عندك <b>${f(k.remaining)} طائر</b> في العنبر لم يُباعوا بعد. الرقم الحالي (${k.fcr.toFixed(2)}) سيعتدل تلقائياً ليصبح دقيقاً عند بيع باقي الفراخ.
-              </div>
-            ` : ''}
-          </div>
-        </div>
-        <button type="button" class="btn btn-sm btn-outline fcr-banner-btn" onclick="showFcrModal()">
-          شرح كامل ℹ️
-        </button>
-      </div>
+      ${statBox('تكلفة الطائر الحي', f(k.cpb) + ' ج', 'المصروف ÷ الحي', '💵')}
+      ${statBox('ربح الطائر المباع', f(k.ppb) + ' ج', (k.ppb >= 0 ? 'صافي مكسب الفرخة' : 'صافي عجز الفرخة'), '📈', k.ppb >= 0 ? 'color-emerald' : 'color-rose')}
+      ${statBox('العلف المستهلك', f(k.feedConsumedKg) + ' كجم', ((k.feedConsumedKg / bagKg).toFixed(1)) + ' شكارة أكلتها الطيور', '🌾')}
     </div>
 
     <!-- Navigation Tabs -->

@@ -104,23 +104,6 @@ function renderFeedTab(c, k) {
         <span class="tab-summary-val ${k.feedStockKg > 0 ? 'color-emerald' : 'color-rose'}">${f(k.feedStockKg)} كجم</span>
         <span class="tab-summary-sub">${(k.feedStockKg / bagKg).toFixed(1)} شكارة حالياً بالمخزن</span>
       </div>
-      <div class="tab-summary-card" onclick="showFcrModal()" style="cursor: pointer;" title="اضغط لمعرفة شرح وتفاصيل معامل التحويل">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span class="tab-summary-label">معامل التحويل (FCR)</span>
-          <span style="font-size: 11px; color: var(--emerald); font-weight: 700;">اضغط للشرح ℹ️</span>
-        </div>
-        <span class="tab-summary-val ${k.fcr && k.fcr <= 1.6 ? 'color-emerald' : 'color-amber'}">${k.fcr ? k.fcr.toFixed(2) : '-'}</span>
-        <span class="tab-summary-sub">
-          ${(() => {
-            if (!k.fcr) return 'المستهلك ÷ وزن المباع • اضغط للشرح ℹ️';
-            const val = k.fcr.toFixed(2);
-            if (k.fcr <= 1.55) return `🟢 ممتاز (${val} كجم علف/كجم لحم) • تفاصيل`;
-            if (k.fcr <= 1.65) return `🟢 طبيعي ومربح (${val} كجم علف/كجم لحم) • تفاصيل`;
-            if (k.fcr <= 1.80) return `🟠 متوسط وفيه هدر (${val} كجم علف/كجم لحم) • تفاصيل`;
-            return `🔴 مرتفع وهدر علف (${val} كجم علف/كجم لحم) • تفاصيل`;
-          })()}
-        </span>
-      </div>
     </div>
 
     <!-- Dual Action Buttons: Feed Consumed vs Feed Purchased -->

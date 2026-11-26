@@ -307,7 +307,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
 
         <div id="consumed_info_banner" class="form-hint-banner" style="background: rgba(14,165,233,0.12); border-color: var(--sky); color: var(--sky); margin: 6px 0 14px; display: ${feedMode === 'consumed' ? 'flex' : 'none'};">
           <span style="font-size: 18px;">💡</span>
-          <span style="font-size: 12px; line-height: 1.4;"><b>وجبة استهلاك يومية:</b> لا تتطلب دفع كاش اليوم؛ لأن العلف مسحوب من مخزن المزرعة مسبقاً. سيتم خصمها من رصيد المخزن واحتسابها في معامل التحويل (FCR).</span>
+          <span style="font-size: 12px; line-height: 1.4;"><b>وجبة استهلاك يومية:</b> لا تتطلب دفع كاش اليوم؛ لأن العلف مسحوب من مخزن المزرعة مسبقاً. سيتم خصمها من رصيد المخزن واحتسابها ضمن العلف المستهلك.</span>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
