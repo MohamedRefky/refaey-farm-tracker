@@ -28,6 +28,20 @@ const fd = d => {
   });
 };
 
+// Short mobile-friendly Arabic date (e.g. "12 أكتوبر")
+const fds = d => {
+  if (!d) return '';
+  const parts = String(d).split('-');
+  const dateObj = parts.length === 3
+    ? new Date(+parts[0], +parts[1] - 1, +parts[2])
+    : new Date(d);
+  return dateObj.toLocaleDateString('ar-EG-u-nu-latn', {
+    timeZone: 'Africa/Cairo',
+    day: 'numeric',
+    month: 'short'
+  });
+};
+
 // Safe array property summation
 const sum = (arr, key) => (arr || []).reduce((s, x) => s + (+x[key] || 0), 0);
 

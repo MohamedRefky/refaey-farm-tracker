@@ -592,12 +592,12 @@ body::after {
   margin-top: 4px;
 }
 
-/* Tabs Navigation (Clean Grid - all tabs always visible, never clipped) */
+/* Tabs Navigation (4 core tabs in 1 clean row) */
 .tabs-container {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin: 18px 0 14px;
+  margin: 18px 0 12px;
 }
 
 .tab-pill {
@@ -1676,18 +1676,18 @@ select option {
     font-size: 15.5px !important;
   }
 
-  /* Tabs Navigation Pills (3x2 grid on mobile, zero horizontal clipping) */
+  /* Tabs Navigation Pills (4 tabs in 1 clean row on mobile) */
   .tabs-container {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin: 14px 0 12px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    margin: 14px 0 10px;
     padding: 0;
   }
   .tab-pill {
-    padding: 9px 6px;
-    font-size: 12px;
+    padding: 9px 4px;
+    font-size: 11.5px;
     font-weight: 700;
-    gap: 4px;
+    gap: 3px;
     white-space: nowrap;
     border-radius: var(--radius-sm);
   }
@@ -1731,7 +1731,14 @@ select option {
     justify-content: center;
   }
 
-  /* Record Items */
+  /* Slim Record Items stay compact horizontal on mobile */
+  .record-item.record-slim {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 0;
+  }
   .record-item {
     flex-direction: column;
     align-items: stretch;
@@ -2523,6 +2530,103 @@ select option {
     gap: 4px;
     min-height: 52px;
   }
+}
+
+/* Slim Inline Tab Summary & Compact Record Rows */
+.tab-inline-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 9px 14px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.record-item.record-slim {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+}
+
+.record-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.record-main .record-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.record-cat-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--emerald-light);
+  color: var(--emerald);
+  white-space: nowrap;
+}
+
+.record-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.record-side .record-value {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.record-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-main);
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.icon-action-btn:hover {
+  border-color: var(--emerald);
+  background: var(--emerald-light);
+}
+
+.icon-action-btn.pay {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: var(--emerald-light);
+}
+
+.icon-action-btn.danger:hover {
+  border-color: var(--rose);
+  background: var(--rose-light);
 }
 
 /* Print Styles */

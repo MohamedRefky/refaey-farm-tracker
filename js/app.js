@@ -6,9 +6,10 @@
 // Global UI State
 let S = {
   v: 'list',          // 'list' for all cycles or cycle ID
-  tab: 'exp',         // 'exp', 'inc', 'dead', 'feed', 'debt', 'ch'
+  tab: 'exp',         // 'exp', 'inc', 'dead', 'debt'
+  expFilter: 'all',   // 'all', 'علف', 'دواء', 'غاز', 'مصاريف أخرى'
   incFilter: 'all',   // 'all' or a flock type id
-  debtFilter: 'all',  // 'all', 'us', 'them', 'unpaid'
+  debtFilter: 'all',  // 'all', 'unpaid'
   openPayments: {},   // tracks expanded payment histories: { [debtId]: true }
   openFlocks: {}      // tracks expanded flock detail rows: { [flockId]: true }
 };
@@ -82,9 +83,7 @@ const tabs = [
   ['exp', '💸 المصروفات'],
   ['inc', '📈 المبيعات'],
   ['dead', '⚠️ النفوق'],
-  ['feed', '🌾 العلف'],
-  ['debt', '📝 المستحقات'],
-  ['ch', '📊 التقارير']
+  ['debt', '📝 المستحقات']
 ];
 
 // Helper: Get currently selected cycle

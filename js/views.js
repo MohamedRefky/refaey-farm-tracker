@@ -124,7 +124,8 @@ function list(a) {
 function openCycle(id) {
   S.v = id;
   S.tab = 'exp';
-  S.feedFilter = 'all';
+  S.expFilter = 'all';
+  S.incFilter = 'all';
   S.debtFilter = 'all';
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -139,16 +140,22 @@ function detail(a) {
     S.v = 'list';
     return list(a);
   }
+  if (!['exp', 'inc', 'dead', 'debt'].includes(S.tab)) {
+    S.tab = 'exp';
+  }
   const k = calc(c);
   const isOngoing = !c.end;
 
   let h = `
-    <!-- Top Nav with Edit Support -->
+    <!-- Top Nav with Reports & Edit Support -->
     <div class="detail-top-nav">
       <button class="back-btn" onclick="S.v='list'; render()">
-        <span>→</span> <span class="nav-text">العودة لكل الدورات</span>
+        <span>→</span> <span class="nav-text">الدورات</span>
       </button>
       <div class="detail-nav-actions">
+        <button class="print-btn" onclick="openReportsModal()" title="التقارير والرسوم البيانية">
+          <span>📊</span> <span>التقارير</span>
+        </button>
         <button class="print-btn" onclick="editCycle()" title="تعديل بيانات الدورة">
           <span>✏️</span> <span>تعديل</span>
         </button>
@@ -330,22 +337,15 @@ function detail(a) {
     </div>
   `;
 
-  // Render Content based on Active Tab
-  if (S.tab === 'ch') {
-    // Analytics & Reporting Tab
-    h += renderAnalyticsTab(c, k);
-  } else if (S.tab === 'inc') {
-    // Sales & Collection Tab
+  // Render Content based on Active Tab (4 clean core tabs)
+  if (S.tab === 'inc') {
     h += renderSalesTab(c, k);
-  } else if (S.tab === 'feed') {
-    // Feed & Stock Tab
-    h += renderFeedTab(c, k);
   } else if (S.tab === 'debt') {
-    // Debt & Payment Tracking Tab
     h += renderDebtTab(c, k);
+  } else if (S.tab === 'dead') {
+    h += renderDeadTab(c, k);
   } else {
-    // Default Expenses or Mortality Tab
-    h += renderGenericTab(c, k);
+    h += renderExpensesTab(c, k);
   }
 
   if (!c.end) {
@@ -364,4 +364,25 @@ function detail(a) {
 function toggleFlockDetails(id) {
   S.openFlocks[id] = !S.openFlocks[id];
   render();
+}
+
+function openReportsModal() {
+  const c = cur();
+  if (!c) return;
+  const k = calc(c);
+  const { m: modal, fm: formEl } = ensureModalElements();
+  if (!modal || !formEl) return;
+
+  formEl.innerHTML = `
+    <div class="form-header">
+      <div class="form-title">📊 تقارير وملخص الدورة</div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+    </div>
+    ${renderAnalyticsTab(c, k)}
+    <div class="form-actions-row">
+      <button class="btn btn-outline btn-full" type="button" onclick="closeM()">إغلاق</button>
+    </div>
+  `;
+  formEl.onsubmit = ev => { ev.preventDefault(); closeM(); };
+  modal.classList.add('on');
 }

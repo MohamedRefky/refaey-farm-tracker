@@ -3,7 +3,7 @@
  * Renders individual feature tabs: Sales, Feed & Stock, Debts, Expenses, Mortalities, and Analytics.
  */
 
-// 1. Sales Tab (Simplified: by flock type, total value only, no weight or auto-debt)
+// 1. Sales Tab (Simplified: slim summary + flock filter + compact rows)
 function renderSalesTab(c, k) {
   const arr = c.inc || [];
   const flocks = c.flocks || [];
@@ -11,21 +11,10 @@ function renderSalesTab(c, k) {
   const filtered = activeFilter === 'all'
     ? arr
     : arr.filter(x => x.flockId === activeFilter);
+  const filteredAmt = filtered.reduce((s, x) => s + (+x.amt || 0), 0);
+  const filteredCnt = filtered.reduce((s, x) => s + (+x.cnt || 0), 0);
 
   return `
-    <div class="tab-summary-grid">
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">إجمالي قيمة المبيعات</span>
-        <span class="tab-summary-val color-emerald">${f(k.totalSales)} ج</span>
-        <span class="tab-summary-sub">${arr.length} حركة بيع مسجلة</span>
-      </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">إجمالي الطيور المباعة</span>
-        <span class="tab-summary-val">${f(k.sold)} طائر</span>
-        <span class="tab-summary-sub">متوسط ${f(k.avg)} ج/طائر</span>
-      </div>
-    </div>
-
     ${flocks.length > 1 ? `
       <div class="filter-chips" style="margin-top: 0;">
         <button class="filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="S.incFilter='all'; render()">
@@ -42,29 +31,32 @@ function renderSalesTab(c, k) {
       </div>
     ` : ''}
 
-    <div class="card" style="margin-top: 8px;">
+    <div class="tab-inline-summary">
+      <span>المبيعات: <b class="color-emerald">${f(filteredAmt)} ج</b></span>
+      <span>•</span>
+      <span>${f(filteredCnt)} طائر ${filteredCnt > 0 ? `(متوسط ${f(filteredAmt / filteredCnt)} ج)` : ''}</span>
+    </div>
+
+    <div class="card">
       ${filtered.length ? filtered.slice().reverse().map(e => {
         const i = arr.indexOf(e);
         const total = +e.amt || 0;
-        const avgPerBird = e.cnt ? (total / e.cnt) : 0;
         const typeName = flockName(c, e.flockId);
 
         return `
-          <div class="record-item">
-            <div>
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 3px;">
-                <span class="badge badge-feed-in">🐣 ${typeName}</span>
-                <span class="record-title">بيع ${f(e.cnt)} طائر ${e.buyer ? '(' + e.buyer + ')' : ''}</span>
+          <div class="record-item record-slim">
+            <div class="record-main">
+              <div class="record-title">
+                <span class="record-cat-badge">🐣 ${typeName}</span>
+                <span>بيع ${f(e.cnt)} طائر${e.buyer ? ' • ' + e.buyer : ''}</span>
               </div>
-              <div class="record-date">
-                ${fd(e.d)} ${avgPerBird > 0 ? `• متوسط سعر الطائر: <b>${f(avgPerBird)} ج</b>` : ''}
-              </div>
+              <div class="record-date">${fds(e.d)}${e.cnt ? ` • متوسط ${f(total / e.cnt)} ج/طائر` : ''}</div>
             </div>
-            <div class="record-value-group">
+            <div class="record-side">
               <span class="record-value color-emerald">${f(total)} ج</span>
-              <div class="record-actions">
-                <button class="btn btn-sm btn-outline" onclick="openForm('inc', ${i})" title="تعديل هذا البيع">✏️ تعديل</button>
-                <button class="btn btn-sm btn-danger" onclick="delSale(${i})">حذف</button>
+              <div class="record-icon-actions">
+                <button class="icon-action-btn" onclick="openForm('inc', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
+                <button class="icon-action-btn danger" onclick="delSale(${i})" title="حذف" aria-label="حذف">🗑️</button>
               </div>
             </div>
           </div>
@@ -79,53 +71,86 @@ function renderSalesTab(c, k) {
   `;
 }
 
-// 2. Feed Tab: Purchased Feed Tracking
-function renderFeedTab(c, k) {
-  const allFeed = c.feed || [];
-  const feedCost = (c.exp || []).filter(x => x.cat === 'علف').reduce((s, x) => s + (+x.amt || 0), 0);
+// 2. Expenses Tab (Unified with Feed + Category Filter Chips + Slim Rows)
+function renderExpensesTab(c, k) {
+  const allExp = c.exp || [];
+  const activeFilter = S.expFilter || 'all';
+  const filtered = activeFilter === 'all'
+    ? allExp
+    : allExp.filter(e => e.cat === activeFilter);
+  const filteredSum = filtered.reduce((s, e) => s + (+e.amt || 0), 0);
+
+  const catIcons = {
+    'علف': '🌾',
+    'دواء': '💊',
+    'غاز': '🔥',
+    'مصاريف أخرى': '📦'
+  };
+
+  let summaryHtml = `<span>إجمالي المصاريف: <b class="color-rose">${f(k.otherExp)} ج</b></span><span>•</span><span>${allExp.length} بنود</span>`;
+  if (activeFilter === 'علف') {
+    summaryHtml = `<span>إجمالي العلف: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>التكلفة: <b class="color-rose">${f(filteredSum)} ج</b></span>`;
+  } else if (activeFilter !== 'all') {
+    summaryHtml = `<span>${catIcons[activeFilter] || ''} ${activeFilter}: <b class="color-rose">${f(filteredSum)} ج</b></span><span>•</span><span>${filtered.length} بنود</span>`;
+  }
 
   return `
-    <div class="tab-summary-grid">
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">إجمالي العلف المشترى</span>
-        <span class="tab-summary-val color-emerald">${f(k.feedPurchasedKg)} كجم</span>
-        <span class="tab-summary-sub">${allFeed.length} حركة شراء</span>
-      </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">إجمالي تكلفة العلف</span>
-        <span class="tab-summary-val color-rose">${f(feedCost)} ج</span>
-        <span class="tab-summary-sub">إجمالي المدفوع للعلف</span>
-      </div>
+    <div class="filter-chips" style="margin-top: 0;">
+      <button class="filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="S.expFilter='all'; render()">
+        الكل (${allExp.length})
+      </button>
+      <button class="filter-chip ${activeFilter === 'علف' ? 'active' : ''}" onclick="S.expFilter='علف'; render()">
+        🌾 علف (${allExp.filter(e => e.cat === 'علف').length})
+      </button>
+      <button class="filter-chip ${activeFilter === 'دواء' ? 'active' : ''}" onclick="S.expFilter='دواء'; render()">
+        💊 دواء
+      </button>
+      <button class="filter-chip ${activeFilter === 'غاز' ? 'active' : ''}" onclick="S.expFilter='غاز'; render()">
+        🔥 غاز
+      </button>
+      <button class="filter-chip ${activeFilter === 'مصاريف أخرى' ? 'active' : ''}" onclick="S.expFilter='مصاريف أخرى'; render()">
+        📦 أخرى
+      </button>
     </div>
 
-    <!-- Feed Records List -->
+    <div class="tab-inline-summary">
+      ${summaryHtml}
+    </div>
+
     <div class="card">
-      ${allFeed.length ? allFeed.slice().reverse().map(e => {
-        const i = allFeed.indexOf(e);
-        const linkedExp = (c.exp || []).find(x => x.id === e.expRefId || x.feedRefId === e.id);
-        const amt = linkedExp ? linkedExp.amt : 0;
+      ${filtered.length ? filtered.slice().reverse().map(e => {
+        const i = allExp.indexOf(e);
+        const icon = catIcons[e.cat] || '💸';
+        const linkedFeed = e.cat === 'علف'
+          ? (c.feed || []).find(fl => fl.id === e.feedRefId || fl.expRefId === e.id)
+          : null;
+        const label = linkedFeed
+          ? `${linkedFeed.txt || (linkedFeed.q ? `${linkedFeed.q} ${linkedFeed.unit || 'شكارة'}` : 'علف')}`
+          : (e.note ? `${e.cat} - ${e.note}` : e.cat);
+        const subInfo = linkedFeed ? ` • <b>${f(linkedFeed.kg)} كجم</b>` : '';
+
         return `
-          <div class="record-item">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <span class="badge badge-feed-in">📦 علف مشترى</span>
-                <span class="record-title">${e.txt || (e.q ? `${e.q} ${e.unit || 'شكارة'}` : 'علف')} ${e.note ? `(${e.note})` : ''}</span>
+          <div class="record-item record-slim">
+            <div class="record-main">
+              <div class="record-title">
+                <span>${icon}</span>
+                <span>${label}</span>
               </div>
-              <div class="record-date">${fd(e.d)} • <b>${f(e.kg)} كجم</b> (${(e.kg / bagKg).toFixed(1)} شكارة)</div>
+              <div class="record-date">${fds(e.d)}${subInfo}</div>
             </div>
-            <div class="record-value-group">
-              ${amt > 0 ? `<span class="record-value color-rose">${f(amt)} ج</span>` : ''}
-              <div class="record-actions">
-                <button class="btn btn-sm btn-outline" onclick="openForm('feed', ${i})" title="تعديل">✏️ تعديل</button>
-                <button class="btn btn-sm btn-danger" onclick="del(${i})">حذف</button>
+            <div class="record-side">
+              <span class="record-value color-rose">${f(e.amt)} ج</span>
+              <div class="record-icon-actions">
+                <button class="icon-action-btn" onclick="openForm('exp', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
+                <button class="icon-action-btn danger" onclick="del(${i})" title="حذف" aria-label="حذف">🗑️</button>
               </div>
             </div>
           </div>
         `;
       }).join('') : `
         <div class="empty-state">
-          <div class="empty-state-icon">🌾</div>
-          لا توجد مشتريات علف مسجلة حتى الآن
+          <div class="empty-state-icon">💸</div>
+          لا توجد مصاريف مسجلة في هذا التصنيف
         </div>
       `}
     </div>
@@ -140,23 +165,15 @@ function renderDebtTab(c, k) {
   const collectedDebt = Math.max(0, (k.debtUsTotal || 0) - (k.debtUsRemaining || 0));
 
   return `
-    <div class="tab-summary-grid" style="grid-template-columns: repeat(2, 1fr);">
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">🟢 المتبقي المطلوب تحصيله</span>
-        <span class="tab-summary-val color-emerald">${f(k.debtUsRemaining)} ج</span>
-        <span class="tab-summary-sub">من أصل ${f(k.debtUsTotal)} ج مستحقات لنا</span>
-      </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">✅ ما تم تحصيله</span>
-        <span class="tab-summary-val">${f(collectedDebt)} ج</span>
-        <span class="tab-summary-sub">${allDebts.length} بنود مسجلة</span>
-      </div>
-    </div>
-
-    <!-- Filter Chips for Receivables -->
     <div class="filter-chips" style="margin-top: 0;">
       <button class="filter-chip ${S.debtFilter !== 'unpaid' ? 'active' : ''}" onclick="S.debtFilter='all'; render()">الكل (${allDebts.length})</button>
       <button class="filter-chip ${S.debtFilter === 'unpaid' ? 'active' : ''}" onclick="S.debtFilter='unpaid'; render()">⏳ متبقي للتحصيل</button>
+    </div>
+
+    <div class="tab-inline-summary">
+      <span>المتبقي لنا: <b class="color-emerald">${f(k.debtUsRemaining)} ج</b></span>
+      <span>•</span>
+      <span>محصل: <b>${f(collectedDebt)} ج</b></span>
     </div>
 
     <!-- Receivables List -->
@@ -173,55 +190,37 @@ function renderDebtTab(c, k) {
         const payments = e.payments || [];
 
         return `
-          <div class="record-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                  <span class="record-title" style="font-size: 16px;">${e.who}</span>
-                  <span class="badge ${isPaid ? 'badge-paid' : (isPartial ? 'badge-partial' : 'badge-debt-us')}">
-                    ${isPaid ? 'تم التحصيل بالكامل ✓' : (isPartial ? `تحصيل جزئي (باقي ${f(remaining)} ج)` : '🟢 مستحق لنا')}
-                  </span>
+          <div class="record-item" style="flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 0;">
+            <div class="record-slim" style="padding: 0; border: none;">
+              <div class="record-main">
+                <div class="record-title">
+                  <span>📝</span>
+                  <span>${e.who}</span>
                 </div>
-                <div class="record-date">${fd(e.d)} ${e.note ? '• ' + e.note : ''}</div>
+                <div class="record-date">
+                  ${fds(e.d)}${e.note ? ' • ' + e.note : ''} •
+                  <b class="${isPaid ? 'color-emerald' : 'color-amber'}">
+                    ${isPaid ? 'تم التحصيل ✓' : (isPartial ? `باقي ${f(remaining)} ج` : 'متبقي بالكامل')}
+                  </b>
+                </div>
               </div>
-              <div style="text-align: left; flex-shrink: 0;">
+              <div class="record-side">
                 <span class="record-value color-emerald">${f(total)} ج</span>
-                ${!isPaid && paidAmt > 0 ? `
-                  <div style="font-size: 12px; color: var(--text-dim); font-weight: 700;">
-                    المتبقي: <b style="color:var(--amber);">${f(remaining)} ج</b>
-                  </div>
-                ` : ''}
+                <div class="record-icon-actions">
+                  ${!isPaid ? `<button class="icon-action-btn pay" onclick="openPaymentModal(${i})" title="تسجيل تحصيل" aria-label="تسجيل تحصيل">💵</button>` : ''}
+                  ${payments.length > 0 ? `<button class="icon-action-btn" onclick="togglePaymentsHistory('${e.id || i}')" title="سجل الدفعات" aria-label="سجل الدفعات">📜</button>` : ''}
+                  <button class="icon-action-btn" onclick="openForm('debt', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
+                  <button class="icon-action-btn danger" onclick="delDebt(${i})" title="حذف" aria-label="حذف">🗑️</button>
+                </div>
               </div>
             </div>
 
             ${paidAmt > 0 ? `
-              <!-- Progress Bar -->
-              <div class="debt-progress-track">
+              <div class="debt-progress-track" style="margin: 2px 0 0;">
                 <div class="debt-progress-bar" style="width: ${percent}%; background: ${isPaid ? 'var(--emerald)' : 'var(--amber)'};"></div>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-weight: 600;">
-                <span>تم تحصيله: ${f(paidAmt)} ج (${percent}%)</span>
-                <span>المتبقي: ${f(remaining)} ج</span>
               </div>
             ` : ''}
 
-            <!-- Action Buttons -->
-            <div class="debt-actions-row">
-              ${!isPaid ? `
-                <button class="btn btn-sm btn-primary" onclick="openPaymentModal(${i})">
-                  💵 تسجيل تحصيل / دفعة
-                </button>
-              ` : ''}
-              ${payments.length > 0 ? `
-                <button class="btn btn-sm btn-outline" onclick="togglePaymentsHistory('${e.id || i}')">
-                  📜 سجل الدفعات (${payments.length})
-                </button>
-              ` : ''}
-              <button class="btn btn-sm btn-outline" onclick="openForm('debt', ${i})">✏️ تعديل</button>
-              <button class="btn btn-sm btn-danger" onclick="delDebt(${i})">حذف</button>
-            </div>
-
-            <!-- Payment History Sub-Panel -->
             ${isHistoryOpen && payments.length > 0 ? `
               <div class="payment-history-box">
                 <div class="payment-history-header">
@@ -231,11 +230,9 @@ function renderDebtTab(c, k) {
                 ${payments.map((p, pIdx) => `
                   <div class="payment-history-item">
                     <div>
-                      <b>${fd(p.d)}</b>: تحصيل مبلغ <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${p.note})` : ''}
+                      <b>${fds(p.d)}</b>: تحصيل <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${p.note})` : ''}
                     </div>
-                    <button class="btn btn-sm btn-danger" onclick="deletePayment(${i}, ${pIdx})" title="حذف هذه الدفعة والتراجع عن التحصيل" style="padding: 2px 6px; font-size: 11px;">
-                      🗑️ إلغاء الدفعة
-                    </button>
+                    <button class="icon-action-btn danger" onclick="deletePayment(${i}, ${pIdx})" title="إلغاء الدفعة" style="width:28px;height:28px;font-size:12px;">🗑️</button>
                   </div>
                 `).join('')}
               </div>
@@ -252,50 +249,44 @@ function renderDebtTab(c, k) {
   `;
 }
 
-// 4. Generic Tab for Expenses & Mortalities (Clean list without duplicate action buttons)
-function renderGenericTab(c, k) {
-  const T = K[S.tab];
-  const arr = c[S.tab] || [];
+// 4. Mortality Tab (Slim rows)
+function renderDeadTab(c, k) {
+  const arr = c.dead || [];
 
   return `
-    ${S.tab === 'exp' ? `
-      <div class="tab-summary-grid" style="margin-bottom: 10px;">
-        <div class="tab-summary-card">
-          <span class="tab-summary-label">مصاريف التشغيل المشتركة</span>
-          <span class="tab-summary-val color-rose">${f(k.otherExp)} ج</span>
-          <span class="tab-summary-sub">علف + دواء + غاز + أخرى</span>
-        </div>
-        <div class="tab-summary-card">
-          <span class="tab-summary-label">تكلفة الكتاكيت</span>
-          <span class="tab-summary-val">${f(k.chickCost)} ج</span>
-          <span class="tab-summary-sub">${f(c.n)} كتكوت في البداية</span>
-        </div>
-      </div>
-    ` : ''}
+    <div class="tab-inline-summary">
+      <span>إجمالي النافق: <b class="${k.mort > 5 ? 'color-rose' : ''}">${f(k.dead)} طائر</b></span>
+      <span>•</span>
+      <span>النسبة: <b>${k.mort.toFixed(1)}%</b></span>
+    </div>
 
     <div class="card">
       ${arr.length ? arr.slice().reverse().map(e => {
-        const r = T.r(e);
         const i = arr.indexOf(e);
+        const typeName = flockName(c, e.flockId);
+
         return `
-          <div class="record-item">
-            <div>
-              <div class="record-title">${r[0]}</div>
-              <div class="record-date">${fd(e.d)}</div>
+          <div class="record-item record-slim">
+            <div class="record-main">
+              <div class="record-title">
+                <span class="record-cat-badge">🐣 ${typeName}</span>
+                <span>نفوق ${f(e.n)} طائر</span>
+              </div>
+              <div class="record-date">${fds(e.d)}</div>
             </div>
-            <div class="record-value-group">
-              <span class="record-value ${S.tab === 'exp' ? 'color-rose' : ''}">${r[1]}</span>
-              <div class="record-actions">
-                <button class="btn btn-sm btn-outline" onclick="openForm('${S.tab}', ${i})" title="تعديل هذا التسجيل">✏️ تعديل</button>
-                <button class="btn btn-sm btn-danger" onclick="del(${i})">حذف</button>
+            <div class="record-side">
+              <span class="record-value color-rose">${f(e.n)}</span>
+              <div class="record-icon-actions">
+                <button class="icon-action-btn" onclick="openForm('dead', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
+                <button class="icon-action-btn danger" onclick="del(${i})" title="حذف" aria-label="حذف">🗑️</button>
               </div>
             </div>
           </div>
         `;
       }).join('') : `
         <div class="empty-state">
-          <div class="empty-state-icon">${T.icon}</div>
-          مفيش تسجيلات مسجلة في هذا القسم بعد
+          <div class="empty-state-icon">⚠️</div>
+          مفيش نافق مسجل حتى الآن
         </div>
       `}
     </div>
@@ -386,7 +377,7 @@ function quickAdd(kind) {
 
 // Quick expense form with predefined category
 function openExpenseWithCat(cat) {
-  S.tab = (cat === 'علف') ? 'feed' : 'exp';
+  S.tab = 'exp';
   openForm('exp', null, { cat: cat });
 }
 
