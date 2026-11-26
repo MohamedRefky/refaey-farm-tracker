@@ -3,7 +3,7 @@
  */
 
 // Available expense categories
-const cats = ['علف', 'كتاكيت', 'أدوية وتحصينات', 'كهرباء وغاز', 'عمالة', 'نقل', 'أخرى'];
+const cats = ['علف', 'كتاكيت', 'دواء', 'غاز', 'أخرى'];
 
 // Default sample data for demo/new users
 const initialCycles = [
@@ -16,9 +16,9 @@ const initialCycles = [
     exp: [
       { id: 1, d: '2026-08-01', cat: 'كتاكيت', amt: 18000, note: '1000 كتكوت ساسو' },
       { id: 10, d: '2026-08-05', cat: 'علف', amt: 22000, note: '30 شكارة (بادي 23%)', feedRefId: 11 },
-      { id: 3, d: '2026-08-20', cat: 'أدوية وتحصينات', amt: 3500, note: 'تحصينات واستقبال' },
+      { id: 3, d: '2026-08-20', cat: 'دواء', amt: 3500, note: 'تحصينات واستقبال' },
       { id: 20, d: '2026-08-25', cat: 'علف', amt: 26000, note: '34 شكارة (نامي 21%)', feedRefId: 13 },
-      { id: 5, d: '2026-09-01', cat: 'عمالة', amt: 4000, note: 'يوميات وعمالة' }
+      { id: 5, d: '2026-09-01', cat: 'أخرى', amt: 4000, note: 'يوميات وعمالة' }
     ],
     inc: [
       { id: 1, d: '2026-09-08', cnt: 480, kg: 960, amt: 43200, paidAmt: 43200, buyer: 'تاجر الأحد' },
@@ -30,9 +30,7 @@ const initialCycles = [
     ],
     feed: [
       { id: 11, d: '2026-08-05', type: 'purchased', kg: 1500, q: 30, unit: 'شكارة', txt: '30 شكارة (بادي 23%)', note: 'بادي 23%', expRefId: 10 },
-      { id: 12, d: '2026-08-06', type: 'consumed', kg: 1400, q: 28, unit: 'شكارة', txt: '28 شكارة (استهلاك أسبوعي)', note: 'استهلاك أسبوعي' },
-      { id: 13, d: '2026-08-25', type: 'purchased', kg: 1700, q: 34, unit: 'شكارة', txt: '34 شكارة (نامي 21%)', note: 'نامي 21%', expRefId: 20 },
-      { id: 14, d: '2026-08-26', type: 'consumed', kg: 1600, q: 32, unit: 'شكارة', txt: '32 شكارة (استهلاك أسبوعي)', note: 'استهلاك أسبوعي' }
+      { id: 13, d: '2026-08-25', type: 'purchased', kg: 1700, q: 34, unit: 'شكارة', txt: '34 شكارة (نامي 21%)', note: 'نامي 21%', expRefId: 20 }
     ],
     debt: [
       {
@@ -58,13 +56,12 @@ const initialCycles = [
     exp: [
       { d: '2026-10-01', cat: 'كتاكيت', amt: 15200, note: '800 كتكوت أبيض' },
       { d: '2026-10-04', cat: 'علف', amt: 9000, note: 'علف بادي' },
-      { d: '2026-10-12', cat: 'أدوية وتحصينات', amt: 1800, note: 'فيتامينات ومضاد سموم' }
+      { d: '2026-10-12', cat: 'دواء', amt: 1800, note: 'فيتامينات ومضاد سموم' }
     ],
     inc: [],
     dead: [{ d: '2026-10-10', n: 9, note: 'فرز طبيعي' }],
     feed: [
-      { id: 21, d: '2026-10-04', type: 'purchased', kg: 600, q: 12, unit: 'شكارة', txt: '12 شكارة بادي' },
-      { id: 22, d: '2026-10-05', type: 'consumed', kg: 350, q: 7, unit: 'شكارة', txt: '7 شكارة مستهلك' }
+      { id: 21, d: '2026-10-04', type: 'purchased', kg: 600, q: 12, unit: 'شكارة', txt: '12 شكارة بادي' }
     ],
     debt: [
       {
@@ -89,7 +86,15 @@ let C = [];
 function normalizeData(cycles) {
   if (!Array.isArray(cycles)) return [];
   cycles.forEach(c => {
-    c.exp = c.exp || [];
+    // Normalize expenses to 5 standard categories
+    c.exp = (c.exp || []).map(e => {
+      let cat = e.cat;
+      if (cat === 'أدوية وتحصينات' || cat === 'بيطري' || cat === 'أدوية') cat = 'دواء';
+      else if (cat === 'كهرباء وغاز' || cat === 'تدفئة' || cat === 'كهرباء') cat = 'غاز';
+      else if (cat === 'علف' || cat === 'كتاكيت' || cat === 'دواء' || cat === 'غاز') { /* keep */ }
+      else cat = 'أخرى';
+      return { ...e, cat };
+    });
     c.dead = c.dead || [];
     
     // Normalize sales
@@ -104,15 +109,17 @@ function normalizeData(cycles) {
       };
     });
 
-    // Normalize feed
-    c.feed = (c.feed || []).map(e => ({
-      ...e,
-      id: e.id || Date.now() + Math.random(),
-      type: e.type || 'consumed',
-      kg: +e.kg || 0,
-      q: e.q !== undefined ? +e.q : (+e.kg || 0) / (bagKg || 50),
-      unit: e.unit || 'شكارة'
-    }));
+    // Normalize feed (only purchased feed is retained)
+    c.feed = (c.feed || [])
+      .filter(e => e.type !== 'consumed')
+      .map(e => ({
+        ...e,
+        id: e.id || Date.now() + Math.random(),
+        type: 'purchased',
+        kg: +e.kg || 0,
+        q: e.q !== undefined ? +e.q : (+e.kg || 0) / (bagKg || 50),
+        unit: e.unit || 'شكارة'
+      }));
 
     // Normalize debts
     c.debt = (c.debt || []).map(d => {

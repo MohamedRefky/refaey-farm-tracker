@@ -194,15 +194,38 @@ function detail(a) {
       </div>
     </div>
 
-    <!-- ⚡ QUICK ACTION BUTTONS BAR (لتسهيل التسجيل بنقرة واحدة) -->
+    <!-- 💸 EXPENSES QUICK ACTIONS (تسجيل المصروفات لوحدها بره) -->
     <div class="section-title" style="margin-top: 24px;">
-      <span>⚡ تسجيل عملية سريعة</span>
+      <span>💸 تسجيل المصروفات</span>
+    </div>
+    <div class="quick-actions-bar expense-quick-actions">
+      <button class="quick-action-btn" onclick="openExpenseWithCat('علف')" title="تسجيل شراء علف">
+        <span class="quick-action-icon">🌾</span>
+        <span>+ علف</span>
+      </button>
+      <button class="quick-action-btn" onclick="openExpenseWithCat('كتاكيت')" title="تسجيل شراء كتاكيت">
+        <span class="quick-action-icon">🐣</span>
+        <span>+ كتاكيت</span>
+      </button>
+      <button class="quick-action-btn" onclick="openExpenseWithCat('دواء')" title="تسجيل شراء أدوية وبيطري">
+        <span class="quick-action-icon">💊</span>
+        <span>+ دواء</span>
+      </button>
+      <button class="quick-action-btn" onclick="openExpenseWithCat('غاز')" title="تسجيل غاز وتدفئة">
+        <span class="quick-action-icon">🔥</span>
+        <span>+ غاز</span>
+      </button>
+      <button class="quick-action-btn" onclick="openExpenseWithCat('أخرى')" title="تسجيل مصاريف ونثريات أخرى">
+        <span class="quick-action-icon">📦</span>
+        <span>+ أخرى</span>
+      </button>
+    </div>
+
+    <!-- ⚡ OTHER ACTIONS BAR (تسجيل المعاملات) -->
+    <div class="section-title">
+      <span>⚡ تسجيل المعاملات</span>
     </div>
     <div class="quick-actions-bar">
-      <button class="quick-action-btn" onclick="quickAdd('exp')">
-        <span class="quick-action-icon">💸</span>
-        <span>+ مصروف / علف</span>
-      </button>
       <button class="quick-action-btn" onclick="quickAdd('inc')">
         <span class="quick-action-icon">📈</span>
         <span>+ بيع طيور</span>
@@ -233,7 +256,7 @@ function detail(a) {
     <div class="stats-grid">
       ${statBox('تكلفة الطائر الحي', f(k.cpb) + ' ج', 'المصروف ÷ الحي', '💵')}
       ${statBox('ربح الطائر المباع', f(k.ppb) + ' ج', (k.ppb >= 0 ? 'صافي مكسب الفرخة' : 'صافي عجز الفرخة'), '📈', k.ppb >= 0 ? 'color-emerald' : 'color-rose')}
-      ${statBox('العلف المستهلك', f(k.feedConsumedKg) + ' كجم', ((k.feedConsumedKg / bagKg).toFixed(1)) + ' شكارة أكلتها الطيور', '🌾')}
+      ${statBox('العلف المشترى', f(k.feedPurchasedKg) + ' كجم', ((k.feedPurchasedKg / bagKg).toFixed(1)) + ' شكارة تم شراؤها', '🌾')}
     </div>
 
     <!-- Navigation Tabs -->

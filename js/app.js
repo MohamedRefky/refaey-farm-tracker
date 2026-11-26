@@ -49,18 +49,14 @@ const K = {
     r: e => ['نفوق ' + e.n + ' طائر' + (e.note ? ' - ' + e.note : ''), e.n + ' طيور']
   },
   feed: {
-    t: 'حركة علف',
+    t: 'شراء علف',
     icon: '🌾',
     f: [
-      ['type', 'select', ['consumed', 'purchased'], 'نوع حركة العلف'],
       ['unit', 'select', ['شكارة', 'كيلو'], 'الوحدة'],
       ['q', 'number', '', 'الكمية'],
       ['note', 'text', '', 'نوع العلف / بيان (بادي، نامي، ناهي...)']
     ],
-    r: e => {
-      const typeLabel = e.type === 'purchased' ? 'وارد للمخزن' : 'مستهلك للطيور';
-      return [`علف (${typeLabel}): ` + e.txt, f(e.kg) + ' كجم'];
-    }
+    r: e => [`شراء علف: ` + (e.txt || (e.q ? `${e.q} ${e.unit || 'شكارة'}` : 'علف')), f(e.kg) + ' كجم']
   },
   debt: {
     t: 'مديونية',

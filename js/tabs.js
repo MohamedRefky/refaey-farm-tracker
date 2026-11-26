@@ -80,47 +80,35 @@ function renderSalesTab(c, k) {
   `;
 }
 
-// 2. Feed Tab with Purchased vs Consumed separation and Warehouse Stock
+// 2. Feed Tab: Purchased Feed Tracking
 function renderFeedTab(c, k) {
   const allFeed = c.feed || [];
-  let filtered = allFeed;
-  if (S.feedFilter === 'consumed') filtered = allFeed.filter(x => x.type === 'consumed');
-  if (S.feedFilter === 'purchased') filtered = allFeed.filter(x => x.type === 'purchased');
+  const feedCost = (c.exp || []).filter(x => x.cat === 'علف').reduce((s, x) => s + (+x.amt || 0), 0);
 
   return `
     <div class="tab-summary-grid">
       <div class="tab-summary-card">
-        <span class="tab-summary-label">العلف المستهلك (أكلته الطيور)</span>
-        <span class="tab-summary-val color-sky">${f(k.feedConsumedKg)} كجم</span>
-        <span class="tab-summary-sub">${(k.feedConsumedKg / bagKg).toFixed(1)} شكارة تم استهلاكها</span>
-      </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">العلف المشترى (الوارد)</span>
+        <span class="tab-summary-label">إجمالي العلف المشترى</span>
         <span class="tab-summary-val color-emerald">${f(k.feedPurchasedKg)} كجم</span>
-        <span class="tab-summary-sub">${(k.feedPurchasedKg / bagKg).toFixed(1)} شكارة استلام مخزن</span>
+        <span class="tab-summary-sub">${(k.feedPurchasedKg / bagKg).toFixed(1)} شكارة تم شراؤها</span>
       </div>
       <div class="tab-summary-card">
-        <span class="tab-summary-label">رصيد المخزن المتبقي</span>
-        <span class="tab-summary-val ${k.feedStockKg > 0 ? 'color-emerald' : 'color-rose'}">${f(k.feedStockKg)} كجم</span>
-        <span class="tab-summary-sub">${(k.feedStockKg / bagKg).toFixed(1)} شكارة حالياً بالمخزن</span>
+        <span class="tab-summary-label">إجمالي تكلفة العلف</span>
+        <span class="tab-summary-val color-rose">${f(feedCost)} ج</span>
+        <span class="tab-summary-sub">إجمالي المدفوع للعلف</span>
+      </div>
+      <div class="tab-summary-card">
+        <span class="tab-summary-label">عدد التوريدات</span>
+        <span class="tab-summary-val">${allFeed.length}</span>
+        <span class="tab-summary-sub">حركات شراء مسجلة</span>
       </div>
     </div>
 
-    <!-- Dual Action Buttons: Feed Consumed vs Feed Purchased -->
-    <div class="dual-action-row">
-      <button class="btn btn-primary" onclick="openFeedForm('consumed')">
-        <span>🌾</span> + تسجيل استهلاك علف (أكلته الطيور)
+    <!-- Action Button: Buy Feed -->
+    <div style="margin-bottom: 14px;">
+      <button class="btn btn-primary btn-full" onclick="openExpenseWithCat('علف')">
+        <span>🌾</span> + تسجيل شراء وتوريد علف للمزرعة
       </button>
-      <button class="btn btn-outline" onclick="openFeedForm('purchased')">
-        <span>📦</span> + توريد / شراء علف للمخزن
-      </button>
-    </div>
-
-    <!-- Filter Chips for Feed -->
-    <div class="filter-chips">
-      <button class="filter-chip ${S.feedFilter === 'all' ? 'active' : ''}" onclick="S.feedFilter='all'; render()">الكل (${allFeed.length})</button>
-      <button class="filter-chip ${S.feedFilter === 'consumed' ? 'active' : ''}" onclick="S.feedFilter='consumed'; render()">🌾 علف مستهلك فقط</button>
-      <button class="filter-chip ${S.feedFilter === 'purchased' ? 'active' : ''}" onclick="S.feedFilter='purchased'; render()">📦 وارد للمخزن فقط</button>
     </div>
 
     <!-- Bag Weight Config -->
@@ -134,22 +122,21 @@ function renderFeedTab(c, k) {
 
     <!-- Feed Records List -->
     <div class="card">
-      ${filtered.length ? filtered.slice().reverse().map(e => {
+      ${allFeed.length ? allFeed.slice().reverse().map(e => {
         const i = allFeed.indexOf(e);
-        const isPurchased = e.type === 'purchased';
+        const linkedExp = (c.exp || []).find(x => x.id === e.expRefId || x.feedRefId === e.id);
+        const amt = linkedExp ? linkedExp.amt : 0;
         return `
           <div class="record-item">
             <div>
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <span class="badge ${isPurchased ? 'badge-feed-in' : 'badge-feed-out'}">
-                  ${isPurchased ? '📦 وارد للمخزن' : '🌾 مستهلك للطيور'}
-                </span>
-                <span class="record-title">${e.txt || (e.q + ' ' + (e.unit || 'شكارة'))}</span>
+                <span class="badge badge-feed-in">📦 علف مشترى</span>
+                <span class="record-title">${e.txt || (e.q ? `${e.q} ${e.unit || 'شكارة'}` : 'علف')} ${e.note ? `(${e.note})` : ''}</span>
               </div>
-              <div class="record-date">${fd(e.d)}</div>
+              <div class="record-date">${fd(e.d)} • <b>${f(e.kg)} كجم</b> (${(e.kg / bagKg).toFixed(1)} شكارة)</div>
             </div>
             <div class="record-value-group">
-              <span class="record-value ${isPurchased ? 'color-emerald' : 'color-sky'}">${f(e.kg)} كجم</span>
+              ${amt > 0 ? `<span class="record-value color-rose">${f(amt)} ج</span>` : ''}
               <div class="record-actions">
                 <button class="btn btn-sm btn-outline" onclick="openForm('feed', ${i})" title="تعديل">✏️ تعديل</button>
                 <button class="btn btn-sm btn-danger" onclick="del(${i})">حذف</button>
@@ -160,7 +147,7 @@ function renderFeedTab(c, k) {
       }).join('') : `
         <div class="empty-state">
           <div class="empty-state-icon">🌾</div>
-          لا توجد حركات علف مسجلة في هذا القسم
+          لا توجد مشتريات علف مسجلة حتى الآن
         </div>
       `}
     </div>
@@ -304,9 +291,34 @@ function renderGenericTab(c, k) {
   const arr = c[S.tab] || [];
 
   return `
-    <button class="btn btn-primary btn-full" onclick="openForm('${S.tab}')">
-      <span>+</span> إضافة ${T.t} جديد
-    </button>
+    ${S.tab === 'exp' ? `
+      <div class="quick-actions-bar expense-quick-actions" style="margin: 0 0 14px;">
+        <button class="quick-action-btn" onclick="openExpenseWithCat('علف')" title="تسجيل شراء علف">
+          <span class="quick-action-icon">🌾</span>
+          <span>+ علف</span>
+        </button>
+        <button class="quick-action-btn" onclick="openExpenseWithCat('كتاكيت')" title="تسجيل شراء كتاكيت">
+          <span class="quick-action-icon">🐣</span>
+          <span>+ كتاكيت</span>
+        </button>
+        <button class="quick-action-btn" onclick="openExpenseWithCat('دواء')" title="تسجيل أدوية وبيطري">
+          <span class="quick-action-icon">💊</span>
+          <span>+ دواء</span>
+        </button>
+        <button class="quick-action-btn" onclick="openExpenseWithCat('غاز')" title="تسجيل غاز وتدفئة">
+          <span class="quick-action-icon">🔥</span>
+          <span>+ غاز</span>
+        </button>
+        <button class="quick-action-btn" onclick="openExpenseWithCat('أخرى')" title="تسجيل مصاريف أخرى">
+          <span class="quick-action-icon">📦</span>
+          <span>+ أخرى</span>
+        </button>
+      </div>
+    ` : `
+      <button class="btn btn-primary btn-full" onclick="openForm('${S.tab}')">
+        <span>+</span> إضافة ${T.t} جديد
+      </button>
+    `}
 
     <div class="card" style="margin-top: 14px;">
       ${arr.length ? arr.slice().reverse().map(e => {
@@ -395,10 +407,15 @@ function quickAdd(kind) {
   openForm(kind);
 }
 
-// Quick Feed form with predefined movement type
-function openFeedForm(type = 'consumed') {
-  S.tab = 'feed';
-  openForm('exp', null, { cat: 'علف', mode: type });
+// Quick expense form with predefined category
+function openExpenseWithCat(cat) {
+  S.tab = (cat === 'علف') ? 'feed' : 'exp';
+  openForm('exp', null, { cat: cat });
+}
+
+// Quick Feed form
+function openFeedForm() {
+  openExpenseWithCat('علف');
 }
 
 function togglePaymentsHistory(id) {

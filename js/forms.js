@@ -119,23 +119,12 @@ function validateTransaction(kind, data, isEdit, editIndex, cycle) {
   }
 
   if (kind === 'exp' || kind === 'feed') {
+    if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
+      return { valid: false, field: 'f_amt', message: 'يرجى إدخال المبلغ المدفوع بشكل صحيح (أكبر من الصفر).' };
+    }
     if (data.cat === 'علف') {
-      if (data.feed_mode === 'purchased') {
-        if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
-          return { valid: false, field: 'f_amt', message: 'يرجى إدخال المبلغ المدفوع لشراء العلف بشكل صحيح (أكبر من الصفر).' };
-        }
-        if (!data.feed_q || isNaN(data.feed_q) || +data.feed_q <= 0) {
-          return { valid: false, field: 'f_feed_q', message: 'يرجى إدخال كمية العلف المشتراة برقم صحيح أكبر من الصفر.' };
-        }
-      } else {
-        // Consumed feed (وجبة أكلتها الطيور)
-        if (!data.feed_q || isNaN(data.feed_q) || +data.feed_q <= 0) {
-          return { valid: false, field: 'f_feed_q', message: 'يرجى إدخال كمية العلف التي أكلتها الطيور اليوم برقم صحيح أكبر من الصفر.' };
-        }
-      }
-    } else {
-      if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
-        return { valid: false, field: 'f_amt', message: 'يرجى إدخال مبلغ المصروف بشكل صحيح (أكبر من الصفر).' };
+      if (!data.feed_q || isNaN(data.feed_q) || +data.feed_q <= 0) {
+        return { valid: false, field: 'f_feed_q', message: 'يرجى إدخال كمية العلف المشتراة برقم صحيح أكبر من الصفر.' };
       }
     }
   }
@@ -245,25 +234,25 @@ function openForm(kind, editIndex = null, prefillData = null) {
 
   if (isUnified) {
     let catVal = 'علف';
-    let feedMode = 'purchased';
 
     if (isEdit) {
       if (isFeedKind) {
         catVal = 'علف';
-        feedMode = existing ? (existing.type || 'consumed') : 'consumed';
       } else if (existing) {
         catVal = existing.cat || 'علف';
-        feedMode = (existing.cat === 'علف') ? 'purchased' : 'purchased';
       }
     } else if (prefillData) {
       if (typeof prefillData === 'string') {
-        catVal = 'علف';
-        feedMode = prefillData;
-      } else {
-        catVal = prefillData.cat || 'علف';
-        feedMode = prefillData.mode || 'purchased';
+        catVal = prefillData;
+      } else if (prefillData.cat) {
+        catVal = prefillData.cat;
       }
     }
+
+    // Normalize to 5 standard categories
+    if (catVal === 'أدوية وتحصينات' || catVal === 'بيطري' || catVal === 'أدوية') catVal = 'دواء';
+    else if (catVal === 'كهرباء وغاز' || catVal === 'تدفئة' || catVal === 'كهرباء') catVal = 'غاز';
+    else if (!['علف', 'كتاكيت', 'دواء', 'غاز', 'أخرى'].includes(catVal)) catVal = 'أخرى';
 
     const amtVal = isEdit ? (existing && existing.amt !== undefined ? existing.amt : (linkedRef ? linkedRef.amt : '')) : '';
     const feedUnitVal = (linkedRef && linkedRef.unit) || (existing && existing.unit) || 'شكارة';
@@ -272,45 +261,40 @@ function openForm(kind, editIndex = null, prefillData = null) {
     const stdNoteVal = isEdit && existing ? (existing.note || '') : '';
 
     h += `
-      <label>تصنيف المصروف أو المعاملة *</label>
-      <select id="f_cat" onchange="onExpenseCatChange()">
-        <option value="علف" ${catVal === 'علف' ? 'selected' : ''}>🌾 علف (شراء للمخزن أو وجبة أكلتها الطيور)</option>
-        <option value="كتاكيت" ${catVal === 'كتاكيت' ? 'selected' : ''}>🐣 كتاكيت (شراء دفعة كتاكيت)</option>
-        <option value="أدوية وتحصينات" ${catVal === 'أدوية وتحصينات' ? 'selected' : ''}>💊 أدوية وتحصينات وبيطري</option>
-        <option value="كهرباء وغاز" ${catVal === 'كهرباء وغاز' ? 'selected' : ''}>⚡ كهرباء وغاز وتدفئة ومياه</option>
-        <option value="نشارة وفرشة" ${catVal === 'نشارة وفرشة' ? 'selected' : ''}>🪵 نشارة وفرشة تبن</option>
-        <option value="عمالة" ${catVal === 'عمالة' ? 'selected' : ''}>👷 عمالة وإشراف</option>
-        <option value="نقل" ${catVal === 'نقل' ? 'selected' : ''}>🚚 نقل ومشال</option>
-        <option value="أخرى" ${catVal === 'أخرى' ? 'selected' : ''}>📦 مصاريف ونثريات أخرى</option>
-      </select>
+      <label>تصنيف المصروف *</label>
+      <div class="expense-cat-selector">
+        <button type="button" class="expense-cat-btn ${catVal === 'علف' ? 'active' : ''}" data-cat="علف" onclick="selectExpenseCat('علف')">
+          <span class="expense-cat-icon">🌾</span>
+          <span>علف</span>
+        </button>
+        <button type="button" class="expense-cat-btn ${catVal === 'كتاكيت' ? 'active' : ''}" data-cat="كتاكيت" onclick="selectExpenseCat('كتاكيت')">
+          <span class="expense-cat-icon">🐣</span>
+          <span>كتاكيت</span>
+        </button>
+        <button type="button" class="expense-cat-btn ${catVal === 'دواء' ? 'active' : ''}" data-cat="دواء" onclick="selectExpenseCat('دواء')">
+          <span class="expense-cat-icon">💊</span>
+          <span>دواء</span>
+        </button>
+        <button type="button" class="expense-cat-btn ${catVal === 'غاز' ? 'active' : ''}" data-cat="غاز" onclick="selectExpenseCat('غاز')">
+          <span class="expense-cat-icon">🔥</span>
+          <span>غاز</span>
+        </button>
+        <button type="button" class="expense-cat-btn ${catVal === 'أخرى' ? 'active' : ''}" data-cat="أخرى" onclick="selectExpenseCat('أخرى')">
+          <span class="expense-cat-icon">📦</span>
+          <span>أخرى</span>
+        </button>
+      </div>
+      <input type="hidden" id="f_cat" value="${catVal}">
+
+      <!-- Money Amount Field -->
+      <div id="f_amt_wrapper">
+        <label>المبلغ المدفوع (جنيه) *</label>
+        <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="المبلغ المدفوع بالجنيه">
+      </div>
 
       <!-- Feed Specialization Section -->
       <div id="feed_sub_section" style="display: ${catVal === 'علف' ? 'block' : 'none'};">
-        <label style="margin-top: 10px;">نوع حركة العلف *</label>
-        <div class="feed-choice-container">
-          <div class="feed-choice-card ${feedMode === 'purchased' ? 'active' : ''}" id="feed_choice_purchased" onclick="selectFeedMode('purchased')">
-            <span class="feed-choice-icon">📦</span>
-            <div class="feed-choice-text">
-              <div class="feed-choice-title">شراء وتوريد للمخزن</div>
-              <div class="feed-choice-desc">دفع فلوس كاش + إضافة شكاير للمخزن</div>
-            </div>
-          </div>
-          <div class="feed-choice-card ${feedMode === 'consumed' ? 'active feed-consumed' : ''}" id="feed_choice_consumed" onclick="selectFeedMode('consumed')">
-            <span class="feed-choice-icon">🌾</span>
-            <div class="feed-choice-text">
-              <div class="feed-choice-title">علف أكلته الطيور اليوم</div>
-              <div class="feed-choice-desc">وجبة اليوم - بدون دفع كاش اليوم</div>
-            </div>
-          </div>
-        </div>
-        <input type="hidden" id="f_feed_mode" value="${feedMode}">
-
-        <div id="consumed_info_banner" class="form-hint-banner" style="background: rgba(14,165,233,0.12); border-color: var(--sky); color: var(--sky); margin: 6px 0 14px; display: ${feedMode === 'consumed' ? 'flex' : 'none'};">
-          <span style="font-size: 18px;">💡</span>
-          <span style="font-size: 12px; line-height: 1.4;"><b>وجبة استهلاك يومية:</b> لا تتطلب دفع كاش اليوم؛ لأن العلف مسحوب من مخزن المزرعة مسبقاً. سيتم خصمها من رصيد المخزن واحتسابها ضمن العلف المستهلك.</span>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
           <div>
             <label>الوحدة</label>
             <select id="f_feed_unit" onchange="updateFeedLiveHint()">
@@ -319,26 +303,20 @@ function openForm(kind, editIndex = null, prefillData = null) {
             </select>
           </div>
           <div>
-            <label>الكمية *</label>
-            <input id="f_feed_q" type="number" inputmode="decimal" step="any" value="${feedQVal}" placeholder="الكمية" oninput="updateFeedLiveHint()">
+            <label>كمية العلف المشتراة *</label>
+            <input id="f_feed_q" type="number" inputmode="decimal" step="any" value="${feedQVal}" placeholder="مثلاً: 20" oninput="updateFeedLiveHint()">
           </div>
         </div>
-        <div id="feed_live_hint" style="margin: 6px 0 12px; font-size: 12px; font-weight: 700; color: var(--text-muted);"></div>
+        <div id="feed_live_hint" style="margin: 6px 0 12px; font-size: 12px; font-weight: 700; color: var(--emerald);"></div>
 
         <label>نوع العلف أو بيان (اختياري)</label>
         <input id="f_feed_note" type="text" value="${feedNoteVal}" placeholder="مثال: بادي 23%، نامي 21%، ناهي 19%...">
       </div>
 
-      <!-- Money Amount Field (Hidden only when Feed Consumed is active) -->
-      <div id="f_amt_wrapper" style="display: ${catVal === 'علف' && feedMode === 'consumed' ? 'none' : 'block'};">
-        <label>المبلغ المدفوع (جنيه) *</label>
-        <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="المبلغ المدفوع بالجنيه">
-      </div>
-
       <!-- Standard Note Field (Visible when category is NOT feed) -->
       <div id="std_note_wrapper" style="display: ${catVal !== 'علف' ? 'block' : 'none'};">
-        <label>ملاحظة أو بيان (اختياري)</label>
-        <input id="f_std_note" type="text" value="${stdNoteVal}" placeholder="مثلاً: دفعة كتاكيت ساسو، فاتورة كهرباء...">
+        <label id="std_note_label">ملاحظة أو بيان (اختياري)</label>
+        <input id="f_std_note" type="text" value="${stdNoteVal}" placeholder="مثلاً: دفعة كتاكيت ساسو، شحن غاز، فيتامينات...">
       </div>
     `;
   } else if (kind === 'inc') {
@@ -436,8 +414,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
     let dataObj = { d: dVal };
 
     if (isUnified) {
-      dataObj.cat = document.getElementById('f_cat').value;
-      dataObj.feed_mode = document.getElementById('f_feed_mode') ? document.getElementById('f_feed_mode').value : 'purchased';
+      dataObj.cat = document.getElementById('f_cat').value || 'علف';
       dataObj.amt = document.getElementById('f_amt') ? document.getElementById('f_amt').value.trim() : '';
       dataObj.feed_unit = document.getElementById('f_feed_unit') ? document.getElementById('f_feed_unit').value : 'شكارة';
       dataObj.feed_q = document.getElementById('f_feed_q') ? document.getElementById('f_feed_q').value.trim() : '';
@@ -473,119 +450,85 @@ function openForm(kind, editIndex = null, prefillData = null) {
         const qNum = +dataObj.feed_q;
         const totalKg = dataObj.feed_unit === 'شكارة' ? qNum * bagKg : qNum;
         const feedTxt = qNum + ' ' + dataObj.feed_unit + (dataObj.feed_note ? ' (' + dataObj.feed_note + ')' : '');
+        const amtNum = +dataObj.amt;
+        let targetExp = isExpKind && isEdit ? cycle.exp[editIndex] : linkedRef;
+        let targetFeed = isFeedKind && isEdit ? cycle.feed[editIndex] : linkedRef;
 
-        if (dataObj.feed_mode === 'purchased') {
-          const amtNum = +dataObj.amt;
-          let targetExp = isExpKind && isEdit ? cycle.exp[editIndex] : linkedRef;
-          let targetFeed = isFeedKind && isEdit ? cycle.feed[editIndex] : linkedRef;
+        if (targetExp && targetFeed) {
+          targetExp.d = dataObj.d;
+          targetExp.amt = amtNum;
+          targetExp.cat = 'علف';
+          targetExp.note = dataObj.feed_note;
 
-          if (targetExp && targetFeed) {
-            targetExp.d = dataObj.d;
-            targetExp.amt = amtNum;
-            targetExp.cat = 'علف';
-            targetExp.note = dataObj.feed_note;
-
-            targetFeed.d = dataObj.d;
-            targetFeed.type = 'purchased';
-            targetFeed.q = qNum;
-            targetFeed.unit = dataObj.feed_unit;
-            targetFeed.kg = totalKg;
-            targetFeed.note = dataObj.feed_note;
-            targetFeed.txt = feedTxt;
-            showToast('تم تعديل شراء العلف ورصيد المخزن بنجاح ✓');
-          } else if (targetExp && !targetFeed) {
-            targetExp.d = dataObj.d;
-            targetExp.amt = amtNum;
-            targetExp.cat = 'علف';
-            targetExp.note = dataObj.feed_note;
-            const newFeedId = Date.now() + Math.floor(Math.random() * 1000);
-            targetExp.feedRefId = newFeedId;
-            cycle.feed.push({
-              id: newFeedId,
-              d: dataObj.d,
-              type: 'purchased',
-              q: qNum,
-              unit: dataObj.feed_unit,
-              kg: totalKg,
-              note: dataObj.feed_note,
-              txt: feedTxt,
-              expRefId: targetExp.id
-            });
-            showToast('تم تحديث المصروف وإضافة العلف للمخزن ✓');
-          } else if (!targetExp && targetFeed) {
-            targetFeed.d = dataObj.d;
-            targetFeed.type = 'purchased';
-            targetFeed.q = qNum;
-            targetFeed.unit = dataObj.feed_unit;
-            targetFeed.kg = totalKg;
-            targetFeed.note = dataObj.feed_note;
-            targetFeed.txt = feedTxt;
-            const newExpId = Date.now() + Math.floor(Math.random() * 1000);
-            targetFeed.expRefId = newExpId;
-            cycle.exp.push({
-              id: newExpId,
-              d: dataObj.d,
-              cat: 'علف',
-              amt: amtNum,
-              note: dataObj.feed_note,
-              feedRefId: targetFeed.id
-            });
-            showToast('تم تحديث حركة العلف والمصروف المالي ✓');
-          } else {
-            const newExpId = Date.now() + Math.floor(Math.random() * 1000);
-            const newFeedId = newExpId + 1;
-            cycle.exp.push({
-              id: newExpId,
-              d: dataObj.d,
-              cat: 'علف',
-              amt: amtNum,
-              note: dataObj.feed_note,
-              feedRefId: newFeedId
-            });
-            cycle.feed.push({
-              id: newFeedId,
-              d: dataObj.d,
-              type: 'purchased',
-              q: qNum,
-              unit: dataObj.feed_unit,
-              kg: totalKg,
-              note: dataObj.feed_note,
-              txt: feedTxt,
-              expRefId: newExpId
-            });
-            showToast('تم تسجيل شراء وتوريد العلف للمخزن بنجاح ✓');
-          }
+          targetFeed.d = dataObj.d;
+          targetFeed.type = 'purchased';
+          targetFeed.q = qNum;
+          targetFeed.unit = dataObj.feed_unit;
+          targetFeed.kg = totalKg;
+          targetFeed.note = dataObj.feed_note;
+          targetFeed.txt = feedTxt;
+          showToast('تم تعديل شراء العلف بنجاح ✓');
+        } else if (targetExp && !targetFeed) {
+          targetExp.d = dataObj.d;
+          targetExp.amt = amtNum;
+          targetExp.cat = 'علف';
+          targetExp.note = dataObj.feed_note;
+          const newFeedId = Date.now() + Math.floor(Math.random() * 1000);
+          targetExp.feedRefId = newFeedId;
+          cycle.feed.push({
+            id: newFeedId,
+            d: dataObj.d,
+            type: 'purchased',
+            q: qNum,
+            unit: dataObj.feed_unit,
+            kg: totalKg,
+            note: dataObj.feed_note,
+            txt: feedTxt,
+            expRefId: targetExp.id
+          });
+          showToast('تم تحديث المصروف وتوريد العلف بنجاح ✓');
+        } else if (!targetExp && targetFeed) {
+          targetFeed.d = dataObj.d;
+          targetFeed.type = 'purchased';
+          targetFeed.q = qNum;
+          targetFeed.unit = dataObj.feed_unit;
+          targetFeed.kg = totalKg;
+          targetFeed.note = dataObj.feed_note;
+          targetFeed.txt = feedTxt;
+          const newExpId = Date.now() + Math.floor(Math.random() * 1000);
+          targetFeed.expRefId = newExpId;
+          cycle.exp.push({
+            id: newExpId,
+            d: dataObj.d,
+            cat: 'علف',
+            amt: amtNum,
+            note: dataObj.feed_note,
+            feedRefId: targetFeed.id
+          });
+          showToast('تم تحديث شراء العلف والمصروف المالي ✓');
         } else {
-          // Consumed feed
-          let targetFeed = isFeedKind && isEdit ? cycle.feed[editIndex] : null;
-          if (targetFeed) {
-            targetFeed.d = dataObj.d;
-            targetFeed.type = 'consumed';
-            targetFeed.q = qNum;
-            targetFeed.unit = dataObj.feed_unit;
-            targetFeed.kg = totalKg;
-            targetFeed.note = dataObj.feed_note;
-            targetFeed.txt = feedTxt;
-            if (targetFeed.expRefId) {
-              const oldExpIdx = cycle.exp.findIndex(x => x.id === targetFeed.expRefId);
-              if (oldExpIdx !== -1) cycle.exp.splice(oldExpIdx, 1);
-              delete targetFeed.expRefId;
-            }
-            showToast('تم حفظ تعديل استهلاك العلف اليومي ✓');
-          } else {
-            const newFeedId = Date.now() + Math.floor(Math.random() * 1000);
-            cycle.feed.push({
-              id: newFeedId,
-              d: dataObj.d,
-              type: 'consumed',
-              q: qNum,
-              unit: dataObj.feed_unit,
-              kg: totalKg,
-              note: dataObj.feed_note,
-              txt: feedTxt
-            });
-            showToast('تم تسجيل استهلاك وجبة العلف بنجاح 🌾');
-          }
+          const newExpId = Date.now() + Math.floor(Math.random() * 1000);
+          const newFeedId = newExpId + 1;
+          cycle.exp.push({
+            id: newExpId,
+            d: dataObj.d,
+            cat: 'علف',
+            amt: amtNum,
+            note: dataObj.feed_note,
+            feedRefId: newFeedId
+          });
+          cycle.feed.push({
+            id: newFeedId,
+            d: dataObj.d,
+            type: 'purchased',
+            q: qNum,
+            unit: dataObj.feed_unit,
+            kg: totalKg,
+            note: dataObj.feed_note,
+            txt: feedTxt,
+            expRefId: newExpId
+          });
+          showToast('تم تسجيل شراء وتوريد العلف بنجاح ✓');
         }
       } else {
         // Standard expense
@@ -753,51 +696,43 @@ function updateSaleCalculations() {
 }
 
 // Interactive handlers for unified Expense & Feed Form
-function onExpenseCatChange() {
-  const catEl = document.getElementById('f_cat');
-  if (!catEl) return;
-  const cat = catEl.value;
+// Interactive handlers for selecting an expense category directly
+function selectExpenseCat(cat) {
+  const catInput = document.getElementById('f_cat');
+  if (catInput) catInput.value = cat;
+
+  document.querySelectorAll('.expense-cat-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === cat);
+  });
+
   const feedSec = document.getElementById('feed_sub_section');
-  const amtWrapper = document.getElementById('f_amt_wrapper');
   const stdNoteWrapper = document.getElementById('std_note_wrapper');
-  const feedMode = document.getElementById('f_feed_mode') ? document.getElementById('f_feed_mode').value : 'purchased';
+  const stdNoteLabel = document.getElementById('std_note_label');
+  const stdNoteInput = document.getElementById('f_std_note');
 
   if (cat === 'علف') {
     if (feedSec) feedSec.style.display = 'block';
     if (stdNoteWrapper) stdNoteWrapper.style.display = 'none';
-    if (amtWrapper) amtWrapper.style.display = feedMode === 'consumed' ? 'none' : 'block';
     updateFeedLiveHint();
   } else {
     if (feedSec) feedSec.style.display = 'none';
     if (stdNoteWrapper) stdNoteWrapper.style.display = 'block';
-    if (amtWrapper) amtWrapper.style.display = 'block';
-  }
-}
-
-function selectFeedMode(mode) {
-  const modeInput = document.getElementById('f_feed_mode');
-  if (modeInput) modeInput.value = mode;
-
-  const cardPurchased = document.getElementById('feed_choice_purchased');
-  const cardConsumed = document.getElementById('feed_choice_consumed');
-  const amtWrapper = document.getElementById('f_amt_wrapper');
-  const banner = document.getElementById('consumed_info_banner');
-
-  if (cardPurchased && cardConsumed) {
-    if (mode === 'purchased') {
-      cardPurchased.classList.add('active');
-      cardConsumed.classList.remove('active', 'feed-consumed');
-      if (amtWrapper) amtWrapper.style.display = 'block';
-      if (banner) banner.style.display = 'none';
-    } else {
-      cardPurchased.classList.remove('active');
-      cardConsumed.classList.add('active', 'feed-consumed');
-      if (amtWrapper) amtWrapper.style.display = 'none';
-      if (banner) banner.style.display = 'flex';
+    if (stdNoteLabel && stdNoteInput) {
+      if (cat === 'كتاكيت') {
+        stdNoteLabel.textContent = 'بيان الكتاكيت (مثلاً: 1000 كتكوت ساسو، سعر 18 ج)';
+        stdNoteInput.placeholder = 'مثال: 1000 كتكوت ساسو، معمل كذا...';
+      } else if (cat === 'دواء') {
+        stdNoteLabel.textContent = 'نوع الدواء أو التحصين (اختياري)';
+        stdNoteInput.placeholder = 'مثال: مضاد سموم، فيتامينات، تحصينة...';
+      } else if (cat === 'غاز') {
+        stdNoteLabel.textContent = 'بيان الغاز / التدفئة (اختياري)';
+        stdNoteInput.placeholder = 'مثال: شحن أنبوبة، غاز صب...';
+      } else {
+        stdNoteLabel.textContent = 'ملاحظة أو بيان (اختياري)';
+        stdNoteInput.placeholder = 'اكتب أي ملاحظة أو بيان...';
+      }
     }
   }
-
-  updateFeedLiveHint();
 }
 
 function updateFeedLiveHint() {
@@ -806,26 +741,16 @@ function updateFeedLiveHint() {
 
   const unitEl = document.getElementById('f_feed_unit');
   const qEl = document.getElementById('f_feed_q');
-  const modeEl = document.getElementById('f_feed_mode');
   if (!unitEl || !qEl) return;
 
   const unit = unitEl.value;
   const q = +qEl.value || 0;
-  const mode = modeEl ? modeEl.value : 'purchased';
   const totalKg = unit === 'شكارة' ? q * bagKg : q;
   const totalBags = (totalKg / bagKg).toFixed(1);
 
-  const cycle = cur();
-  const k = calc(cycle);
-
   if (q > 0) {
-    if (mode === 'purchased') {
-      hintEl.innerHTML = `📦 الكمية تعادل: <b>${f(totalKg)} كجم</b> (${totalBags} شكارة) ستضاف إلى رصيد المخزن.`;
-      hintEl.style.color = 'var(--emerald)';
-    } else {
-      hintEl.innerHTML = `🌾 الكمية تعادل: <b>${f(totalKg)} كجم</b> (${totalBags} شكارة) ستخصم من المخزن (المتبقي الحالي بالمخزن: ${f(k.feedStockKg)} كجم).`;
-      hintEl.style.color = 'var(--sky)';
-    }
+    hintEl.innerHTML = `📦 الكمية تعادل: <b>${f(totalKg)} كجم</b> (${totalBags} شكارة)`;
+    hintEl.style.color = 'var(--emerald)';
   } else {
     hintEl.textContent = '';
   }

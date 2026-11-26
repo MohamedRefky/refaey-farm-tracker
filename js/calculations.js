@@ -52,26 +52,12 @@ function calc(c) {
   const live = Math.max(0, (c.n || 0) - dead);
   const remaining = Math.max(0, live - sold);
 
-  // 3. Feed Metrics (الفصل بين العلف المشترى والمستهلك والمتبقي بالمخزن)
+  // 3. Feed Metrics (إجمالي العلف المشترى للدورة)
   const feedList = c.feed || [];
-  const hasPurchased = feedList.some(x => x.type === 'purchased');
-  const hasConsumed = feedList.some(x => x.type === 'consumed');
-
-  let feedConsumedKg = 0;
-  let feedPurchasedKg = 0;
-
-  if (hasPurchased || hasConsumed) {
-    feedConsumedKg = feedList.filter(x => x.type === 'consumed').reduce((s, x) => s + (+x.kg || 0), 0);
-    feedPurchasedKg = feedList.filter(x => x.type === 'purchased').reduce((s, x) => s + (+x.kg || 0), 0);
-  } else {
-    // للتوافق مع البيانات القديمة التي لم تحدد نوع الحركة
-    feedConsumedKg = sum(feedList, 'kg');
-    feedPurchasedKg = feedConsumedKg;
-  }
-
-  const feedStockKg = Math.max(0, feedPurchasedKg - feedConsumedKg);
-  // معامل التحويل يُحسب على العلف المستهلك الفعلي للطيور
-  const fk = feedConsumedKg || (feedPurchasedKg && !hasConsumed ? feedPurchasedKg : 0);
+  const feedPurchasedKg = feedList.reduce((s, x) => s + (+x.kg || 0), 0);
+  const feedConsumedKg = feedPurchasedKg;
+  const feedStockKg = feedPurchasedKg;
+  const fk = feedPurchasedKg;
 
   // 4. Debt Metrics (تفصيل الديون واتجاهاتها: لنا عند الغير وعلينا للغير)
   const debtList = c.debt || [];
