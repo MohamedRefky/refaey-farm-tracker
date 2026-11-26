@@ -282,8 +282,8 @@ function detail(a) {
     <div class="card flock-summary-card">
       <div class="flock-card-top">
         <span style="font-size: 15px; font-weight: 800; color: var(--text-title);">🐔 أنواع الفراخ بالقطيع</span>
-        <button type="button" class="btn btn-sm btn-outline" onclick="openAddFlockModal()" style="border-color: var(--emerald); color: var(--emerald);">
-          + نوع جديد
+        <button type="button" class="btn btn-sm btn-outline" onclick="openRestockModal()" style="border-color: var(--emerald); color: var(--emerald);">
+          + إضافة كتاكيت
         </button>
       </div>
 
@@ -329,7 +329,29 @@ function detail(a) {
                   <span>•</span>
                   <span>نافق: <b class="${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</b></span>
                   <span class="flock-details-break">ثمن الكتاكيت: <b>${f(fs.cost)} ج</b> • نصيب المصاريف: <b>${f(fs.sharedCost)} ج</b></span>
+                  ${(fs.batches && fs.batches.length > 1) ? `
+                    <div class="flock-batches-box" onclick="event.stopPropagation()">
+                      <div class="flock-batches-title">📦 الدفعات المسجلة لهذا النوع (${fs.batches.length}):</div>
+                      ${fs.batches.map((b, bIdx) => `
+                        <div class="flock-batch-row">
+                          <div class="flock-batch-info">
+                            <b>دفعة ${bIdx + 1}</b> (${fds(b.d)}): ${f(b.count)} طائر • ${f(b.cost)} ج
+                            ${bIdx > 0 || b.includeOld === false ? `
+                              <span class="flock-batch-tag ${b.includeOld === false ? 'new-only' : 'with-old'}">
+                                ${b.includeOld === false ? 'من الجاي بس' : 'شامل القديم'}
+                              </span>
+                            ` : ''}
+                          </div>
+                          <div class="record-icon-actions">
+                            <button type="button" class="icon-action-btn" onclick="openEditBatchModal(${fs.id}, ${bIdx})" title="تعديل هذه الدفعة" aria-label="تعديل الدفعة" style="width:26px;height:26px;font-size:11px;">✏️</button>
+                            <button type="button" class="icon-action-btn danger" onclick="delBatch(${fs.id}, ${bIdx})" title="حذف هذه الدفعة" aria-label="حذف الدفعة" style="width:26px;height:26px;font-size:11px;">🗑️</button>
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
                   <div class="flock-details-actions" onclick="event.stopPropagation()">
+                    <button type="button" class="labeled-action-btn pay" onclick="openRestockModal(${fs.id})">➕ زيادة عدد</button>
                     <button type="button" class="labeled-action-btn" onclick="openFlockModal(${fs.id})">✏️ تعديل</button>
                     ${((c.flocks || []).length > 1 && flockRecordCounts(c, fs.id).total === 0) ? `
                       <button type="button" class="labeled-action-btn danger" onclick="delFlock(${fs.id})">🗑️ حذف</button>

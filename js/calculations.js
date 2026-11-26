@@ -90,15 +90,76 @@ function calc(c) {
   const live = Math.max(0, n - dead);
   const remaining = Math.max(0, live - sold);
 
-  // 3. Per-type metrics (costs are allocated by chick count)
+  // 3. Per-type metrics: each expense is split across the LIVE eligible birds at that expense's seq
+  const deadList = c.dead || [];
+  const expList = c.exp || [];
+  const sharedCostByFlock = {};
+  flocks.forEach(fl => { sharedCostByFlock[fl.id] = 0; });
+
+  expList.forEach(expItem => {
+    const expAmt = +expItem.amt || 0;
+    if (expAmt === 0 || flocks.length === 0) return;
+
+    const eSeq = +expItem.seq || 0;
+    const liveWeights = {};
+    const batchWeights = {};
+    let totalLiveWeight = 0;
+    let totalBatchWeight = 0;
+
+    flocks.forEach(fl => {
+      const batches = Array.isArray(fl.batches) && fl.batches.length > 0
+        ? fl.batches
+        : [{ count: +fl.count || 0, seq: 0, includeOld: true }];
+
+      let eligibleAdded = 0;
+      batches.forEach(b => {
+        const bSeq = +b.seq || 0;
+        if (b.includeOld !== false || !eSeq || eSeq >= bSeq) {
+          eligibleAdded += +b.count || 0;
+        }
+      });
+
+      const soldBefore = eSeq
+        ? incList.filter(x => x.flockId === fl.id && (+x.seq || 0) < eSeq).reduce((s, x) => s + (+x.cnt || 0), 0)
+        : 0;
+      const deadBefore = eSeq
+        ? deadList.filter(x => x.flockId === fl.id && (+x.seq || 0) < eSeq).reduce((s, x) => s + (+x.n || 0), 0)
+        : 0;
+
+      const liveAtExp = Math.max(0, eligibleAdded - soldBefore - deadBefore);
+      liveWeights[fl.id] = liveAtExp;
+      batchWeights[fl.id] = eligibleAdded;
+      totalLiveWeight += liveAtExp;
+      totalBatchWeight += eligibleAdded;
+    });
+
+    if (totalLiveWeight > 0) {
+      flocks.forEach(fl => {
+        sharedCostByFlock[fl.id] += expAmt * (liveWeights[fl.id] / totalLiveWeight);
+      });
+    } else if (totalBatchWeight > 0) {
+      flocks.forEach(fl => {
+        sharedCostByFlock[fl.id] += expAmt * (batchWeights[fl.id] / totalBatchWeight);
+      });
+    } else if (n > 0) {
+      flocks.forEach(fl => {
+        sharedCostByFlock[fl.id] += expAmt * ((+fl.count || 0) / n);
+      });
+    } else {
+      flocks.forEach(fl => {
+        sharedCostByFlock[fl.id] += expAmt / flocks.length;
+      });
+    }
+  });
+
   const flockStats = flocks.map(flock => {
     const count = +flock.count || 0;
     const cost = +flock.cost || 0;
     const sales = incList.filter(x => x.flockId === flock.id);
     const soldCnt = sales.reduce((s, x) => s + (+x.cnt || 0), 0);
     const revenue = sales.reduce((s, x) => s + (+x.amt || 0), 0);
-    const deadCnt = (c.dead || []).filter(x => x.flockId === flock.id).reduce((s, x) => s + (+x.n || 0), 0);
-    const sharedCost = n > 0 ? otherExp * (count / n) : 0;
+    const deadCnt = deadList.filter(x => x.flockId === flock.id).reduce((s, x) => s + (+x.n || 0), 0);
+    const sharedCost = sharedCostByFlock[flock.id] || 0;
     const totalCost = cost + sharedCost;
 
     return {
@@ -106,6 +167,7 @@ function calc(c) {
       name: flock.name,
       count,
       cost,
+      batches: flock.batches || [],
       sold: soldCnt,
       dead: deadCnt,
       remaining: Math.max(0, count - soldCnt - deadCnt),

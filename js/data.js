@@ -157,11 +157,28 @@ function flushPendingSync() {
   }
 }
 
-// Keeps the legacy total count in sync with the flock types
+// Keeps the flock's count/cost in sync with its batches, and cycle count in sync with flocks
+function syncFlockFromBatches(fl) {
+  if (!fl) return fl;
+  if (Array.isArray(fl.batches) && fl.batches.length > 0) {
+    fl.count = fl.batches.reduce((s, b) => s + (+b.count || 0), 0);
+    fl.cost = Math.round(fl.batches.reduce((s, b) => s + (+b.cost || 0), 0) * 100) / 100;
+  }
+  return fl;
+}
+
 function syncCycleCount(c) {
   if (!c) return 0;
+  (c.flocks || []).forEach(syncFlockFromBatches);
   c.n = (c.flocks || []).reduce((s, f) => s + (+f.count || 0), 0);
   return c.n;
+}
+
+// Monotonic sequence generator per cycle for exact chronological expense allocation
+function nextCycleSeq(c) {
+  if (!c) return Date.now();
+  c.nextSeq = (+c.nextSeq || 0) + 1;
+  return c.nextSeq;
 }
 
 // Unique flock type names used before (for input suggestions)
@@ -225,23 +242,51 @@ function normalizeData(cycles) {
       return { ...e, cat };
     });
 
-    // Normalize flock types (create one legacy type when upgrading old data)
+    // Normalize flock types & batches
     if (!Array.isArray(c.flocks) || c.flocks.length === 0) {
       const legacyCount = +c.n || 0;
       c.flocks = [{
         id: Date.now() + Math.floor(Math.random() * 1000),
         name: 'الدفعة الأساسية',
         count: legacyCount,
-        cost: legacyChickCost
+        cost: legacyChickCost,
+        batches: [{
+          id: Date.now() + Math.floor(Math.random() * 1000) + 1,
+          d: c.start || today(),
+          count: legacyCount,
+          cost: legacyChickCost,
+          seq: 1,
+          includeOld: true
+        }]
       }];
     } else {
-      c.flocks = c.flocks.map((f, i) => ({
-        ...f,
-        id: f.id || Date.now() + i,
-        name: (f.name || '').trim() || ('نوع ' + (i + 1)),
-        count: +f.count || 0,
-        cost: +f.cost || 0
-      }));
+      c.flocks = c.flocks.map((f, i) => {
+        const flId = f.id || Date.now() + i;
+        let batches = Array.isArray(f.batches) && f.batches.length > 0
+          ? f.batches.map((b, bIdx) => ({
+              id: b.id || (flId * 100 + bIdx + 1),
+              d: b.d || c.start || today(),
+              count: +b.count || 0,
+              cost: +b.cost || 0,
+              seq: +b.seq || 0,
+              includeOld: b.includeOld !== false
+            }))
+          : [{
+              id: flId * 100 + 1,
+              d: c.start || today(),
+              count: +f.count || 0,
+              cost: +f.cost || 0,
+              seq: +f.seq || 0,
+              includeOld: true
+            }];
+
+        return syncFlockFromBatches({
+          ...f,
+          id: flId,
+          name: (f.name || '').trim() || ('نوع ' + (i + 1)),
+          batches
+        });
+      });
     }
 
     const flockIds = c.flocks.map(f => f.id);
@@ -252,7 +297,8 @@ function normalizeData(cycles) {
       ...d,
       id: d.id || Date.now() + i,
       flockId: flockIds.includes(d.flockId) ? d.flockId : flockIds[0],
-      n: +d.n || 0
+      n: +d.n || 0,
+      seq: +d.seq || 0
     }));
 
     // Normalize sales (count-based and total sale value only)
@@ -263,9 +309,29 @@ function normalizeData(cycles) {
         id: e.id || Date.now() + i,
         flockId: flockIds.includes(e.flockId) ? e.flockId : flockIds[0],
         cnt: +e.cnt || 0,
-        amt
+        amt,
+        seq: +e.seq || 0
       };
     });
+
+    // Normalize expense seq if missing
+    c.exp = (c.exp || []).map(e => ({ ...e, seq: +e.seq || 0 }));
+
+    // Ensure every batch, exp, inc, dead item has a deterministic sequence number
+    let maxSeq = +c.nextSeq || 0;
+    c.flocks.forEach(fl => fl.batches.forEach(b => { if (b.seq > maxSeq) maxSeq = b.seq; }));
+    [...c.exp, ...c.inc, ...c.dead].forEach(x => { if (x.seq > maxSeq) maxSeq = x.seq; });
+
+    const missingBatches = [];
+    c.flocks.forEach(fl => fl.batches.forEach(b => { if (!b.seq) missingBatches.push(b); }));
+    missingBatches.sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')));
+    missingBatches.forEach(b => { b.seq = ++maxSeq; });
+
+    const missingEvents = [...c.exp, ...c.inc, ...c.dead].filter(x => !x.seq);
+    missingEvents.sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')));
+    missingEvents.forEach(x => { x.seq = ++maxSeq; });
+
+    c.nextSeq = maxSeq;
 
     // Normalize feed (purchased / incoming feed only)
     c.feed = (c.feed || [])

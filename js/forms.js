@@ -475,7 +475,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
             cat: 'علف',
             amt: amtNum,
             note: dataObj.feed_note,
-            feedRefId: targetFeed.id
+            feedRefId: targetFeed.id,
+            seq: nextCycleSeq(cycle)
           });
           expToastMsg = 'تم تحديث شراء العلف والمصروف المالي ✓';
         } else {
@@ -487,7 +488,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
             cat: 'علف',
             amt: amtNum,
             note: dataObj.feed_note,
-            feedRefId: newFeedId
+            feedRefId: newFeedId,
+            seq: nextCycleSeq(cycle)
           });
           cycle.feed.push({
             id: newFeedId,
@@ -533,7 +535,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
             d: dataObj.d,
             cat: dataObj.cat,
             amt: amtNum,
-            note: dataObj.note
+            note: dataObj.note,
+            seq: nextCycleSeq(cycle)
           });
           expToastMsg = `تمت إضافة مصروف (${dataObj.cat}) بنجاح ✓`;
         }
@@ -558,12 +561,14 @@ function openForm(kind, editIndex = null, prefillData = null) {
       o.cnt = +dataObj.cnt;
       o.amt = +dataObj.amt;
       o.buyer = dataObj.buyer;
+      if (!isEdit) o.seq = nextCycleSeq(cycle);
       delete o.kg;
       delete o.paidAmt;
       delete o.debtRefId;
     } else if (kind === 'dead') {
       o.flockId = +dataObj.flockId;
       o.n = +dataObj.n;
+      if (!isEdit) o.seq = nextCycleSeq(cycle);
       delete o.note;
     } else if (kind === 'debt') {
       o.dir = 'لنا';
@@ -1056,9 +1061,11 @@ function buildFlockRowHtml(idx, flock = {}, isLocked = false, lockCount = 0) {
   const countVal = flock.count !== undefined && flock.count !== '' ? flock.count : '';
   const costVal = flock.cost !== undefined && flock.cost !== '' ? flock.cost : '';
   const idVal = flock.id || '';
+  const batchCount = Array.isArray(flock.batches) ? flock.batches.length : 0;
+  const isMultiBatch = batchCount > 1;
 
   return `
-    <div class="flock-row-card" data-flock-id="${idVal}">
+    <div class="flock-row-card" data-flock-id="${idVal}" data-multi-batch="${isMultiBatch ? '1' : '0'}">
       <div class="flock-row-header">
         <span class="flock-row-title">🐣 النوع ${idx + 1}</span>
         ${isLocked ? `
@@ -1069,16 +1076,25 @@ function buildFlockRowHtml(idx, flock = {}, isLocked = false, lockCount = 0) {
       </div>
       <label>اسم النوع (كتابة باليد) *</label>
       <input type="text" class="flock-name-input" value="${safeName}" placeholder="اكتب اسم النوع هنا...">
-      <div class="flock-row-inputs-grid">
-        <div>
-          <label>العدد (طائر) *</label>
-          <input type="number" class="flock-count-input" inputmode="numeric" value="${countVal}" placeholder="مثلاً: 500" oninput="updateFlocksModalSummary()">
+      ${isMultiBatch ? `
+        <div class="form-hint-banner" style="margin: 8px 0 0; font-size: 12px;">
+          <span>📦</span>
+          <span>إجمالي <b>${f(countVal)} طائر</b> بتكلفة <b>${f(costVal)} ج</b> (مجمع من ${batchCount} دفعات — يمكنك تعديل كل دفعة من صفحة الدورة).</span>
         </div>
-        <div>
-          <label>تكلفة الكتاكيت (ج) *</label>
-          <input type="number" class="flock-cost-input" inputmode="decimal" step="any" value="${costVal}" placeholder="مثلاً: 9000" oninput="updateFlocksModalSummary()">
+        <input type="hidden" class="flock-count-input" value="${countVal}">
+        <input type="hidden" class="flock-cost-input" value="${costVal}">
+      ` : `
+        <div class="flock-row-inputs-grid">
+          <div>
+            <label>العدد (طائر) *</label>
+            <input type="number" class="flock-count-input" inputmode="numeric" value="${countVal}" placeholder="مثلاً: 500" oninput="updateFlocksModalSummary()">
+          </div>
+          <div>
+            <label>تكلفة الكتاكيت (ج) *</label>
+            <input type="number" class="flock-cost-input" inputmode="decimal" step="any" value="${costVal}" placeholder="مثلاً: 9000" oninput="updateFlocksModalSummary()">
+          </div>
         </div>
-      </div>
+      `}
     </div>
   `;
 }
@@ -1135,30 +1151,42 @@ function updateFlocksModalSummary() {
   `;
 }
 
-function collectAndValidateFlockRows(cycleForEdit = null) {
+function collectAndValidateFlockRows(cycleForEdit = null, cycleStartDate = null) {
   const rows = Array.from(document.querySelectorAll('.flock-row-card'));
   const collected = [];
-  const existingIds = cycleForEdit && Array.isArray(cycleForEdit.flocks)
-    ? cycleForEdit.flocks.map(fl => +fl.id || 0)
-    : [];
+  const existingFlocks = cycleForEdit && Array.isArray(cycleForEdit.flocks) ? cycleForEdit.flocks : [];
+  const existingIds = existingFlocks.map(fl => +fl.id || 0);
   let nextNewId = Math.max(Date.now(), ...existingIds, 0) + 1;
+  let seqBase = cycleForEdit ? (+cycleForEdit.nextSeq || 0) : 0;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const existingId = row.dataset.flockId ? +row.dataset.flockId : 0;
+    const prevFlock = existingId ? existingFlocks.find(fl => fl.id === existingId) : null;
+    const isMultiBatch = row.dataset.multiBatch === '1' && prevFlock && Array.isArray(prevFlock.batches) && prevFlock.batches.length > 1;
     const nameEl = row.querySelector('.flock-name-input');
     const countEl = row.querySelector('.flock-count-input');
     const costEl = row.querySelector('.flock-cost-input');
 
     const name = nameEl ? nameEl.value.trim() : '';
-    const countStr = countEl ? countEl.value.trim() : '';
-    const costStr = costEl ? costEl.value.trim() : '';
-
     if (!name) {
       if (nameEl) { nameEl.classList.add('input-error'); nameEl.focus(); }
       showFormError(`يرجى كتابة اسم النوع رقم ${i + 1}.`, null);
       return null;
     }
+
+    if (isMultiBatch) {
+      collected.push(syncFlockFromBatches({
+        ...prevFlock,
+        name,
+        batches: prevFlock.batches.map(b => ({ ...b }))
+      }));
+      continue;
+    }
+
+    const countStr = countEl ? countEl.value.trim() : '';
+    const costStr = costEl ? costEl.value.trim() : '';
+
     if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
       if (countEl) { countEl.classList.add('input-error'); countEl.focus(); }
       showFormError(`يرجى إدخال عدد صحيح أكبر من الصفر لنوع "${name}" (بدون كسور).`, null);
@@ -1180,12 +1208,36 @@ function collectAndValidateFlockRows(cycleForEdit = null) {
       }
     }
 
-    collected.push({
-      id: existingId || nextNewId++,
+    const flId = existingId || nextNewId++;
+    let batches;
+    if (prevFlock && Array.isArray(prevFlock.batches) && prevFlock.batches.length === 1) {
+      batches = [{
+        ...prevFlock.batches[0],
+        count: +countStr,
+        cost: +costStr
+      }];
+    } else {
+      batches = [{
+        id: flId * 100 + 1,
+        d: cycleStartDate || (cycleForEdit ? cycleForEdit.start : today()) || today(),
+        count: +countStr,
+        cost: +costStr,
+        seq: ++seqBase,
+        includeOld: !cycleForEdit || (cycleForEdit.exp || []).length === 0
+      }];
+    }
+
+    collected.push(syncFlockFromBatches({
+      id: flId,
       name,
       count: +countStr,
-      cost: +costStr
-    });
+      cost: +costStr,
+      batches
+    }));
+  }
+
+  if (cycleForEdit) {
+    cycleForEdit.nextSeq = seqBase;
   }
 
   return collected;
@@ -1291,7 +1343,7 @@ function editCyclePage(a, c) {
         return;
       }
 
-      const updatedFlocks = collectAndValidateFlockRows(c);
+      const updatedFlocks = collectAndValidateFlockRows(c, nextStart);
       if (!updatedFlocks) return;
 
       c.name = nn;
@@ -1309,51 +1361,373 @@ function editCyclePage(a, c) {
   }
 }
 
-// Quick 1-step modal to add or edit an individual chick type directly
+// Unified Restock Modal: add chicks to an existing type OR add a brand-new type
+// with explicit Yes/No selection on whether past expenses apply to this new batch.
 function openAddFlockModal() {
-  openFlockModal(null);
+  openRestockModal(null);
 }
 
-function openFlockModal(flockId = null) {
+function openRestockModal(preselectedFlockId = null) {
   const c = cur();
   if (!c) return;
-  const isEditFlock = flockId !== null;
-  const existingFlock = isEditFlock ? (c.flocks || []).find(fl => fl.id === flockId) : null;
-  if (isEditFlock && !existingFlock) return;
-
+  const flocks = c.flocks || [];
+  const k = calc(c);
+  const hasOldExp = (c.exp || []).length > 0 && k.otherExp > 0;
   const { m: modal, fm: formEl } = ensureModalElements();
   if (!modal || !formEl) return;
 
-  const nameVal = isEditFlock ? existingFlock.name : '';
-  const countVal = isEditFlock ? existingFlock.count : '';
-  const costVal = isEditFlock ? existingFlock.cost : '';
+  const initialMode = (preselectedFlockId !== null || flocks.length > 0) && preselectedFlockId !== null ? 'existing' : (flocks.length > 0 ? 'existing' : 'new');
+  const defaultExistingId = preselectedFlockId !== null ? preselectedFlockId : (flocks.length === 1 ? flocks[0].id : '');
 
   formEl.innerHTML = `
     <div class="form-header">
-      <div class="form-title">${isEditFlock ? 'تعديل بيانات النوع ✏️' : 'إضافة نوع كتاكيت جديد للدورة 🐣'}</div>
+      <div class="form-title">إضافة كتاكيت جديدة للدورة 🐣</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
 
     <div id="form_error_container"></div>
 
-    ${!isEditFlock ? `
-      <div class="form-hint-banner">
-        <span>💡</span>
-        <span>سيتم إضافة هذا النوع للدورة الحالية، وتُوزع مصاريف الدورة المشتركة عليه تلقائياً حسب العدد.</span>
+    ${flocks.length > 0 ? `
+      <input type="hidden" id="rs_mode" value="${initialMode}">
+      <div class="restock-mode-tabs">
+        <button type="button" class="restock-mode-btn ${initialMode === 'existing' ? 'active' : ''}" data-mode="existing" onclick="switchRestockMode('existing')">
+          <span>➕ زيادة على نوع موجود</span>
+        </button>
+        <button type="button" class="restock-mode-btn ${initialMode === 'new' ? 'active' : ''}" data-mode="new" onclick="switchRestockMode('new')">
+          <span>🐣 نوع جديد مختلف</span>
+        </button>
+      </div>
+    ` : `<input type="hidden" id="rs_mode" value="new">`}
+
+    <div id="rs_existing_section" style="display: ${initialMode === 'existing' ? 'block' : 'none'};">
+      <label>اختر النوع اللي هتزود عليه *</label>
+      <input type="hidden" id="rs_flock_id" value="${defaultExistingId}">
+      <div class="flock-picker-grid">
+        ${flocks.map(fl => {
+          const avail = flockAvailability(c, fl.id, 'inc', null);
+          const isActive = String(defaultExistingId) === String(fl.id);
+          return `
+            <button type="button" class="flock-pick-btn rs-flock-btn ${isActive ? 'active' : ''}" data-flock-id="${fl.id}" onclick="selectRestockFlock(${fl.id})">
+              <span class="flock-pick-name">🐣 ${esc(fl.name)}</span>
+              <span class="flock-pick-meta">متبقي حالياً: ${f(avail)} طائر</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <div id="rs_new_section" style="display: ${initialMode === 'new' ? 'block' : 'none'};">
+      <label>اسم النوع الجديد (كتابة باليد) *</label>
+      <input id="rs_new_name" type="text" placeholder="اكتب اسم النوع هنا...">
+    </div>
+
+    <div class="flock-row-inputs-grid" style="margin-top: 6px;">
+      <div>
+        <label>العدد الجديد (طائر) *</label>
+        <input id="rs_count" type="number" inputmode="numeric" placeholder="مثلاً: 100">
+      </div>
+      <div>
+        <label>ثمن الكتاكيت الجديدة (ج) *</label>
+        <input id="rs_cost" type="number" inputmode="decimal" step="any" placeholder="مثلاً: 1200">
+      </div>
+    </div>
+
+    <label>تاريخ استلام الدفعة (للعلم)</label>
+    <input type="date" id="rs_d" value="${today()}">
+
+    ${hasOldExp ? `
+      <label style="margin-top: 14px;">المصاريف اللي اتصرفت قبل دلوقتي (${f(k.otherExp)} ج) تتحسب على الكتاكيت الجديدة دي كمان؟ *</label>
+      <input type="hidden" id="rs_include_old" value="">
+      <div class="restock-choice-list">
+        <button type="button" class="restock-choice-btn" data-val="no" onclick="selectRestockOldExp('no')">
+          <span class="restock-choice-title">🟢 لا — احسب عليهم المصاريف الجديدة اللي جاية بس</span>
+          <span class="restock-choice-desc">الأكل والمصاريف القديمة كانت للطيور الموجودة قبل كده، والجداد دول يتحسبوا في المصاريف الجاية بس.</span>
+        </button>
+        <button type="button" class="restock-choice-btn" data-val="yes" onclick="selectRestockOldExp('yes')">
+          <span class="restock-choice-title">🔵 أيوة — احسب عليهم من المصاريف القديمة كمان</span>
+          <span class="restock-choice-desc">لسه فيه علف وأكل موجود في المزرعة من قبل كده، والكتاكيت الجديدة دي هتاكل منه معاهم.</span>
+        </button>
+      </div>
+    ` : `<input type="hidden" id="rs_include_old" value="no">`}
+
+    <div class="form-actions-row">
+      <button class="btn btn-primary" style="flex: 2;" type="submit">إضافة وحفظ</button>
+      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
+    </div>
+  `;
+
+  formEl.onsubmit = ev => {
+    ev.preventDefault();
+    clearFormErrors();
+
+    const mode = document.getElementById('rs_mode').value;
+    const countStr = document.getElementById('rs_count').value.trim();
+    const costStr = document.getElementById('rs_cost').value.trim();
+    const dVal = document.getElementById('rs_d').value || today();
+    const includeOldChoice = document.getElementById('rs_include_old').value;
+
+    let targetFlock = null;
+    let newName = '';
+    if (mode === 'existing') {
+      const fId = +document.getElementById('rs_flock_id').value;
+      targetFlock = (c.flocks || []).find(fl => fl.id === fId);
+      if (!targetFlock) {
+        showFormError('يرجى اختيار نوع الفراخ اللي هتزود عليه أولاً.', null);
+        return;
+      }
+    } else {
+      newName = document.getElementById('rs_new_name').value.trim();
+      if (!newName) {
+        showFormError('يرجى كتابة اسم النوع الجديد.', 'rs_new_name');
+        return;
+      }
+    }
+
+    if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
+      showFormError('يرجى إدخال عدد صحيح أكبر من الصفر (بدون كسور).', 'rs_count');
+      return;
+    }
+    if (costStr === '' || isNaN(costStr) || +costStr < 0) {
+      showFormError('يرجى إدخال ثمن الكتاكيت الجديدة (0 أو أكبر).', 'rs_cost');
+      return;
+    }
+    if (hasOldExp && includeOldChoice !== 'yes' && includeOldChoice !== 'no') {
+      showFormError('يرجى اختيار "أيوة" أو "لا" بخصوص حساب المصاريف القديمة على الكتاكيت الجديدة.', null);
+      return;
+    }
+
+    const batchSeq = nextCycleSeq(c);
+    const newBatch = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      d: dVal,
+      count: +countStr,
+      cost: +costStr,
+      seq: batchSeq,
+      includeOld: includeOldChoice === 'yes'
+    };
+
+    if (mode === 'existing') {
+      targetFlock.batches = Array.isArray(targetFlock.batches) ? targetFlock.batches : [];
+      targetFlock.batches.push(newBatch);
+      syncFlockFromBatches(targetFlock);
+      S.openFlocks[targetFlock.id] = true;
+    } else {
+      c.flocks = c.flocks || [];
+      const maxFlockId = c.flocks.reduce((m, fl) => Math.max(m, +fl.id || 0), 0);
+      const createdFlock = syncFlockFromBatches({
+        id: Math.max(Date.now(), maxFlockId) + 1,
+        name: newName,
+        count: +countStr,
+        cost: +costStr,
+        batches: [newBatch]
+      });
+      c.flocks.push(createdFlock);
+      targetFlock = createdFlock;
+    }
+
+    syncCycleCount(c);
+    const toastMsg = mode === 'existing'
+      ? `تمت إضافة ${f(+countStr)} طائر على "${targetFlock.name}" بنجاح 🐥`
+      : `تمت إضافة نوع "${targetFlock.name}" للدورة بنجاح 🐥`;
+
+    if (saveAndNotify(toastMsg)) {
+      closeM();
+      render();
+    }
+  };
+
+  modal.classList.add('on');
+}
+
+function switchRestockMode(mode) {
+  const modeEl = document.getElementById('rs_mode');
+  if (modeEl) modeEl.value = mode;
+  document.querySelectorAll('.restock-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  const exSec = document.getElementById('rs_existing_section');
+  const newSec = document.getElementById('rs_new_section');
+  if (exSec) exSec.style.display = mode === 'existing' ? 'block' : 'none';
+  if (newSec) newSec.style.display = mode === 'new' ? 'block' : 'none';
+}
+
+function selectRestockFlock(flockId) {
+  const input = document.getElementById('rs_flock_id');
+  if (input) input.value = flockId;
+  document.querySelectorAll('.rs-flock-btn').forEach(btn => {
+    btn.classList.toggle('active', String(btn.dataset.flockId) === String(flockId));
+  });
+}
+
+function selectRestockOldExp(val) {
+  const input = document.getElementById('rs_include_old');
+  if (input) input.value = val;
+  document.querySelectorAll('.restock-choice-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.val === val);
+  });
+}
+
+function openEditBatchModal(flockId, batchIdx) {
+  const c = cur();
+  if (!c) return;
+  const fl = (c.flocks || []).find(x => x.id === flockId);
+  if (!fl || !Array.isArray(fl.batches) || !fl.batches[batchIdx]) return;
+  const b = fl.batches[batchIdx];
+  const hasEarlierExp = (c.exp || []).some(e => (+e.seq || 0) < (+b.seq || 0));
+
+  const { m: modal, fm: formEl } = ensureModalElements();
+  if (!modal || !formEl) return;
+
+  formEl.innerHTML = `
+    <div class="form-header">
+      <div class="form-title">تعديل دفعة ${batchIdx + 1} (${esc(fl.name)}) ✏️</div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+    </div>
+
+    <div id="form_error_container"></div>
+
+    <label>العدد (طائر) *</label>
+    <input id="eb_count" type="number" inputmode="numeric" value="${b.count}">
+
+    <label>ثمن الكتاكيت (جنيه) *</label>
+    <input id="eb_cost" type="number" inputmode="decimal" step="any" value="${b.cost}">
+
+    <label>تاريخ الاستلام</label>
+    <input id="eb_d" type="date" value="${b.d || c.start || today()}">
+
+    ${hasEarlierExp ? `
+      <label style="margin-top: 12px;">هل تتحمل هذه الدفعة من المصاريف التي سبقتها؟ *</label>
+      <input type="hidden" id="rs_include_old" value="${b.includeOld === false ? 'no' : 'yes'}">
+      <div class="restock-choice-list">
+        <button type="button" class="restock-choice-btn ${b.includeOld === false ? 'active' : ''}" data-val="no" onclick="selectRestockOldExp('no')">
+          <span class="restock-choice-title">🟢 لا — المصاريف الجديدة اللي بعدها بس</span>
+        </button>
+        <button type="button" class="restock-choice-btn ${b.includeOld !== false ? 'active' : ''}" data-val="yes" onclick="selectRestockOldExp('yes')">
+          <span class="restock-choice-title">🔵 أيوة — تشمل المصاريف القديمة كمان</span>
+        </button>
       </div>
     ` : ''}
 
+    <div class="form-actions-row">
+      <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديل الدفعة</button>
+      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
+    </div>
+  `;
+
+  formEl.onsubmit = ev => {
+    ev.preventDefault();
+    clearFormErrors();
+
+    const countStr = document.getElementById('eb_count').value.trim();
+    const costStr = document.getElementById('eb_cost').value.trim();
+    const dVal = document.getElementById('eb_d').value || b.d || today();
+    const incEl = document.getElementById('rs_include_old');
+
+    if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
+      showFormError('يرجى إدخال عدد صحيح أكبر من الصفر (بدون كسور).', 'eb_count');
+      return;
+    }
+    if (costStr === '' || isNaN(costStr) || +costStr < 0) {
+      showFormError('يرجى إدخال تكلفة الكتاكيت (0 أو أكبر).', 'eb_cost');
+      return;
+    }
+
+    const usedBirds = (c.inc || []).filter(x => x.flockId === fl.id).reduce((s, x) => s + (+x.cnt || 0), 0)
+      + (c.dead || []).filter(x => x.flockId === fl.id).reduce((s, x) => s + (+x.n || 0), 0);
+    const otherBatchesCount = fl.batches.reduce((s, item, idx) => s + (idx === batchIdx ? 0 : (+item.count || 0)), 0);
+    if (otherBatchesCount + (+countStr) < usedBirds) {
+      showFormError(`عفواً، إجمالي النوع بعد التعديل (${otherBatchesCount + (+countStr)}) أقل من الطيور المسجل بيعها ونفوقها (${usedBirds} طائر).`, 'eb_count');
+      return;
+    }
+
+    b.count = +countStr;
+    b.cost = +costStr;
+    b.d = dVal;
+    if (incEl) b.includeOld = incEl.value === 'yes';
+
+    syncFlockFromBatches(fl);
+    syncCycleCount(c);
+
+    if (saveAndNotify('تم تعديل الدفعة بنجاح ✓')) {
+      closeM();
+      render();
+    }
+  };
+
+  modal.classList.add('on');
+}
+
+function delBatch(flockId, batchIdx) {
+  const c = cur();
+  if (!c) return;
+  const fl = (c.flocks || []).find(x => x.id === flockId);
+  if (!fl || !Array.isArray(fl.batches) || fl.batches.length <= 1 || !fl.batches[batchIdx]) return;
+
+  const b = fl.batches[batchIdx];
+  const usedBirds = (c.inc || []).filter(x => x.flockId === fl.id).reduce((s, x) => s + (+x.cnt || 0), 0)
+    + (c.dead || []).filter(x => x.flockId === fl.id).reduce((s, x) => s + (+x.n || 0), 0);
+  const remainingCountAfterDel = fl.count - (+b.count || 0);
+  if (remainingCountAfterDel < usedBirds) {
+    showToast(`⚠️ لا يمكن حذف الدفعة لأن المتبقي (${remainingCountAfterDel}) أقل من المباع والنافق (${usedBirds} طائر)`, 3600);
+    return;
+  }
+
+  showConfirmModal({
+    icon: '🗑️',
+    title: `تأكيد حذف دفعة ${batchIdx + 1} (${fl.name})`,
+    subtitle: 'هل تريد حذف هذه الدفعة؟ سيتم تحديث إجمالي أعداد وتكلفة النوع تلقائياً.',
+    itemIcon: '🐣',
+    itemTitle: `${fl.name} — دفعة ${batchIdx + 1}`,
+    itemMeta: `العدد: ${f(b.count)} طائر • التكلفة: ${f(b.cost)} ج • ${fds(b.d)}`,
+    confirmBtnText: 'نعم، احذف الدفعة',
+    onConfirm: () => {
+      fl.batches.splice(batchIdx, 1);
+      syncFlockFromBatches(fl);
+      syncCycleCount(c);
+      if (saveAndNotify('تم حذف الدفعة وتحديث الحسابات ✓')) {
+        render();
+      }
+    }
+  });
+}
+
+function openFlockModal(flockId = null) {
+  if (flockId === null) return openRestockModal(null);
+  const c = cur();
+  if (!c) return;
+  const existingFlock = (c.flocks || []).find(fl => fl.id === flockId);
+  if (!existingFlock) return;
+  const isMultiBatch = Array.isArray(existingFlock.batches) && existingFlock.batches.length > 1;
+
+  const { m: modal, fm: formEl } = ensureModalElements();
+  if (!modal || !formEl) return;
+
+  formEl.innerHTML = `
+    <div class="form-header">
+      <div class="form-title">تعديل بيانات النوع ✏️</div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+    </div>
+
+    <div id="form_error_container"></div>
+
     <label>اسم النوع (كتابة باليد) *</label>
-    <input id="af_name" type="text" value="${esc(nameVal)}" placeholder="اكتب اسم النوع هنا...">
+    <input id="af_name" type="text" value="${esc(existingFlock.name)}" placeholder="اكتب اسم النوع هنا...">
 
-    <label>عدد الكتاكيت *</label>
-    <input id="af_count" type="number" inputmode="numeric" value="${countVal}" placeholder="مثلاً: 200">
+    ${isMultiBatch ? `
+      <div class="form-hint-banner" style="margin-top: 10px;">
+        <span>📦</span>
+        <span>هذا النوع مكون من <b>${existingFlock.batches.length} دفعات</b> بإجمالي <b>${f(existingFlock.count)} طائر</b>. يمكنك تعديل أو حذف كل دفعة من قائمة الدفعات داخل النوع.</span>
+      </div>
+    ` : `
+      <label>عدد الكتاكيت *</label>
+      <input id="af_count" type="number" inputmode="numeric" value="${existingFlock.count}" placeholder="مثلاً: 200">
 
-    <label>تكلفة شراء الكتاكيت (جنيه) *</label>
-    <input id="af_cost" type="number" inputmode="decimal" step="any" value="${costVal}" placeholder="مثلاً: 3800">
+      <label>تكلفة شراء الكتاكيت (جنيه) *</label>
+      <input id="af_cost" type="number" inputmode="decimal" step="any" value="${existingFlock.cost}" placeholder="مثلاً: 3800">
+    `}
 
     <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">${isEditFlock ? 'حفظ التعديلات' : 'إضافة النوع للدورة'}</button>
+      <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ التعديلات</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
   `;
@@ -1363,46 +1737,51 @@ function openFlockModal(flockId = null) {
     clearFormErrors();
 
     const name = document.getElementById('af_name').value.trim();
-    const countStr = document.getElementById('af_count').value.trim();
-    const costStr = document.getElementById('af_cost').value.trim();
-
     if (!name) {
       showFormError('يرجى كتابة اسم نوع الكتاكيت.', 'af_name');
       return;
     }
-    if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
-      showFormError('يرجى إدخال عدد صحيح أكبر من الصفر (بدون كسور).', 'af_count');
-      return;
-    }
-    if (costStr === '' || isNaN(costStr) || +costStr < 0) {
-      showFormError('يرجى إدخال تكلفة الكتاكيت (0 أو أكبر).', 'af_cost');
-      return;
-    }
 
-    if (isEditFlock) {
+    if (!isMultiBatch) {
+      const countStr = document.getElementById('af_count').value.trim();
+      const costStr = document.getElementById('af_cost').value.trim();
+
+      if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
+        showFormError('يرجى إدخال عدد صحيح أكبر من الصفر (بدون كسور).', 'af_count');
+        return;
+      }
+      if (costStr === '' || isNaN(costStr) || +costStr < 0) {
+        showFormError('يرجى إدخال تكلفة الكتاكيت (0 أو أكبر).', 'af_cost');
+        return;
+      }
+
       const usedBirds = (c.inc || []).filter(x => x.flockId === existingFlock.id).reduce((s, x) => s + (+x.cnt || 0), 0)
         + (c.dead || []).filter(x => x.flockId === existingFlock.id).reduce((s, x) => s + (+x.n || 0), 0);
       if (+countStr < usedBirds) {
         showFormError(`عفواً، العدد (${countStr}) أقل من الطيور المسجل بيعها ونفوقها بالفعل (${usedBirds} طائر).`, 'af_count');
         return;
       }
-      existingFlock.name = name;
-      existingFlock.count = +countStr;
-      existingFlock.cost = +costStr;
-    } else {
-      c.flocks = c.flocks || [];
-      const maxFlockId = c.flocks.reduce((m, fl) => Math.max(m, +fl.id || 0), 0);
-      c.flocks.push({
-        id: Math.max(Date.now(), maxFlockId) + 1,
-        name,
-        count: +countStr,
-        cost: +costStr
-      });
+
+      if (Array.isArray(existingFlock.batches) && existingFlock.batches.length === 1) {
+        existingFlock.batches[0].count = +countStr;
+        existingFlock.batches[0].cost = +costStr;
+      } else {
+        existingFlock.batches = [{
+          id: existingFlock.id * 100 + 1,
+          d: c.start || today(),
+          count: +countStr,
+          cost: +costStr,
+          seq: nextCycleSeq(c),
+          includeOld: true
+        }];
+      }
+      syncFlockFromBatches(existingFlock);
     }
+
+    existingFlock.name = name;
     syncCycleCount(c);
 
-    const msg = isEditFlock ? `تم تعديل نوع "${name}" بنجاح ✓` : `تمت إضافة نوع "${name}" للدورة بنجاح 🐥`;
-    if (saveAndNotify(msg)) {
+    if (saveAndNotify(`تم تعديل نوع "${name}" بنجاح ✓`)) {
       closeM();
       render();
     }
@@ -1524,15 +1903,17 @@ function newCycle() {
       return;
     }
 
-    const flocks = collectAndValidateFlockRows(null);
+    const cycleStart = ns || today();
+    const flocks = collectAndValidateFlockRows(null, cycleStart);
     if (!flocks) return;
 
     const newObj = {
       id: nid++,
       name: nn,
-      start: ns || today(),
+      start: cycleStart,
       end: null,
       n: 0,
+      nextSeq: flocks.length,
       flocks,
       exp: [],
       inc: [],
