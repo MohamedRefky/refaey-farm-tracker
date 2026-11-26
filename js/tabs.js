@@ -44,20 +44,20 @@ function renderSalesTab(c, k) {
         const typeName = flockName(c, e.flockId);
 
         return `
-          <div class="record-item record-slim">
-            <div class="record-main">
-              <div class="record-title">
-                <span class="record-cat-badge">🐣 ${typeName}</span>
-                <span>بيع ${f(e.cnt)} طائر${e.buyer ? ' • ' + e.buyer : ''}</span>
+          <div class="record-item record-clean">
+            <div class="record-clean-top">
+              <div class="record-main">
+                <div class="record-title">
+                  <span class="record-cat-badge">🐣 ${typeName}</span>
+                  <span>بيع ${f(e.cnt)} طائر${e.buyer ? ' • ' + e.buyer : ''}</span>
+                </div>
+                <div class="record-date">${fds(e.d)}${e.cnt ? ` • متوسط ${f(total / e.cnt)} ج/طائر` : ''}</div>
               </div>
-              <div class="record-date">${fds(e.d)}${e.cnt ? ` • متوسط ${f(total / e.cnt)} ج/طائر` : ''}</div>
-            </div>
-            <div class="record-side">
               <span class="record-value color-emerald">${f(total)} ج</span>
-              <div class="record-icon-actions">
-                <button class="icon-action-btn" onclick="openForm('inc', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
-                <button class="icon-action-btn danger" onclick="delSale(${i})" title="حذف" aria-label="حذف">🗑️</button>
-              </div>
+            </div>
+            <div class="record-labeled-actions">
+              <button class="labeled-action-btn" onclick="openForm('inc', ${i})">✏️ تعديل</button>
+              <button class="labeled-action-btn danger" onclick="delSale(${i})">🗑️ حذف</button>
             </div>
           </div>
         `;
@@ -130,20 +130,20 @@ function renderExpensesTab(c, k) {
         const subInfo = linkedFeed ? ` • <b>${f(linkedFeed.kg)} كجم</b>` : '';
 
         return `
-          <div class="record-item record-slim">
-            <div class="record-main">
-              <div class="record-title">
-                <span>${icon}</span>
-                <span>${label}</span>
+          <div class="record-item record-clean">
+            <div class="record-clean-top">
+              <div class="record-main">
+                <div class="record-title">
+                  <span>${icon}</span>
+                  <span>${label}</span>
+                </div>
+                <div class="record-date">${fds(e.d)}${subInfo}</div>
               </div>
-              <div class="record-date">${fds(e.d)}${subInfo}</div>
-            </div>
-            <div class="record-side">
               <span class="record-value color-rose">${f(e.amt)} ج</span>
-              <div class="record-icon-actions">
-                <button class="icon-action-btn" onclick="openForm('exp', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
-                <button class="icon-action-btn danger" onclick="del(${i})" title="حذف" aria-label="حذف">🗑️</button>
-              </div>
+            </div>
+            <div class="record-labeled-actions">
+              <button class="labeled-action-btn" onclick="openForm('exp', ${i})">✏️ تعديل</button>
+              <button class="labeled-action-btn danger" onclick="del(${i})">🗑️ حذف</button>
             </div>
           </div>
         `;
@@ -190,8 +190,8 @@ function renderDebtTab(c, k) {
         const payments = e.payments || [];
 
         return `
-          <div class="record-item" style="flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 0;">
-            <div class="record-slim" style="padding: 0; border: none;">
+          <div class="record-item record-clean">
+            <div class="record-clean-top">
               <div class="record-main">
                 <div class="record-title">
                   <span>📝</span>
@@ -204,22 +204,21 @@ function renderDebtTab(c, k) {
                   </b>
                 </div>
               </div>
-              <div class="record-side">
-                <span class="record-value color-emerald">${f(total)} ج</span>
-                <div class="record-icon-actions">
-                  ${!isPaid ? `<button class="icon-action-btn pay" onclick="openPaymentModal(${i})" title="تسجيل تحصيل" aria-label="تسجيل تحصيل">💵</button>` : ''}
-                  ${payments.length > 0 ? `<button class="icon-action-btn" onclick="togglePaymentsHistory('${e.id || i}')" title="سجل الدفعات" aria-label="سجل الدفعات">📜</button>` : ''}
-                  <button class="icon-action-btn" onclick="openForm('debt', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
-                  <button class="icon-action-btn danger" onclick="delDebt(${i})" title="حذف" aria-label="حذف">🗑️</button>
-                </div>
-              </div>
+              <span class="record-value color-emerald">${f(total)} ج</span>
             </div>
 
             ${paidAmt > 0 ? `
-              <div class="debt-progress-track" style="margin: 2px 0 0;">
+              <div class="debt-progress-track" style="margin: 2px 0;">
                 <div class="debt-progress-bar" style="width: ${percent}%; background: ${isPaid ? 'var(--emerald)' : 'var(--amber)'};"></div>
               </div>
             ` : ''}
+
+            <div class="record-labeled-actions">
+              ${!isPaid ? `<button class="labeled-action-btn pay" onclick="openPaymentModal(${i})">💵 تحصيل</button>` : ''}
+              ${payments.length > 0 ? `<button class="labeled-action-btn" onclick="togglePaymentsHistory('${e.id || i}')">📜 الدفعات (${payments.length})</button>` : ''}
+              <button class="labeled-action-btn" onclick="openForm('debt', ${i})">✏️ تعديل</button>
+              <button class="labeled-action-btn danger" onclick="delDebt(${i})">🗑️ حذف</button>
+            </div>
 
             ${isHistoryOpen && payments.length > 0 ? `
               <div class="payment-history-box">
@@ -232,7 +231,7 @@ function renderDebtTab(c, k) {
                     <div>
                       <b>${fds(p.d)}</b>: تحصيل <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${p.note})` : ''}
                     </div>
-                    <button class="icon-action-btn danger" onclick="deletePayment(${i}, ${pIdx})" title="إلغاء الدفعة" style="width:28px;height:28px;font-size:12px;">🗑️</button>
+                    <button class="labeled-action-btn danger" onclick="deletePayment(${i}, ${pIdx})" style="padding: 3px 8px; font-size: 11px;">🗑️ إلغاء</button>
                   </div>
                 `).join('')}
               </div>
@@ -266,20 +265,20 @@ function renderDeadTab(c, k) {
         const typeName = flockName(c, e.flockId);
 
         return `
-          <div class="record-item record-slim">
-            <div class="record-main">
-              <div class="record-title">
-                <span class="record-cat-badge">🐣 ${typeName}</span>
-                <span>نفوق ${f(e.n)} طائر</span>
+          <div class="record-item record-clean">
+            <div class="record-clean-top">
+              <div class="record-main">
+                <div class="record-title">
+                  <span class="record-cat-badge">🐣 ${typeName}</span>
+                  <span>نفوق ${f(e.n)} طائر</span>
+                </div>
+                <div class="record-date">${fds(e.d)}</div>
               </div>
-              <div class="record-date">${fds(e.d)}</div>
+              <span class="record-value color-rose">${f(e.n)} طيور</span>
             </div>
-            <div class="record-side">
-              <span class="record-value color-rose">${f(e.n)}</span>
-              <div class="record-icon-actions">
-                <button class="icon-action-btn" onclick="openForm('dead', ${i})" title="تعديل" aria-label="تعديل">✏️</button>
-                <button class="icon-action-btn danger" onclick="del(${i})" title="حذف" aria-label="حذف">🗑️</button>
-              </div>
+            <div class="record-labeled-actions">
+              <button class="labeled-action-btn" onclick="openForm('dead', ${i})">✏️ تعديل</button>
+              <button class="labeled-action-btn danger" onclick="del(${i})">🗑️ حذف</button>
             </div>
           </div>
         `;
