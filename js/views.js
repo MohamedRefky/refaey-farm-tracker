@@ -76,6 +76,11 @@ function list(a) {
               <div>
                 <div class="cycle-name">${c.name}</div>
                 <div class="cycle-date">بدأت: ${fd(c.start)} ${isOngoing ? `• <b style="color:var(--emerald);">اليوم الـ ${Math.max(1, Math.floor((new Date(today()) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)}</b>` : (c.end ? `• استغرقت ${Math.max(1, Math.floor((new Date(c.end) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)} يوم` : '')}</div>
+                ${(c.flocks && c.flocks.length) ? `
+                  <div class="cycle-flocks-pills">
+                    ${c.flocks.map(fl => `<span class="cycle-flock-pill">🐣 ${fl.name} (${f(fl.count)})</span>`).join('')}
+                  </div>
+                ` : ''}
               </div>
             </div>
             <!-- The Glowing Green Light Beacon -->
@@ -178,34 +183,26 @@ function detail(a) {
         <div class="hero-substat">
           <span class="hero-substat-label">إجمالي المبيعات</span>
           <span class="hero-substat-value color-emerald">${f(k.totalSales)} ج</span>
-          <small style="display:block; font-size:11px; color:var(--text-dim); margin-top:2px;">
-            (كاش: ${f(k.collectedCash)} ج ${k.uncollectedSales > 0 ? `• آجل: <b style="color:var(--amber);">${f(k.uncollectedSales)} ج</b>` : '• مدفوع كاش'})
-          </small>
         </div>
         <div class="hero-substat">
           <span class="hero-substat-label">إجمالي المصروفات</span>
           <span class="hero-substat-value color-rose">${f(k.e)} ج</span>
-        </div>
-        <div class="hero-substat">
-          <span class="hero-substat-label">السيولة النقدية المحصلة</span>
-          <span class="hero-substat-value ${k.cashProfit >= 0 ? 'color-emerald' : 'color-amber'}">${f(k.cashProfit)} ج</span>
-          <small style="display:block; font-size:11px; color:var(--text-dim); margin-top:2px;">(المحصل نقداً - المصروفات)</small>
+          <small style="display:block; font-size:11px; color:var(--text-dim); margin-top:2px;">
+            (كتاكيت: ${f(k.chickCost)} + تشغيل: ${f(k.otherExp)})
+          </small>
         </div>
       </div>
     </div>
 
-    <!-- 💸 EXPENSES QUICK ACTIONS (تسجيل المصروفات لوحدها بره) -->
+    <!-- 💸 EXPENSES QUICK ACTIONS (تسجيل المصروفات للدورة كلها) -->
     <div class="section-title" style="margin-top: 24px;">
-      <span>💸 تسجيل المصروفات</span>
+      <span>💸 تسجيل مصروف للدورة</span>
+      <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">يتقسم على الأنواع تلقائياً</span>
     </div>
     <div class="quick-actions-bar expense-quick-actions">
       <button class="quick-action-btn" onclick="openExpenseWithCat('علف')" title="تسجيل شراء علف">
         <span class="quick-action-icon">🌾</span>
         <span>+ علف</span>
-      </button>
-      <button class="quick-action-btn" onclick="openExpenseWithCat('كتاكيت')" title="تسجيل شراء كتاكيت">
-        <span class="quick-action-icon">🐣</span>
-        <span>+ كتاكيت</span>
       </button>
       <button class="quick-action-btn" onclick="openExpenseWithCat('دواء')" title="تسجيل شراء أدوية وبيطري">
         <span class="quick-action-icon">💊</span>
@@ -223,7 +220,7 @@ function detail(a) {
 
     <!-- ⚡ OTHER ACTIONS BAR (تسجيل المعاملات) -->
     <div class="section-title">
-      <span>⚡ تسجيل المعاملات</span>
+      <span>⚡ تسجيل حركة</span>
     </div>
     <div class="quick-actions-bar">
       <button class="quick-action-btn" onclick="quickAdd('inc')">
@@ -249,6 +246,59 @@ function detail(a) {
       ${statBox('النافق', f(k.dead), 'نسبة ' + k.mort.toFixed(1) + '% ' + (k.mort > 5 ? '(مرتفعة)' : '(طبيعية)'), '⚠️', k.mort > 5 ? 'color-rose' : '')}
       ${statBox('المباع', f(k.sold), 'بمتوسط ' + f(k.avg) + ' ج/طائر', '💰', 'color-emerald')}
       ${statBox('المتبقي بالمزرعة', f(k.remaining), 'طيور حية متاحة', '🏠')}
+    </div>
+
+    <!-- Per-Flock Type Breakdown Cards (Mobile-Friendly) -->
+    <div class="section-title">
+      <span>🐔 تفاصيل كل نوع فراخ</span>
+      <button type="button" class="btn btn-sm btn-outline" onclick="openAddFlockModal()" style="border-color: var(--emerald); color: var(--emerald);">
+        + إضافة نوع جديد
+      </button>
+    </div>
+    <div class="flock-cards-list">
+      ${k.flockStats.map(fs => `
+        <div class="flock-stat-card">
+          <div class="flock-stat-head">
+            <div class="flock-stat-title">
+              <span>🐣</span>
+              <span>${fs.name}</span>
+              <span class="cycle-flock-pill">${fs.share.toFixed(0)}%</span>
+            </div>
+            <span class="badge ${fs.remaining > 0 ? 'badge-active' : 'badge-closed'}">
+              ${fs.remaining > 0 ? `متبقي ${f(fs.remaining)} طائر` : 'تم البيع بالكامل ✓'}
+            </span>
+          </div>
+
+          <div class="flock-mini-grid">
+            <div class="flock-mini-box">
+              <span class="flock-mini-label">الأصل</span>
+              <span class="flock-mini-val">${f(fs.count)}</span>
+            </div>
+            <div class="flock-mini-box">
+              <span class="flock-mini-label">النافق</span>
+              <span class="flock-mini-val ${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</span>
+            </div>
+            <div class="flock-mini-box">
+              <span class="flock-mini-label">المباع</span>
+              <span class="flock-mini-val color-emerald">${f(fs.sold)}</span>
+            </div>
+            <div class="flock-mini-box">
+              <span class="flock-mini-label">المتبقي</span>
+              <span class="flock-mini-val">${f(fs.remaining)}</span>
+            </div>
+          </div>
+
+          <div class="flock-finance-row">
+            <div>
+              <div>التكلفة: <b>${f(fs.totalCost)} ج</b> <small style="color:var(--text-dim);">(كتاكيت ${f(fs.cost)} + مصاريف ${f(fs.sharedCost)})</small></div>
+              <div>المبيعات: <b class="color-emerald">${f(fs.revenue)} ج</b> ${fs.sold > 0 ? `<small style="color:var(--text-dim);">(متوسط ${f(fs.avgPrice)} ج/طائر)</small>` : ''}</div>
+            </div>
+            <div class="flock-profit-pill ${fs.profit >= 0 ? 'color-emerald' : 'color-rose'}">
+              ${fs.profit >= 0 ? 'ربح +' : 'خسارة -'}${f(Math.abs(fs.profit))} ج
+            </div>
+          </div>
+        </div>
+      `).join('')}
     </div>
 
     <!-- Production Efficiency & Cost Grid -->

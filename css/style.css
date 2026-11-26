@@ -2098,6 +2098,227 @@ select option {
 
 
 
+/* ==========================================================================
+   Flock Type Picker (Mobile-friendly tap cards) & Cycle Multi-Flock Rows
+   ========================================================================== */
+.flock-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+
+.flock-pick-btn {
+  background: var(--bg-subtle);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  color: var(--text-main);
+  font-family: inherit;
+  text-align: right;
+  transition: var(--transition);
+  min-height: 60px;
+  user-select: none;
+}
+
+.flock-pick-btn:hover:not(:disabled) {
+  border-color: var(--emerald);
+  transform: translateY(-1px);
+}
+
+.flock-pick-btn.active {
+  background: var(--emerald-light);
+  border-color: var(--emerald);
+  box-shadow: 0 0 14px var(--emerald-glow);
+}
+
+.flock-pick-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.flock-pick-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-title);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flock-pick-btn.active .flock-pick-name {
+  color: var(--emerald);
+}
+
+.flock-pick-meta {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Dynamic Flock Rows inside New/Edit Cycle Modal */
+.flock-rows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+
+.flock-row-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+:root[data-theme="light"] .flock-row-card {
+  background: rgba(15, 23, 42, 0.025);
+}
+
+.flock-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.flock-row-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--emerald);
+}
+
+.flock-row-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.flock-row-card label {
+  margin: 6px 0 4px;
+  font-size: 12px;
+}
+
+.flock-total-bar {
+  background: var(--emerald-light);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin: 10px 0 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Flock Comparison Cards on Dashboard */
+.flock-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.flock-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.flock-stat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.flock-stat-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-title);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flock-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.flock-mini-box {
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.flock-mini-label {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.flock-mini-val {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  font-family: var(--font-num);
+  color: var(--text-title);
+}
+
+.flock-finance-row {
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 9px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.flock-profit-pill {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: var(--font-num);
+}
+
+.cycle-flocks-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.cycle-flock-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
 /* Print Styles */
 @media print {
   body { background: #fff !important; color: #000 !important; }

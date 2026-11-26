@@ -24,16 +24,16 @@ const initialCycles = [
       { id: 5, d: '2026-09-01', cat: 'مصاريف أخرى', amt: 4000, note: 'يوميات وعمالة' }
     ],
     inc: [
-      { id: 1, d: '2026-09-08', flockId: 101, cnt: 480, amt: 43200, paidAmt: 43200, buyer: 'تاجر الأحد' },
-      { id: 2, d: '2026-09-10', flockId: 102, cnt: 488, amt: 44500, paidAmt: 40000, buyer: 'محل الشرقية', debtRefId: 101 }
+      { id: 1, d: '2026-09-08', flockId: 101, cnt: 480, amt: 43200, buyer: 'تاجر الأحد' },
+      { id: 2, d: '2026-09-10', flockId: 102, cnt: 488, amt: 44500, buyer: 'محل الشرقية' }
     ],
     dead: [
-      { id: 1, d: '2026-08-12', flockId: 101, n: 18, note: 'نافق الأسبوع الأول' },
-      { id: 2, d: '2026-08-28', flockId: 102, n: 12, note: 'موجة حر' }
+      { id: 1, d: '2026-08-12', flockId: 101, n: 18 },
+      { id: 2, d: '2026-08-28', flockId: 102, n: 12 }
     ],
     feed: [
-      { id: 11, d: '2026-08-05', type: 'purchased', kg: 1500, q: 30, unit: 'شكارة', txt: '30 شكارة (بادي 23%)', note: 'بادي 23%', expRefId: 10 },
-      { id: 13, d: '2026-08-25', type: 'purchased', kg: 1700, q: 34, unit: 'شكارة', txt: '34 شكارة (نامي 21%)', note: 'نامي 21%', expRefId: 20 }
+      { id: 11, d: '2026-08-05', type: 'purchased', kg: 1500, q: 30, unit: 'شكارة (50 كجم)', txt: '30 شكارة (50 كجم) (بادي 23%)', note: 'بادي 23%', expRefId: 10 },
+      { id: 13, d: '2026-08-25', type: 'purchased', kg: 1700, q: 34, unit: 'شكارة (50 كجم)', txt: '34 شكارة (50 كجم) (نامي 21%)', note: 'نامي 21%', expRefId: 20 }
     ],
     debt: [
       {
@@ -44,8 +44,7 @@ const initialCycles = [
         amt: 4500,
         paidAmt: 1500,
         paid: false,
-        note: 'باقي بيع طيور دفعة 10 سبتمبر',
-        saleId: 2,
+        note: 'باقي حساب بيع دفعة سبتمبر',
         payments: [{ d: '2026-09-12', amt: 1500, note: 'دفعة نقدية' }]
       }
     ]
@@ -55,19 +54,20 @@ const initialCycles = [
     name: 'دورة أكتوبر',
     start: '2026-10-01',
     end: null,
-    n: 800,
+    n: 1000,
     flocks: [
       { id: 201, name: 'أبيض', count: 500, cost: 9500 },
-      { id: 202, name: 'ساسو', count: 300, cost: 5700 }
+      { id: 202, name: 'ساسو', count: 300, cost: 5700 },
+      { id: 203, name: 'بلدي', count: 200, cost: 3600 }
     ],
     exp: [
       { id: 30, d: '2026-10-04', cat: 'علف', amt: 9000, note: 'علف بادي', feedRefId: 21 },
       { id: 31, d: '2026-10-12', cat: 'دواء', amt: 1800, note: 'فيتامينات ومضاد سموم' }
     ],
     inc: [],
-    dead: [{ id: 21, d: '2026-10-10', flockId: 201, n: 9, note: 'فرز طبيعي' }],
+    dead: [{ id: 21, d: '2026-10-10', flockId: 201, n: 9 }],
     feed: [
-      { id: 21, d: '2026-10-04', type: 'purchased', kg: 600, q: 12, unit: 'شكارة', txt: '12 شكارة بادي', note: 'بادي', expRefId: 30 }
+      { id: 21, d: '2026-10-04', type: 'purchased', kg: 600, q: 12, unit: 'شكارة (50 كجم)', txt: '12 شكارة (50 كجم) (بادي)', note: 'بادي', expRefId: 30 }
     ],
     debt: [
       {
@@ -86,8 +86,8 @@ const initialCycles = [
 ];
 
 // Persistent State Storage
-const STORAGE_KEY = 'refaey_farm_cycles_v7';
-const LEGACY_STORAGE_KEYS = ['refaey_farm_cycles_v6', 'refaey_farm_cycles_v5'];
+const STORAGE_KEY = 'refaey_farm_cycles_v8';
+const LEGACY_STORAGE_KEYS = [];
 let C = [];
 
 // Keeps the legacy total count in sync with the flock types
@@ -154,17 +154,15 @@ function normalizeData(cycles) {
       n: +d.n || 0
     }));
 
-    // Normalize sales (count-based only)
+    // Normalize sales (count-based and total sale value only)
     c.inc = (c.inc || []).map((e, i) => {
       const amt = +e.amt || +e.totalAmt || 0;
-      const paidAmt = e.paidAmt !== undefined ? +e.paidAmt : amt;
       return {
         ...e,
         id: e.id || Date.now() + i,
         flockId: flockIds.includes(e.flockId) ? e.flockId : flockIds[0],
         cnt: +e.cnt || 0,
-        amt,
-        paidAmt
+        amt
       };
     });
 
@@ -267,6 +265,19 @@ function resetDataPrompt() {
 }
 
 let bagKg = 50;
+
+function getUnitKgFactor(unit) {
+  if (!unit) return bagKg || 50;
+  if (typeof unit === 'string') {
+    if (unit.includes('100')) return 100;
+    if (unit.includes('25')) return 25;
+    if (unit.includes('كيلو')) return 1;
+    if (unit.includes('50')) return 50;
+    if (unit === 'شكارة') return bagKg || 50;
+  }
+  return bagKg || 50;
+}
+
 let nid = 100;
 
 function updateNid() {

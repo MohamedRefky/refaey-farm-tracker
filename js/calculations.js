@@ -71,19 +71,15 @@ function calc(c) {
   const e = chickCost + otherExp;          // إجمالي تكلفة الدورة
   const n = chickCount || (+c.n || 0);     // إجمالي الكتاكيت
 
-  // 1. Sales & Revenue Metrics (الفصل بين قيمة البيع والمبلغ المحصل نقداً)
+  // 1. Sales & Revenue Metrics
   const incList = c.inc || [];
   const totalSales = incList.reduce((s, x) => s + (+x.amt || +x.totalAmt || 0), 0);
-  const collectedCash = incList.reduce((s, x) => s + (x.paidAmt !== undefined ? +x.paidAmt : (+x.amt || 0)), 0);
-  const uncollectedSales = Math.max(0, totalSales - collectedCash);
-  const i = totalSales; // إجمالي الإيراد الاستحقاقي
-  const p = i - e; // صافي الربح المحسوب على إجمالي المبيعات
-  const cashProfit = collectedCash - e; // صافي السيولة النقدية المحصلة فعلياً
+  const i = totalSales; // إجمالي الإيرادات
+  const p = i - e; // صافي الربح
 
   // 2. Flock Status (القطيع والنفوق والمتبقي)
   const dead = sum(c.dead, 'n');
   const sold = sum(c.inc, 'cnt');
-  const kgS = sum(c.inc, 'kg');
   const live = Math.max(0, n - dead);
   const remaining = Math.max(0, live - sold);
 
@@ -148,13 +144,9 @@ function calc(c) {
     chickCount: n,
     i,
     totalSales,
-    collectedCash,
-    uncollectedSales,
     p,
-    cashProfit,
     dead,
     sold,
-    kgS,
     feedPurchasedKg,
     live,
     remaining,

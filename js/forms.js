@@ -54,66 +54,47 @@ function validateTransaction(kind, data, isEdit, editIndex, cycle) {
   const k = calc(cycle);
 
   if (kind === 'inc') {
-    // 1. Bird Count Validation
+    const flockId = +data.flockId;
+    const flock = (cycle.flocks || []).find(fl => fl.id === flockId);
+    if (!flock) {
+      return { valid: false, field: null, message: 'يرجى اختيار نوع الفراخ المباعة أولاً.' };
+    }
+
+    // 1. Bird Count Validation per selected flock type
     if (!data.cnt || isNaN(data.cnt) || +data.cnt <= 0) {
       return { valid: false, field: 'f_cnt', message: 'يرجى إدخال عدد صحيح للطيور المباعة أكبر من الصفر.' };
     }
-    const availBirds = k.remaining + (isEdit && cycle.inc[editIndex] ? (+cycle.inc[editIndex].cnt || 0) : 0);
+    const availBirds = flockAvailability(cycle, flockId, 'inc', editIndex);
     if (+data.cnt > availBirds) {
       return {
         valid: false,
         field: 'f_cnt',
-        message: `عفواً، عدد الطيور المباعة (${data.cnt}) أكبر من الطيور الحية المتاحة حالياً بالمزرعة (${availBirds} طائر).`
+        message: `عفواً، عدد الطيور المباعة (${data.cnt}) أكبر من المتبقي المتاح من نوع "${flock.name}" (${availBirds} طائر).`
       };
     }
 
-    // 2. Total Amount Validation
+    // 2. Sale Amount Validation
     if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
-      return { valid: false, field: 'f_amt', message: 'يرجى إدخال إجمالي قيمة البيع بمبلغ صحيح أكبر من الصفر.' };
-    }
-
-    // 3. Collected Amount Validation
-    if (data.paidAmt !== undefined && data.paidAmt !== '') {
-      if (isNaN(data.paidAmt) || +data.paidAmt < 0) {
-        return { valid: false, field: 'f_paidAmt', message: 'المبلغ المحصل نقداً لا يمكن أن يكون سالباً.' };
-      }
-      if (+data.paidAmt > +data.amt) {
-        return {
-          valid: false,
-          field: 'f_paidAmt',
-          message: `المبلغ المحصل (${f(+data.paidAmt)} ج) لا يمكن أن يتجاوز إجمالي قيمة البيع (${f(+data.amt)} ج).`
-        };
-      }
-    }
-
-    // 4. Weight Validation
-    if (data.kg !== '' && data.kg !== undefined) {
-      if (isNaN(data.kg) || +data.kg <= 0) {
-        return { valid: false, field: 'f_kg', message: 'الوزن الإجمالي يجب أن يكون رقماً أكبر من الصفر.' };
-      }
-    }
-
-    // 5. Buyer Name for Partial/Deferred Sales
-    const remaining = +data.amt - (+data.paidAmt || 0);
-    if (remaining > 0 && (!data.buyer || !data.buyer.trim())) {
-      return {
-        valid: false,
-        field: 'f_buyer',
-        message: 'يوجد متبقي آجل؛ يرجى كتابة اسم المشتري / التاجر لربط هذا المتبقي بحسابه في الديون تلقائياً.'
-      };
+      return { valid: false, field: 'f_amt', message: 'يرجى إدخال قيمة البيع بمبلغ صحيح أكبر من الصفر.' };
     }
   }
 
   if (kind === 'dead') {
+    const flockId = +data.flockId;
+    const flock = (cycle.flocks || []).find(fl => fl.id === flockId);
+    if (!flock) {
+      return { valid: false, field: null, message: 'يرجى اختيار نوع الفراخ النافقة أولاً.' };
+    }
+
     if (!data.n || isNaN(data.n) || +data.n <= 0) {
       return { valid: false, field: 'f_n', message: 'يرجى إدخال عدد طيور نافقة صحيح أكبر من الصفر.' };
     }
-    const availLive = k.remaining + (isEdit && cycle.dead[editIndex] ? (+cycle.dead[editIndex].n || 0) : 0);
+    const availLive = flockAvailability(cycle, flockId, 'dead', editIndex);
     if (+data.n > availLive) {
       return {
         valid: false,
         field: 'f_n',
-        message: `عفواً، عدد النافق (${data.n}) أكبر من الطيور الحية المتبقية بالمزرعة (${availLive} طائر).`
+        message: `عفواً، عدد النافق (${data.n}) أكبر من المتبقي الحي من نوع "${flock.name}" (${availLive} طائر).`
       };
     }
   }
@@ -192,18 +173,17 @@ function openForm(kind, editIndex = null, prefillData = null) {
       }
     }
 
-    // Normalize to 5 standard categories
+    // Normalize to 4 shared cycle expense categories
     if (catVal === 'أدوية وتحصينات' || catVal === 'بيطري' || catVal === 'أدوية') catVal = 'دواء';
     else if (catVal === 'كهرباء وغاز' || catVal === 'تدفئة' || catVal === 'كهرباء') catVal = 'غاز';
     else if (catVal === 'أخرى' || catVal === 'مصاريف أخرى') catVal = 'مصاريف أخرى';
-    else if (!['علف', 'كتاكيت', 'دواء', 'غاز', 'مصاريف أخرى'].includes(catVal)) catVal = 'مصاريف أخرى';
+    else if (!['علف', 'دواء', 'غاز', 'مصاريف أخرى'].includes(catVal)) catVal = 'مصاريف أخرى';
   }
 
   let titleText = '';
   if (isUnified) {
     const catTitles = {
       'علف': 'شراء وتوريد علف 🌾',
-      'كتاكيت': 'شراء كتاكيت 🐣',
       'دواء': 'مصروف أدوية وبيطري 💊',
       'غاز': 'مصروف غاز وتدفئة 🔥',
       'مصاريف أخرى': 'مصاريف أخرى 📦'
@@ -271,10 +251,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
 
     let noteLabel = 'ملاحظة أو بيان (اختياري)';
     let notePlaceholder = 'مثلاً: تفاصيل المصروف...';
-    if (catVal === 'كتاكيت') {
-      noteLabel = 'بيان الكتاكيت (اختياري)';
-      notePlaceholder = 'مثال: 1000 كتكوت ساسو، معمل كذا...';
-    } else if (catVal === 'دواء') {
+    if (catVal === 'دواء') {
       noteLabel = 'اسم الدواء أو التحصين (اختياري)';
       notePlaceholder = 'مثال: فيتامينات، مضاد سموم، جمبورو...';
     } else if (catVal === 'غاز') {
@@ -323,48 +300,61 @@ function openForm(kind, editIndex = null, prefillData = null) {
       </div>
     `;
   } else if (kind === 'inc') {
-    // Specialized Sales Form with Cash Collection & Debt Separation
+    // Simplified Sales Form: Flock Type Buttons + Count + Sale Amount + Optional Buyer
+    const flocks = cycle.flocks || [];
+    const availFlocks = flocks.filter(fl => flockAvailability(cycle, fl.id, 'inc', editIndex) > 0);
+    let selectedFlockId = isEdit && existing && existing.flockId
+      ? existing.flockId
+      : (prefillData && prefillData.flockId ? prefillData.flockId : '');
+    if (!selectedFlockId) {
+      if (flocks.length === 1) selectedFlockId = flocks[0].id;
+      else if (availFlocks.length === 1) selectedFlockId = availFlocks[0].id;
+    }
+
     const cntVal = isEdit && existing ? existing.cnt : '';
-    const kgVal = isEdit && existing ? (existing.kg || '') : '';
     const amtVal = isEdit && existing ? existing.amt : '';
-    const paidVal = isEdit && existing ? (existing.paidAmt !== undefined ? existing.paidAmt : existing.amt) : '';
     const buyerVal = isEdit && existing ? (existing.buyer || '') : '';
+    const selectedAvail = selectedFlockId ? flockAvailability(cycle, +selectedFlockId, 'inc', editIndex) : 0;
 
     h += `
+      ${buildFlockPickerHtml(cycle, selectedFlockId, 'inc', editIndex)}
+
       <label>عدد الطيور المباعة *</label>
       <input id="f_cnt" type="number" inputmode="numeric" value="${cntVal}" placeholder="مثلاً: 250" oninput="updateSaleCalculations()">
 
-      <label>الوزن الإجمالي للطيور (كجم) (اختياري)</label>
-      <input id="f_kg" type="number" inputmode="decimal" step="any" value="${kgVal}" placeholder="مثلاً: 520" oninput="updateSaleCalculations()">
-
-      <label>إجمالي قيمة البيع (جنيه) *</label>
-      <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="مثلاً: 24000" oninput="updateSaleCalculations()">
-
-      <label>المبلغ المحصل نقداً الآن (كاش) *</label>
-      <input id="f_paidAmt" type="number" inputmode="decimal" step="any" value="${paidVal}" placeholder="المبلغ المستلم كاش بالفعل" oninput="updateSaleCalculations()">
-      
-      <div class="quick-fill-row">
-        <button type="button" class="quick-fill-btn" onclick="fillFullCash()">
-          💵 تم تحصيل كامل المبلغ كاش (بدون آجل)
+      <div class="quick-fill-row" id="sell_all_flock_row" style="display: ${selectedAvail > 0 ? 'flex' : 'none'};">
+        <button type="button" class="quick-fill-btn" id="sell_all_flock_btn" onclick="fillRemainingFlockBirds(${selectedAvail})">
+          ⚡ بيع كل المتبقي من هذا النوع (${f(selectedAvail)} طائر)
         </button>
       </div>
 
-      <!-- Live Dynamic Sale Status Banner -->
+      <label>قيمة البيع (جنيه) *</label>
+      <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="مثلاً: 24000" oninput="updateSaleCalculations()">
+
+      <!-- Live Simple Average Price Hint -->
       <div id="sale_status_box" style="margin-bottom: 14px;"></div>
 
-      <label>اسم المشتري / التاجر (مطلوب إذا كان هناك متبقي آجل)</label>
+      <label>اسم المشتري / ملاحظة (اختياري)</label>
       <input id="f_buyer" type="text" value="${buyerVal}" placeholder="مثال: تاجر الأحد، محل البركة...">
     `;
   } else if (kind === 'dead') {
+    // Simplified Mortality Form: Flock Type Buttons + Dead Count only
+    const flocks = cycle.flocks || [];
+    const availFlocks = flocks.filter(fl => flockAvailability(cycle, fl.id, 'dead', editIndex) > 0);
+    let selectedFlockId = isEdit && existing && existing.flockId
+      ? existing.flockId
+      : (prefillData && prefillData.flockId ? prefillData.flockId : '');
+    if (!selectedFlockId) {
+      if (flocks.length === 1) selectedFlockId = flocks[0].id;
+      else if (availFlocks.length === 1) selectedFlockId = availFlocks[0].id;
+    }
     const nVal = isEdit && existing ? existing.n : '';
-    const noteVal = isEdit && existing ? (existing.note || '') : '';
 
     h += `
+      ${buildFlockPickerHtml(cycle, selectedFlockId, 'dead', editIndex)}
+
       <label>عدد الطيور النافقة *</label>
       <input id="f_n" type="number" inputmode="numeric" value="${nVal}" placeholder="مثلاً: 5">
-
-      <label>سبب النفوق / ملاحظة (اختياري)</label>
-      <input id="f_note" type="text" value="${noteVal}" placeholder="مثلاً: موجة حر، فرز أولي...">
     `;
   } else if (kind === 'debt') {
     // Specialized Debt Form
@@ -425,14 +415,13 @@ function openForm(kind, editIndex = null, prefillData = null) {
       dataObj.std_note = document.getElementById('f_std_note') ? document.getElementById('f_std_note').value.trim() : '';
       dataObj.note = dataObj.cat === 'علف' ? dataObj.feed_note : dataObj.std_note;
     } else if (kind === 'inc') {
+      dataObj.flockId = document.getElementById('f_flock') ? document.getElementById('f_flock').value : '';
       dataObj.cnt = document.getElementById('f_cnt').value.trim();
-      dataObj.kg = document.getElementById('f_kg').value.trim();
       dataObj.amt = document.getElementById('f_amt').value.trim();
-      dataObj.paidAmt = document.getElementById('f_paidAmt').value.trim();
       dataObj.buyer = document.getElementById('f_buyer').value.trim();
     } else if (kind === 'dead') {
+      dataObj.flockId = document.getElementById('f_flock') ? document.getElementById('f_flock').value : '';
       dataObj.n = document.getElementById('f_n').value.trim();
-      dataObj.note = document.getElementById('f_note').value.trim();
     } else if (kind === 'debt') {
       dataObj.dir = document.getElementById('f_dir').value;
       dataObj.who = document.getElementById('f_who').value.trim();
@@ -572,56 +561,17 @@ function openForm(kind, editIndex = null, prefillData = null) {
     o.d = dataObj.d;
 
     if (kind === 'inc') {
+      o.flockId = +dataObj.flockId;
       o.cnt = +dataObj.cnt;
-      o.kg = dataObj.kg !== '' ? +dataObj.kg : 0;
       o.amt = +dataObj.amt;
-      o.paidAmt = dataObj.paidAmt !== '' ? +dataObj.paidAmt : o.amt;
       o.buyer = dataObj.buyer;
-
-      const remainingSaleAmt = Math.max(0, o.amt - o.paidAmt);
-
-      if (remainingSaleAmt > 0) {
-        let linkedDebt = null;
-        if (isEdit && o.debtRefId) {
-          linkedDebt = cycle.debt.find(d => d.id === o.debtRefId);
-        }
-        if (!linkedDebt && o.id) {
-          linkedDebt = cycle.debt.find(d => d.saleId === o.id);
-        }
-
-        if (linkedDebt) {
-          linkedDebt.who = o.buyer || 'مشتري آجل';
-          linkedDebt.amt = remainingSaleAmt;
-          linkedDebt.paid = (linkedDebt.paidAmt || 0) >= remainingSaleAmt;
-          linkedDebt.d = o.d;
-          linkedDebt.note = `باقي بيع ${o.cnt} طائر بتاريخ ${o.d}`;
-        } else {
-          const newDebtId = Date.now() + Math.floor(Math.random() * 1000);
-          const newDebt = {
-            id: newDebtId,
-            d: o.d,
-            dir: 'لنا',
-            who: o.buyer || 'مشتري آجل',
-            amt: remainingSaleAmt,
-            paidAmt: 0,
-            paid: false,
-            note: `باقي بيع ${o.cnt} طائر بتاريخ ${o.d}`,
-            saleId: o.id,
-            payments: []
-          };
-          cycle.debt.push(newDebt);
-          o.debtRefId = newDebtId;
-        }
-      } else if (remainingSaleAmt === 0 && (o.debtRefId || o.id)) {
-        const linkedDebt = cycle.debt.find(d => d.id === o.debtRefId || d.saleId === o.id);
-        if (linkedDebt) {
-          linkedDebt.paidAmt = linkedDebt.amt;
-          linkedDebt.paid = true;
-        }
-      }
+      delete o.kg;
+      delete o.paidAmt;
+      delete o.debtRefId;
     } else if (kind === 'dead') {
+      o.flockId = +dataObj.flockId;
       o.n = +dataObj.n;
-      o.note = dataObj.note;
+      delete o.note;
     } else if (kind === 'debt') {
       o.dir = dataObj.dir;
       o.who = dataObj.who;
@@ -648,59 +598,102 @@ function openForm(kind, editIndex = null, prefillData = null) {
   modal.classList.add('on');
 }
 
-// Helper: Fill full cash amount in sales form
-function fillFullCash() {
-  const amtEl = document.getElementById('f_amt');
-  const paidEl = document.getElementById('f_paidAmt');
-  if (amtEl && paidEl) {
-    paidEl.value = amtEl.value;
+// Build mobile-friendly flock selector buttons for Sales & Mortality
+function buildFlockPickerHtml(cycle, selectedFlockId, kind, editIndex) {
+  const flocks = cycle.flocks || [];
+  const labelText = kind === 'inc' ? 'اختر نوع الفراخ المباعة *' : 'اختر نوع الفراخ النافقة *';
+  const availWord = kind === 'inc' ? 'متبقي' : 'حي';
+
+  if (flocks.length === 1) {
+    const fl = flocks[0];
+    const avail = flockAvailability(cycle, fl.id, kind, editIndex);
+    return `
+      <input type="hidden" id="f_flock" value="${fl.id}">
+      <div class="form-hint-banner" style="margin: 8px 0 6px;">
+        <span>🐣</span>
+        <span>النوع: <b>${fl.name}</b> (${availWord}: <b>${f(avail)} طائر</b>)</span>
+      </div>
+    `;
+  }
+
+  return `
+    <label>${labelText}</label>
+    <input type="hidden" id="f_flock" value="${selectedFlockId || ''}">
+    <div class="flock-picker-grid">
+      ${flocks.map(fl => {
+        const avail = flockAvailability(cycle, fl.id, kind, editIndex);
+        const isActive = String(selectedFlockId) === String(fl.id);
+        const isDisabled = avail <= 0 && !isActive;
+        return `
+          <button type="button"
+            class="flock-pick-btn ${isActive ? 'active' : ''}"
+            data-flock-id="${fl.id}"
+            ${isDisabled ? 'disabled' : ''}
+            onclick="selectFlockOption(${fl.id}, '${kind}', ${avail})">
+            <span class="flock-pick-name">🐣 ${fl.name}</span>
+            <span class="flock-pick-meta">${avail > 0 ? `${availWord}: ${f(avail)} طائر` : 'لا يوجد متبقي (0)'}</span>
+          </button>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function selectFlockOption(flockId, kind, avail) {
+  const inputEl = document.getElementById('f_flock');
+  if (inputEl) inputEl.value = flockId;
+
+  document.querySelectorAll('.flock-pick-btn').forEach(btn => {
+    btn.classList.toggle('active', String(btn.dataset.flockId) === String(flockId));
+  });
+
+  if (kind === 'inc') {
+    const row = document.getElementById('sell_all_flock_row');
+    const btn = document.getElementById('sell_all_flock_btn');
+    if (row && btn) {
+      if (avail > 0) {
+        row.style.display = 'flex';
+        btn.setAttribute('onclick', `fillRemainingFlockBirds(${avail})`);
+        btn.textContent = `⚡ بيع كل المتبقي من هذا النوع (${f(avail)} طائر)`;
+      } else {
+        row.style.display = 'none';
+      }
+    }
     updateSaleCalculations();
   }
 }
 
-// Live calculation updater for sales form
+function fillRemainingFlockBirds(avail) {
+  const cntEl = document.getElementById('f_cnt');
+  if (cntEl) {
+    cntEl.value = avail;
+    updateSaleCalculations();
+  }
+}
+
+// Live calculation updater for simplified sales form
 function updateSaleCalculations() {
   const box = document.getElementById('sale_status_box');
   if (!box) return;
 
-  const cnt = +document.getElementById('f_cnt').value || 0;
-  const kg = +document.getElementById('f_kg').value || 0;
-  const amt = +document.getElementById('f_amt').value || 0;
-  const paidVal = document.getElementById('f_paidAmt').value;
-  const paid = paidVal !== '' ? +paidVal : amt;
+  const cntEl = document.getElementById('f_cnt');
+  const amtEl = document.getElementById('f_amt');
+  const cnt = cntEl ? (+cntEl.value || 0) : 0;
+  const amt = amtEl ? (+amtEl.value || 0) : 0;
 
-  let details = [];
-  if (cnt > 0 && kg > 0) {
-    details.push(`متوسط وزن الطائر: <b>${(kg / cnt).toFixed(2)} كجم</b>`);
+  if (cnt > 0 && amt > 0) {
+    box.innerHTML = `
+      <div class="form-hint-banner emerald" style="margin: 6px 0;">
+        <span>💰</span>
+        <span>متوسط سعر الطائر: <b>${f(amt / cnt)} ج</b></span>
+      </div>
+    `;
+  } else {
+    box.innerHTML = '';
   }
-  if (kg > 0 && amt > 0) {
-    details.push(`سعر الكيلو التقديري: <b>${(amt / kg).toFixed(1)} ج</b>`);
-  }
-
-  let statusHtml = '';
-  if (amt > 0) {
-    if (paid >= amt) {
-      statusHtml = `<div class="form-hint-banner emerald" style="margin: 6px 0;">✓ تم التحصيل بالكامل كاش (لا توجد مديونية).</div>`;
-    } else if (paid < amt && paid >= 0) {
-      const rem = amt - paid;
-      statusHtml = `
-        <div class="form-hint-banner amber" style="margin: 6px 0;">
-          <span>⏳ المتبقي كمديونية آجل: <b>${f(rem)} ج</b> (سيتم تسجيلها تلقائياً على المشتري في قسم الديون).</span>
-        </div>
-      `;
-    } else {
-      statusHtml = `<div class="form-hint-banner" style="margin: 6px 0; color:var(--rose); background:rgba(244,63,94,0.12); border-color:var(--rose);">⚠️ المبلغ المحصل لا يمكن أن يتجاوز إجمالي البيع.</div>`;
-    }
-  }
-
-  box.innerHTML = `
-    ${details.length ? `<div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">${details.join(' • ')}</div>` : ''}
-    ${statusHtml}
-  `;
 }
 
 // Interactive handlers for unified Expense & Feed Form
-// Interactive handlers for selecting an expense category directly
 function selectExpenseCat(cat) {
   const catInput = document.getElementById('f_cat');
   if (catInput) catInput.value = cat;
@@ -722,10 +715,7 @@ function selectExpenseCat(cat) {
     if (feedSec) feedSec.style.display = 'none';
     if (stdNoteWrapper) stdNoteWrapper.style.display = 'block';
     if (stdNoteLabel && stdNoteInput) {
-      if (cat === 'كتاكيت') {
-        stdNoteLabel.textContent = 'بيان الكتاكيت (مثلاً: 1000 كتكوت ساسو، سعر 18 ج)';
-        stdNoteInput.placeholder = 'مثال: 1000 كتكوت ساسو، معمل كذا...';
-      } else if (cat === 'دواء') {
+      if (cat === 'دواء') {
         stdNoteLabel.textContent = 'نوع الدواء أو التحصين (اختياري)';
         stdNoteInput.placeholder = 'مثال: مضاد سموم، فيتامينات، تحصينة...';
       } else if (cat === 'غاز') {
@@ -897,32 +887,24 @@ function deletePayment(debtIndex, paymentIndex) {
   });
 }
 
-// Delete sale with automatic handling of linked debt
+// Delete sale record (debts are managed independently)
 function delSale(i) {
   const cycle = cur();
   const sale = cycle.inc[i];
-  const hasLinkedDebt = sale.debtRefId || sale.id;
-  const linkedDebt = hasLinkedDebt ? cycle.debt.find(d => d.id === sale.debtRefId || d.saleId === sale.id) : null;
+  const typeName = flockName(cycle, sale.flockId);
 
   showConfirmModal({
     icon: '🗑️',
     title: 'تأكيد حذف حركة البيع ⚠️',
-    subtitle: 'هل أنت متأكد من حذف حركة البيع هذه؟ سيتم خصم هذا المبلغ من إجمالي المبيعات وإعادة عدد الطيور المباعة إلى القطيع الحي بالمزرعة.',
+    subtitle: 'هل أنت متأكد من حذف حركة البيع هذه؟ سيتم خصم هذا المبلغ من إجمالي المبيعات وإعادة عدد الطيور المباعة إلى المتبقي من هذا النوع.',
     itemIcon: '📈',
-    itemTitle: `بيع ${sale.cnt} طائر ${sale.buyer ? '(' + sale.buyer + ')' : ''}`,
-    itemMeta: `إجمالي القيمة: ${f(sale.amt)} ج • محصل كاش: ${f(sale.paidAmt)} ج • التاريخ: ${fd(sale.d)}`,
-    warningNote: linkedDebt ? `تنبيه: سيتم أيضاً حذف المديونية المرتبطة بهذا البيع (${f(linkedDebt.amt)} ج على ${linkedDebt.who}) تلقائياً منعاً لتكرار الديون.` : '',
+    itemTitle: `بيع ${f(sale.cnt)} طائر (${typeName}) ${sale.buyer ? '• ' + sale.buyer : ''}`,
+    itemMeta: `قيمة البيع: ${f(sale.amt)} ج • التاريخ: ${fd(sale.d)}`,
     confirmBtnText: 'نعم، حذف حركة البيع نهائياً',
     onConfirm: () => {
-      if (linkedDebt) {
-        const debtIdx = cycle.debt.indexOf(linkedDebt);
-        if (debtIdx !== -1) {
-          cycle.debt.splice(debtIdx, 1);
-        }
-      }
       cycle.inc.splice(i, 1);
       saveData();
-      showToast('تم حذف حركة البيع وتحديث الأرصدة والديون');
+      showToast('تم حذف حركة البيع وتحديث الأرصدة');
       render();
     }
   });
@@ -986,12 +968,13 @@ function del(i) {
     });
   } else if (kind === 'dead') {
     const e = cycle.dead[i];
+    const typeName = flockName(cycle, e.flockId);
     showConfirmModal({
       icon: '🗑️',
       title: 'تأكيد حذف تسجيل النافق ⚠️',
-      subtitle: 'هل أنت متأكد من حذف هذا السجل للنافق؟ سيتم استرجاع عدد هذه الطيور للرصيد الحي المتبقي بالمزرعة.',
+      subtitle: 'هل أنت متأكد من حذف هذا السجل للنافق؟ سيتم استرجاع عدد هذه الطيور للرصيد الحي المتبقي من هذا النوع.',
       itemIcon: '⚠️',
-      itemTitle: `تسجيل نافق: ${e.n} طائر ${e.note ? '(' + e.note + ')' : ''}`,
+      itemTitle: `تسجيل نافق: ${e.n} طائر (${typeName})`,
       itemMeta: `التاريخ: ${fd(e.d)}`,
       confirmBtnText: 'نعم، احذف السجل',
       onConfirm: () => {
@@ -1035,21 +1018,166 @@ function del(i) {
 }
 
 // ==========================================================================
-// CYCLE MANAGEMENT (Edit, Create, Delete, Close)
+// CYCLE & MULTI-FLOCK MANAGEMENT (Create, Edit, Add Flock, Delete, Close)
 // ==========================================================================
+function buildFlockDatalistHtml() {
+  const defaults = ['أبيض', 'ساسو', 'كوب', 'روص', 'بلدي'];
+  const combined = [...new Set([...allFlockNames(), ...defaults])];
+  return `<datalist id="flock_names_list">${combined.map(n => `<option value="${n}">`).join('')}</datalist>`;
+}
+
+function buildFlockRowHtml(idx, flock = {}, isLocked = false, lockCount = 0) {
+  const safeName = String(flock.name || '').replace(/"/g, '&quot;');
+  const countVal = flock.count !== undefined && flock.count !== '' ? flock.count : '';
+  const costVal = flock.cost !== undefined && flock.cost !== '' ? flock.cost : '';
+  const idVal = flock.id || '';
+
+  return `
+    <div class="flock-row-card" data-flock-id="${idVal}">
+      <div class="flock-row-header">
+        <span class="flock-row-title">🐣 النوع ${idx + 1}</span>
+        ${isLocked ? `
+          <span style="font-size: 11px; color: var(--text-dim); font-weight: 600;">مرتبط بـ ${lockCount} حركة (لا يمكن حذفه)</span>
+        ` : `
+          <button type="button" class="btn btn-sm btn-danger flock-remove-btn" onclick="removeFlockRow(this)" style="padding: 3px 9px; font-size: 11.5px;">حذف</button>
+        `}
+      </div>
+      <label>اسم النوع (كتابة باليد) *</label>
+      <input type="text" class="flock-name-input" list="flock_names_list" value="${safeName}" placeholder="مثلاً: ساسو، كوب، أبيض...">
+      <div class="flock-row-inputs-grid">
+        <div>
+          <label>العدد (طائر) *</label>
+          <input type="number" class="flock-count-input" inputmode="numeric" value="${countVal}" placeholder="مثلاً: 500" oninput="updateFlocksModalSummary()">
+        </div>
+        <div>
+          <label>تكلفة الكتاكيت (ج) *</label>
+          <input type="number" class="flock-cost-input" inputmode="decimal" step="any" value="${costVal}" placeholder="مثلاً: 9000" oninput="updateFlocksModalSummary()">
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function addFlockRow(containerId) {
+  const listEl = document.getElementById(containerId);
+  if (!listEl) return;
+  const idx = listEl.querySelectorAll('.flock-row-card').length;
+  listEl.insertAdjacentHTML('beforeend', buildFlockRowHtml(idx, {}, false, 0));
+  refreshFlockRowLabels(containerId);
+  updateFlocksModalSummary();
+  const rows = listEl.querySelectorAll('.flock-row-card');
+  const lastInput = rows[rows.length - 1]?.querySelector('.flock-name-input');
+  if (lastInput) lastInput.focus();
+}
+
+function removeFlockRow(btn) {
+  const row = btn.closest('.flock-row-card');
+  const listEl = row ? row.parentElement : null;
+  if (!listEl) return;
+  if (listEl.querySelectorAll('.flock-row-card').length <= 1) {
+    showToast('يجب وجود نوع كتاكيت واحد على الأقل في الدورة');
+    return;
+  }
+  row.remove();
+  refreshFlockRowLabels(listEl.id);
+  updateFlocksModalSummary();
+}
+
+function refreshFlockRowLabels(containerId) {
+  const listEl = document.getElementById(containerId);
+  if (!listEl) return;
+  const rows = listEl.querySelectorAll('.flock-row-card');
+  rows.forEach((r, idx) => {
+    const titleEl = r.querySelector('.flock-row-title');
+    if (titleEl) titleEl.textContent = `🐣 النوع ${idx + 1}`;
+    const rmBtn = r.querySelector('.flock-remove-btn');
+    if (rmBtn) rmBtn.style.display = rows.length > 1 ? 'inline-flex' : 'none';
+  });
+}
+
+function updateFlocksModalSummary() {
+  const sumEl = document.getElementById('flocks_modal_summary');
+  if (!sumEl) return;
+  let totalCount = 0;
+  let totalCost = 0;
+  document.querySelectorAll('.flock-row-card').forEach(r => {
+    totalCount += +(r.querySelector('.flock-count-input')?.value || 0);
+    totalCost += +(r.querySelector('.flock-cost-input')?.value || 0);
+  });
+  sumEl.innerHTML = `
+    <span>إجمالي الكتاكيت: <b>${f(totalCount)} طائر</b></span>
+    <span>إجمالي التكلفة: <b class="color-emerald">${f(totalCost)} ج</b></span>
+  `;
+}
+
+function collectAndValidateFlockRows(cycleForEdit = null) {
+  const rows = Array.from(document.querySelectorAll('.flock-row-card'));
+  const collected = [];
+  const baseId = Date.now();
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const existingId = row.dataset.flockId ? +row.dataset.flockId : 0;
+    const nameEl = row.querySelector('.flock-name-input');
+    const countEl = row.querySelector('.flock-count-input');
+    const costEl = row.querySelector('.flock-cost-input');
+
+    const name = nameEl ? nameEl.value.trim() : '';
+    const countStr = countEl ? countEl.value.trim() : '';
+    const costStr = costEl ? costEl.value.trim() : '';
+
+    if (!name) {
+      if (nameEl) { nameEl.classList.add('input-error'); nameEl.focus(); }
+      showFormError(`يرجى كتابة اسم النوع رقم ${i + 1}.`, null);
+      return null;
+    }
+    if (!countStr || isNaN(countStr) || +countStr <= 0) {
+      if (countEl) { countEl.classList.add('input-error'); countEl.focus(); }
+      showFormError(`يرجى إدخال عدد صحيح أكبر من الصفر لنوع "${name}".`, null);
+      return null;
+    }
+    if (costStr === '' || isNaN(costStr) || +costStr < 0) {
+      if (costEl) { costEl.classList.add('input-error'); costEl.focus(); }
+      showFormError(`يرجى إدخال تكلفة الكتاكيت لنوع "${name}" (0 أو أكبر).`, null);
+      return null;
+    }
+
+    if (cycleForEdit && existingId) {
+      const usedBirds = (cycleForEdit.inc || []).filter(x => x.flockId === existingId).reduce((s, x) => s + (+x.cnt || 0), 0)
+        + (cycleForEdit.dead || []).filter(x => x.flockId === existingId).reduce((s, x) => s + (+x.n || 0), 0);
+      if (+countStr < usedBirds) {
+        if (countEl) { countEl.classList.add('input-error'); countEl.focus(); }
+        showFormError(`عفواً، عدد "${name}" (${countStr}) أقل من الطيور المسجل بيعها ونفوقها بالفعل (${usedBirds} طائر).`, null);
+        return null;
+      }
+    }
+
+    collected.push({
+      id: existingId || (baseId + i + Math.floor(Math.random() * 100)),
+      name,
+      count: +countStr,
+      cost: +costStr
+    });
+  }
+
+  return collected;
+}
+
 function editCycle() {
   const c = cur();
   if (!c) return;
   const { m: modal, fm: formEl } = ensureModalElements();
   if (!modal || !formEl) return;
 
+  const flocks = c.flocks || [];
   formEl.innerHTML = `
     <div class="form-header">
-      <div class="form-title">تعديل بيانات الدورة ✏️</div>
+      <div class="form-title">تعديل بيانات الدورة والأنواع ✏️</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
 
     <div id="form_error_container"></div>
+    ${buildFlockDatalistHtml()}
 
     <label>اسم الدورة *</label>
     <input id="edit_nn" value="${c.name || ''}" placeholder="اسم الدورة">
@@ -1057,14 +1185,25 @@ function editCycle() {
     <label>تاريخ البدء</label>
     <input type="date" id="edit_ns" value="${c.start || today()}">
 
-    <label>عدد الكتاكيت الأصلي المستلم *</label>
-    <input type="number" id="edit_nc" value="${c.n || 0}" inputmode="numeric" placeholder="مثلاً: 1000">
-
     <label>حالة الدورة</label>
     <select id="edit_status">
       <option value="ongoing" ${!c.end ? 'selected' : ''}>شغالة الآن (جارية)</option>
       <option value="closed" ${c.end ? 'selected' : ''}>مقفولة (مكتملة)</option>
     </select>
+
+    <label style="margin-top: 16px;">🐣 أنواع الكتاكيت في الدورة</label>
+    <div class="flock-rows-list" id="edit_flocks_list">
+      ${flocks.map((fl, idx) => {
+        const rec = flockRecordCounts(c, fl.id);
+        return buildFlockRowHtml(idx, fl, rec.total > 0, rec.total);
+      }).join('')}
+    </div>
+
+    <button type="button" class="btn btn-outline btn-full" onclick="addFlockRow('edit_flocks_list')" style="border-style: dashed; border-color: var(--emerald); color: var(--emerald); margin-bottom: 10px;">
+      + إضافة نوع كتكوت آخر
+    </button>
+
+    <div class="flock-total-bar" id="flocks_modal_summary"></div>
 
     <div class="form-actions-row">
       <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديلات الدورة</button>
@@ -1078,27 +1217,29 @@ function editCycle() {
     </div>
   `;
 
+  refreshFlockRowLabels('edit_flocks_list');
+  updateFlocksModalSummary();
+
   formEl.onsubmit = ev => {
     ev.preventDefault();
     clearFormErrors();
 
     const nn = document.getElementById('edit_nn').value.trim();
     const ns = document.getElementById('edit_ns').value;
-    const ncVal = document.getElementById('edit_nc').value.trim();
     const st = document.getElementById('edit_status').value;
 
     if (!nn) {
       showFormError('يرجى إدخال اسم الدورة.', 'edit_nn');
       return;
     }
-    if (!ncVal || isNaN(ncVal) || +ncVal <= 0) {
-      showFormError('يرجى إدخال عدد كتاكيت صحيح أكبر من الصفر.', 'edit_nc');
-      return;
-    }
+
+    const updatedFlocks = collectAndValidateFlockRows(c);
+    if (!updatedFlocks) return;
 
     c.name = nn;
     c.start = ns || c.start;
-    c.n = +ncVal;
+    c.flocks = updatedFlocks;
+    syncCycleCount(c);
 
     if (st === 'closed' && !c.end) {
       c.end = today();
@@ -1109,6 +1250,81 @@ function editCycle() {
     saveData();
     closeM();
     showToast('تم حفظ تعديلات الدورة بنجاح ✓');
+    render();
+  };
+
+  modal.classList.add('on');
+}
+
+// Quick 1-step modal to add a new chick type to an existing cycle anytime
+function openAddFlockModal() {
+  const c = cur();
+  if (!c) return;
+  const { m: modal, fm: formEl } = ensureModalElements();
+  if (!modal || !formEl) return;
+
+  formEl.innerHTML = `
+    <div class="form-header">
+      <div class="form-title">إضافة نوع كتاكيت جديد للدورة 🐣</div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+    </div>
+
+    <div id="form_error_container"></div>
+    ${buildFlockDatalistHtml()}
+
+    <div class="form-hint-banner">
+      <span>💡</span>
+      <span>سيتم إضافة هذا النوع للدورة الحالية، وتُوزع مصاريف الدورة المشتركة عليه تلقائياً حسب العدد.</span>
+    </div>
+
+    <label>اسم النوع (كتابة باليد) *</label>
+    <input id="af_name" type="text" list="flock_names_list" placeholder="مثلاً: ساسو، كوب، بلدي...">
+
+    <label>عدد الكتاكيت *</label>
+    <input id="af_count" type="number" inputmode="numeric" placeholder="مثلاً: 200">
+
+    <label>تكلفة شراء الكتاكيت (جنيه) *</label>
+    <input id="af_cost" type="number" inputmode="decimal" step="any" placeholder="مثلاً: 3800">
+
+    <div class="form-actions-row">
+      <button class="btn btn-primary" style="flex: 2;" type="submit">إضافة النوع للدورة</button>
+      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
+    </div>
+  `;
+
+  formEl.onsubmit = ev => {
+    ev.preventDefault();
+    clearFormErrors();
+
+    const name = document.getElementById('af_name').value.trim();
+    const countStr = document.getElementById('af_count').value.trim();
+    const costStr = document.getElementById('af_cost').value.trim();
+
+    if (!name) {
+      showFormError('يرجى كتابة اسم نوع الكتاكيت.', 'af_name');
+      return;
+    }
+    if (!countStr || isNaN(countStr) || +countStr <= 0) {
+      showFormError('يرجى إدخال عدد صحيح أكبر من الصفر.', 'af_count');
+      return;
+    }
+    if (costStr === '' || isNaN(costStr) || +costStr < 0) {
+      showFormError('يرجى إدخال تكلفة الكتاكيت (0 أو أكبر).', 'af_cost');
+      return;
+    }
+
+    c.flocks = c.flocks || [];
+    c.flocks.push({
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      name,
+      count: +countStr,
+      cost: +costStr
+    });
+    syncCycleCount(c);
+
+    saveData();
+    closeM();
+    showToast(`تمت إضافة نوع "${name}" للدورة بنجاح 🐥`);
     render();
   };
 
@@ -1153,6 +1369,7 @@ function newCycle() {
     </div>
 
     <div id="form_error_container"></div>
+    ${buildFlockDatalistHtml()}
 
     <label>اسم الدورة (مثال: دورة نوفمبر، دفعة رقم 3) *</label>
     <input id="nn" value="دورة جديدة" placeholder="اسم الدورة">
@@ -1160,8 +1377,20 @@ function newCycle() {
     <label>تاريخ استلام الكتاكيت (البداية)</label>
     <input type="date" id="ns" value="${today()}">
 
-    <label>عدد الكتاكيت المستلمة *</label>
-    <input type="number" id="nc" inputmode="numeric" placeholder="مثلاً: 1000">
+    <div class="form-hint-banner" style="margin-top: 14px; margin-bottom: 6px;">
+      <span>🐣</span>
+      <span>سجل كل نوع كتاكيت اشتريته وعدده وتكلفته. باقي المصاريف (علف، غاز، دواء...) هتتسجل للدورة كلها بعدين.</span>
+    </div>
+
+    <div class="flock-rows-list" id="new_flocks_list">
+      ${buildFlockRowHtml(0, {}, false, 0)}
+    </div>
+
+    <button type="button" class="btn btn-outline btn-full" onclick="addFlockRow('new_flocks_list')" style="border-style: dashed; border-color: var(--emerald); color: var(--emerald); margin-bottom: 10px;">
+      + إضافة نوع كتكوت آخر
+    </button>
+
+    <div class="flock-total-bar" id="flocks_modal_summary"></div>
 
     <div class="form-actions-row">
       <button class="btn btn-primary" style="flex: 2;" type="submit">إنشاء الدورة</button>
@@ -1169,35 +1398,38 @@ function newCycle() {
     </div>
   `;
 
+  refreshFlockRowLabels('new_flocks_list');
+  updateFlocksModalSummary();
+
   formEl.onsubmit = ev => {
     ev.preventDefault();
     clearFormErrors();
 
     const nn = document.getElementById('nn').value.trim();
     const ns = document.getElementById('ns').value;
-    const ncVal = document.getElementById('nc').value.trim();
 
     if (!nn) {
       showFormError('يرجى إدخال اسم الدورة.', 'nn');
       return;
     }
-    if (!ncVal || isNaN(ncVal) || +ncVal <= 0) {
-      showFormError('يرجى إدخال عدد كتاكيت صحيح أكبر من الصفر.', 'nc');
-      return;
-    }
+
+    const flocks = collectAndValidateFlockRows(null);
+    if (!flocks) return;
 
     const newObj = {
       id: nid++,
       name: nn,
       start: ns || today(),
       end: null,
-      n: +ncVal,
+      n: 0,
+      flocks,
       exp: [],
       inc: [],
       dead: [],
       feed: [],
       debt: []
     };
+    syncCycleCount(newObj);
 
     C.push(newObj);
     saveData();

@@ -3,31 +3,26 @@
  * Renders individual feature tabs: Sales, Feed & Stock, Debts, Expenses, Mortalities, and Analytics.
  */
 
-// 1. Sales Tab with clear differentiation between Sale Value & Collected Cash
+// 1. Sales Tab (Simplified: by flock type, total value only, no weight or auto-debt)
 function renderSalesTab(c, k) {
   const arr = c.inc || [];
+  const flocks = c.flocks || [];
+  const activeFilter = S.incFilter || 'all';
+  const filtered = activeFilter === 'all'
+    ? arr
+    : arr.filter(x => x.flockId === activeFilter);
 
   return `
     <div class="tab-summary-grid">
       <div class="tab-summary-card">
         <span class="tab-summary-label">إجمالي قيمة المبيعات</span>
         <span class="tab-summary-val color-emerald">${f(k.totalSales)} ج</span>
-        <span class="tab-summary-sub">القيمة الإجمالية للمبيعات</span>
-      </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">المحصل نقداً (كاش)</span>
-        <span class="tab-summary-val color-emerald">${f(k.collectedCash)} ج</span>
-        <span class="tab-summary-sub">السيولة المستلمة فعلياً</span>
-      </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">المتبقي آجل (ديون مشتري)</span>
-        <span class="tab-summary-val ${k.uncollectedSales > 0 ? 'color-amber' : ''}">${f(k.uncollectedSales)} ج</span>
-        <span class="tab-summary-sub">مرحلة تلقائياً لحسابات المشترين</span>
+        <span class="tab-summary-sub">${arr.length} حركة بيع مسجلة</span>
       </div>
       <div class="tab-summary-card">
         <span class="tab-summary-label">إجمالي الطيور المباعة</span>
         <span class="tab-summary-val">${f(k.sold)} طائر</span>
-        <span class="tab-summary-sub">بإجمالي وزن ${f(k.kgS)} كجم</span>
+        <span class="tab-summary-sub">متوسط ${f(k.avg)} ج/طائر</span>
       </div>
     </div>
 
@@ -35,30 +30,38 @@ function renderSalesTab(c, k) {
       <span>+</span> تسجيل حركة بيع جديدة
     </button>
 
+    ${flocks.length > 1 ? `
+      <div class="filter-chips">
+        <button class="filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="S.incFilter='all'; render()">
+          الكل (${arr.length})
+        </button>
+        ${flocks.map(fl => {
+          const count = arr.filter(x => x.flockId === fl.id).length;
+          return `
+            <button class="filter-chip ${activeFilter === fl.id ? 'active' : ''}" onclick="S.incFilter=${fl.id}; render()">
+              🐣 ${fl.name} (${count})
+            </button>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+
     <div class="card" style="margin-top: 14px;">
-      ${arr.length ? arr.slice().reverse().map(e => {
+      ${filtered.length ? filtered.slice().reverse().map(e => {
         const i = arr.indexOf(e);
         const total = +e.amt || 0;
-        const paid = e.paidAmt !== undefined ? +e.paidAmt : total;
-        const remaining = Math.max(0, total - paid);
-        const avgWeight = e.cnt && e.kg ? (e.kg / e.cnt).toFixed(2) : null;
-        const pricePerKg = e.kg && total ? (total / e.kg).toFixed(1) : null;
+        const avgPerBird = e.cnt ? (total / e.cnt) : 0;
+        const typeName = flockName(c, e.flockId);
 
         return `
           <div class="record-item">
             <div>
-              <div class="record-title">
-                بيع ${e.cnt} طائر ${e.buyer ? '(' + e.buyer + ')' : '<span style="color:var(--text-dim);">(بدون اسم)</span>'}
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 3px;">
+                <span class="badge badge-feed-in">🐣 ${typeName}</span>
+                <span class="record-title">بيع ${f(e.cnt)} طائر ${e.buyer ? '(' + e.buyer + ')' : ''}</span>
               </div>
               <div class="record-date">
-                ${fd(e.d)} ${e.kg ? `• الوزن: <b>${f(e.kg)} كجم</b>` : ''} ${avgWeight ? `• متوسط: <b>${avgWeight} كجم/طائر</b>` : ''} ${pricePerKg ? `• سعر الكيلو: <b>${pricePerKg} ج</b>` : ''}
-              </div>
-              <div>
-                ${remaining > 0 ? `
-                  <span class="sale-debt-tag">محصل كاش: ${f(paid)} ج • متبقي آجل: ${f(remaining)} ج ⏳ (مسجل بالديون)</span>
-                ` : `
-                  <span class="sale-paid-tag">مدفوع كاش بالكامل ✓</span>
-                `}
+                ${fd(e.d)} ${avgPerBird > 0 ? `• متوسط سعر الطائر: <b>${f(avgPerBird)} ج</b>` : ''}
               </div>
             </div>
             <div class="record-value-group">
@@ -297,10 +300,6 @@ function renderGenericTab(c, k) {
           <span class="quick-action-icon">🌾</span>
           <span>+ علف</span>
         </button>
-        <button class="quick-action-btn" onclick="openExpenseWithCat('كتاكيت')" title="تسجيل شراء كتاكيت">
-          <span class="quick-action-icon">🐣</span>
-          <span>+ كتاكيت</span>
-        </button>
         <button class="quick-action-btn" onclick="openExpenseWithCat('دواء')" title="تسجيل أدوية وبيطري">
           <span class="quick-action-icon">💊</span>
           <span>+ دواء</span>
@@ -352,6 +351,9 @@ function renderGenericTab(c, k) {
 // 5. Analytics Tab
 function renderAnalyticsTab(c, k) {
   const by = {};
+  if (k.chickCost > 0) {
+    by['كتاكيت (بداية الدورة)'] = k.chickCost;
+  }
   (c.exp || []).forEach(e => {
     by[e.cat] = (by[e.cat] || 0) + e.amt;
   });
@@ -367,14 +369,35 @@ function renderAnalyticsTab(c, k) {
 
   const rem = k.remaining;
   const T = c.n || 1;
+  const flockProfitBars = (k.flockStats || []).length > 1
+    ? bars(
+        k.flockStats.map(fs => ({
+          n: fs.name,
+          v: fs.profit,
+          c: fs.profit >= 0 ? 'var(--emerald)' : 'var(--rose)',
+          cls: fs.profit >= 0 ? 'color-emerald' : 'color-rose',
+          t: (fs.profit >= 0 ? 'ربح ' : 'خسارة ') + f(Math.abs(fs.profit)) + ' ج'
+        })),
+        x => x.t
+      )
+    : '';
 
   return `
     <div class="card">
       <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
-        صرفت فلوسك على إيه؟ (توزيع المصاريف)
+        صرفت فلوسك على إيه؟ (توزيع التكاليف)
       </h3>
       ${it.length ? bars(it, x => x.t) : '<div class="empty-state"><div class="empty-state-icon">💸</div>مفيش مصروفات مسجلة بعد</div>'}
     </div>
+
+    ${flockProfitBars ? `
+      <div class="card">
+        <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
+          مقارنة ربحية كل نوع في هذه الدورة
+        </h3>
+        ${flockProfitBars}
+      </div>
+    ` : ''}
 
     <div class="card">
       <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
