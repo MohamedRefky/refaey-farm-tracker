@@ -375,16 +375,16 @@ function resetDataPrompt() {
       confirmBtnText: 'نعم، استعادة البيانات الافتراضية',
       onConfirm: () => {
         C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
-        saveData();
-        showToast('تمت استعادة البيانات الافتراضية بنجاح');
-        render();
+        if (saveAndNotify('تمت استعادة البيانات الافتراضية بنجاح')) {
+          render();
+        }
       }
     });
   } else if (confirm('هل أنت متأكد من استعادة البيانات الافتراضية؟ سيتم مسح التعديلات المحلية.')) {
     C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
-    saveData();
-    showToast('تمت استعادة البيانات الافتراضية بنجاح');
-    render();
+    if (saveAndNotify('تمت استعادة البيانات الافتراضية بنجاح')) {
+      render();
+    }
   }
 }
 

@@ -1046,9 +1046,9 @@ function del(i) {
     });
   } else {
     cycle[kind].splice(i, 1);
-    saveData();
-    showToast('تم الحذف بنجاح');
-    render();
+    if (saveAndNotify('تم الحذف بنجاح')) {
+      render();
+    }
   }
 }
 
