@@ -61,8 +61,8 @@ function validateTransaction(kind, data, isEdit, editIndex, cycle) {
     }
 
     // 1. Bird Count Validation per selected flock type
-    if (!data.cnt || isNaN(data.cnt) || +data.cnt <= 0) {
-      return { valid: false, field: 'f_cnt', message: 'يرجى إدخال عدد صحيح للطيور المباعة أكبر من الصفر.' };
+    if (!data.cnt || isNaN(data.cnt) || +data.cnt <= 0 || !Number.isInteger(+data.cnt)) {
+      return { valid: false, field: 'f_cnt', message: 'يرجى إدخال عدد صحيح للطيور المباعة أكبر من الصفر (بدون كسور).' };
     }
     const availBirds = flockAvailability(cycle, flockId, 'inc', editIndex);
     if (+data.cnt > availBirds) {
@@ -86,8 +86,8 @@ function validateTransaction(kind, data, isEdit, editIndex, cycle) {
       return { valid: false, field: null, message: 'يرجى اختيار نوع الفراخ النافقة أولاً.' };
     }
 
-    if (!data.n || isNaN(data.n) || +data.n <= 0) {
-      return { valid: false, field: 'f_n', message: 'يرجى إدخال عدد طيور نافقة صحيح أكبر من الصفر.' };
+    if (!data.n || isNaN(data.n) || +data.n <= 0 || !Number.isInteger(+data.n)) {
+      return { valid: false, field: 'f_n', message: 'يرجى إدخال عدد صحيح للطيور النافقة أكبر من الصفر (بدون كسور).' };
     }
     const availLive = flockAvailability(cycle, flockId, 'dead', editIndex);
     if (+data.n > availLive) {
@@ -532,6 +532,9 @@ function openForm(kind, editIndex = null, prefillData = null) {
         }
       }
 
+      if (!isEdit && S.expFilter && S.expFilter !== 'all' && S.expFilter !== dataObj.cat) {
+        S.expFilter = 'all';
+      }
       saveData();
       closeM();
       render();
@@ -569,6 +572,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
       showToast(`تم تعديل ${K[kind].t} بنجاح ✓`);
     } else {
       cycle[kind].push(o);
+      if (kind === 'inc' && S.incFilter !== 'all' && String(S.incFilter) !== String(o.flockId)) S.incFilter = 'all';
+      if (kind === 'debt' && S.debtFilter === 'unpaid') S.debtFilter = 'all';
       showToast(`تمت إضافة ${K[kind].t} بنجاح ✓`);
     }
 
@@ -787,10 +792,10 @@ function openPaymentModal(debtIndex, paymentIndex = null) {
   const isEditPayment = paymentIndex !== null && d.payments && d.payments[paymentIndex];
   const existingPayment = isEditPayment ? d.payments[paymentIndex] : null;
 
-  const total = +d.amt || 0;
-  const paid = +d.paidAmt || (d.paid ? total : 0);
-  const remaining = Math.max(0, total - paid);
-  const maxAllowed = isEditPayment ? (remaining + (+existingPayment.amt || 0)) : remaining;
+  const total = Math.round((+d.amt || 0) * 100) / 100;
+  const paid = Math.round((+d.paidAmt || (d.paid ? total : 0)) * 100) / 100;
+  const remaining = Math.round(Math.max(0, total - paid) * 100) / 100;
+  const maxAllowed = Math.round((isEditPayment ? (remaining + (+existingPayment.amt || 0)) : remaining) * 100) / 100;
   const dateVal = isEditPayment && existingPayment.d ? existingPayment.d : today();
   const amtVal = isEditPayment ? existingPayment.amt : '';
 
@@ -1128,7 +1133,10 @@ function updateFlocksModalSummary() {
 function collectAndValidateFlockRows(cycleForEdit = null) {
   const rows = Array.from(document.querySelectorAll('.flock-row-card'));
   const collected = [];
-  const baseId = Date.now();
+  const existingIds = cycleForEdit && Array.isArray(cycleForEdit.flocks)
+    ? cycleForEdit.flocks.map(fl => +fl.id || 0)
+    : [];
+  let nextNewId = Math.max(Date.now(), ...existingIds, 0) + 1;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -1146,9 +1154,9 @@ function collectAndValidateFlockRows(cycleForEdit = null) {
       showFormError(`يرجى كتابة اسم النوع رقم ${i + 1}.`, null);
       return null;
     }
-    if (!countStr || isNaN(countStr) || +countStr <= 0) {
+    if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
       if (countEl) { countEl.classList.add('input-error'); countEl.focus(); }
-      showFormError(`يرجى إدخال عدد صحيح أكبر من الصفر لنوع "${name}".`, null);
+      showFormError(`يرجى إدخال عدد صحيح أكبر من الصفر لنوع "${name}" (بدون كسور).`, null);
       return null;
     }
     if (costStr === '' || isNaN(costStr) || +costStr < 0) {
@@ -1168,7 +1176,7 @@ function collectAndValidateFlockRows(cycleForEdit = null) {
     }
 
     collected.push({
-      id: existingId || (baseId + i + Math.floor(Math.random() * 100)),
+      id: existingId || nextNewId++,
       name,
       count: +countStr,
       cost: +costStr
@@ -1319,8 +1327,8 @@ function openAddFlockModal() {
       showFormError('يرجى كتابة اسم نوع الكتاكيت.', 'af_name');
       return;
     }
-    if (!countStr || isNaN(countStr) || +countStr <= 0) {
-      showFormError('يرجى إدخال عدد صحيح أكبر من الصفر.', 'af_count');
+    if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
+      showFormError('يرجى إدخال عدد صحيح أكبر من الصفر (بدون كسور).', 'af_count');
       return;
     }
     if (costStr === '' || isNaN(costStr) || +costStr < 0) {
@@ -1329,8 +1337,9 @@ function openAddFlockModal() {
     }
 
     c.flocks = c.flocks || [];
+    const maxFlockId = c.flocks.reduce((m, fl) => Math.max(m, +fl.id || 0), 0);
     c.flocks.push({
-      id: Date.now() + Math.floor(Math.random() * 1000),
+      id: Math.max(Date.now(), maxFlockId) + 1,
       name,
       count: +countStr,
       cost: +costStr

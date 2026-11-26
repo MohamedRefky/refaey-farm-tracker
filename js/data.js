@@ -110,30 +110,31 @@ function allFlockNames() {
 // Keeps debt payments list, paidAmt, and paid status strictly consistent with total amt
 function syncDebtPaymentsToAmount(debtObj) {
   if (!debtObj) return debtObj;
-  const totalAmt = Math.max(0, +debtObj.amt || 0);
+  const round2 = v => Math.round((+v || 0) * 100) / 100;
+  const totalAmt = round2(Math.max(0, +debtObj.amt || 0));
   debtObj.amt = totalAmt;
 
   if (Array.isArray(debtObj.payments) && debtObj.payments.length > 0) {
     let payments = debtObj.payments
-      .map(p => ({ ...p, amt: Math.max(0, +p.amt || 0) }))
+      .map(p => ({ ...p, amt: round2(Math.max(0, +p.amt || 0)) }))
       .filter(p => p.amt > 0);
-    let sumPayments = payments.reduce((s, p) => s + p.amt, 0);
+    let sumPayments = round2(payments.reduce((s, p) => s + p.amt, 0));
 
     if (sumPayments > totalAmt) {
-      let excess = sumPayments - totalAmt;
+      let excess = round2(sumPayments - totalAmt);
       for (let idx = payments.length - 1; idx >= 0 && excess > 0; idx--) {
-        const cut = Math.min(payments[idx].amt, excess);
-        payments[idx].amt -= cut;
-        excess -= cut;
+        const cut = round2(Math.min(payments[idx].amt, excess));
+        payments[idx].amt = round2(payments[idx].amt - cut);
+        excess = round2(excess - cut);
       }
       payments = payments.filter(p => p.amt > 0);
     }
 
     debtObj.payments = payments;
-    debtObj.paidAmt = payments.reduce((s, p) => s + p.amt, 0);
+    debtObj.paidAmt = round2(payments.reduce((s, p) => s + p.amt, 0));
   } else {
     debtObj.payments = [];
-    debtObj.paidAmt = Math.min(totalAmt, Math.max(0, +(debtObj.paidAmt || 0)));
+    debtObj.paidAmt = round2(Math.min(totalAmt, Math.max(0, +(debtObj.paidAmt || 0))));
   }
 
   debtObj.paid = debtObj.paidAmt >= totalAmt;

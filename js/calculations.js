@@ -9,17 +9,10 @@ const f = n => Math.round(n || 0).toLocaleString('en-US');
 const fd = d => {
   if (!d) return '';
   const parts = String(d).split('-');
-  if (parts.length === 3) {
-    const dateObj = new Date(+parts[0], +parts[1] - 1, +parts[2]);
-    return dateObj.toLocaleDateString('ar-EG-u-nu-latn', {
-      timeZone: 'Africa/Cairo',
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  }
-  return new Date(d).toLocaleDateString('ar-EG-u-nu-latn', {
+  const dateObj = parts.length === 3
+    ? new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0))
+    : new Date(d);
+  return dateObj.toLocaleDateString('ar-EG-u-nu-latn', {
     timeZone: 'Africa/Cairo',
     weekday: 'long',
     day: 'numeric',
@@ -33,7 +26,7 @@ const fds = d => {
   if (!d) return '';
   const parts = String(d).split('-');
   const dateObj = parts.length === 3
-    ? new Date(+parts[0], +parts[1] - 1, +parts[2])
+    ? new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0))
     : new Date(d);
   return dateObj.toLocaleDateString('ar-EG-u-nu-latn', {
     timeZone: 'Africa/Cairo',

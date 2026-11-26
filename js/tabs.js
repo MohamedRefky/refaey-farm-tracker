@@ -7,7 +7,11 @@
 function renderSalesTab(c, k) {
   const arr = c.inc || [];
   const flocks = c.flocks || [];
-  const activeFilter = S.incFilter || 'all';
+  let activeFilter = S.incFilter || 'all';
+  if (activeFilter !== 'all' && !flocks.some(fl => fl.id === activeFilter)) {
+    activeFilter = 'all';
+    S.incFilter = 'all';
+  }
   const filtered = activeFilter === 'all'
     ? arr
     : arr.filter(x => x.flockId === activeFilter);

@@ -195,7 +195,7 @@ function detail(a) {
           <span class="hero-substat-label">إجمالي المصروفات</span>
           <span class="hero-substat-value color-rose">${f(k.e)} ج</span>
           <small style="display:block; font-size:11px; color:var(--text-dim); margin-top:2px;">
-            (كتاكيت: ${f(k.chickCost)} + تشغيل: ${f(k.otherExp)})
+            (كتاكيت: ${f(k.chickCost)} ج + تشغيل: ${f(k.otherExp)} ج)
           </small>
         </div>
       </div>
