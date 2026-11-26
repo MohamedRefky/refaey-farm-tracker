@@ -112,18 +112,10 @@ function validateTransaction(kind, data, isEdit, editIndex, cycle) {
 
   if (kind === 'debt') {
     if (!data.who || !data.who.trim()) {
-      return { valid: false, field: 'f_who', message: 'يرجى كتابة اسم الطرف الآخر (التاجر أو المورد).' };
+      return { valid: false, field: 'f_who', message: 'يرجى كتابة تفاصيل المستحق أو اسم التاجر.' };
     }
     if (!data.amt || isNaN(data.amt) || +data.amt <= 0) {
-      return { valid: false, field: 'f_amt', message: 'يرجى إدخال مبلغ المديونية بشكل صحيح (أكبر من الصفر).' };
-    }
-    if (data.paidAmt !== '' && data.paidAmt !== undefined) {
-      if (isNaN(data.paidAmt) || +data.paidAmt < 0) {
-        return { valid: false, field: 'f_paidAmt', message: 'المبلغ المسدد لا يمكن أن يكون سالباً.' };
-      }
-      if (+data.paidAmt > +data.amt) {
-        return { valid: false, field: 'f_paidAmt', message: 'المبلغ المسدد لا يمكن أن يتجاوز أصل المديونية.' };
-      }
+      return { valid: false, field: 'f_amt', message: 'يرجى إدخال المبلغ بشكل صحيح (أكبر من الصفر).' };
     }
   }
 
@@ -357,31 +349,24 @@ function openForm(kind, editIndex = null, prefillData = null) {
       <input id="f_n" type="number" inputmode="numeric" value="${nVal}" placeholder="مثلاً: 5">
     `;
   } else if (kind === 'debt') {
-    // Specialized Debt Form
-    const dirVal = isEdit && existing ? existing.dir : 'لنا';
-    const whoVal = isEdit && existing ? existing.who : '';
+    // Simplified Receivables Form: Receivable owed to us ONLY (Note + Amount)
+    const combinedWhoVal = isEdit && existing
+      ? (existing.who + (existing.note ? ' - ' + existing.note : ''))
+      : '';
     const amtVal = isEdit && existing ? existing.amt : '';
-    const paidVal = isEdit && existing ? (existing.paidAmt || '') : '';
-    const noteVal = isEdit && existing ? (existing.note || '') : '';
 
     h += `
-      <label>نوع المديونية *</label>
-      <select id="f_dir">
-        <option value="لنا" ${dirVal === 'لنا' ? 'selected' : ''}>🟢 مستحق لنا عند الغير (دين لنا على تاجر أو مشتري)</option>
-        <option value="علينا" ${dirVal === 'علينا' ? 'selected' : ''}>🔴 مستحق علينا للغير (دين علينا لمورد علف أو كتاكيت)</option>
-      </select>
+      <div class="form-hint-banner emerald" style="margin: 8px 0 6px;">
+        <span>🟢</span>
+        <span>مستحق لنا عند الغير</span>
+      </div>
 
-      <label>اسم الطرف الآخر (التاجر أو المورد) *</label>
-      <input id="f_who" type="text" value="${whoVal}" placeholder="مثال: أبو علي التاجر، شركة الأعلاف...">
+      <label>المستحقات / التفاصيل (اكتب براحتك كأنها نوتة) *</label>
+      <textarea id="f_who" rows="3" placeholder="مثال: أبو علي التاجر - باقي حساب بيع فراخ ساسو..." oninput="detectAmountInDebtNote()">${combinedWhoVal}</textarea>
 
-      <label>المبلغ الإجمالي للمديونية (جنيه) *</label>
-      <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="المبلغ الأصلي">
-
-      <label>ما تم سداده مقدماً إن وجد (جنيه)</label>
-      <input id="f_paidAmt" type="number" inputmode="decimal" step="any" value="${paidVal}" placeholder="المبلغ المسدد حتى الآن (إن وجد)">
-
-      <label>بيان المديونية أو ملاحظة (اختياري)</label>
-      <input id="f_note" type="text" value="${noteVal}" placeholder="مثلاً: باقي دفعة بيع، حساب توريد كتاكيت...">
+      <label>المبلغ (جنيه) *</label>
+      <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="مثلاً: 2000" oninput="clearDebtAmountHint()">
+      <div id="debt_amt_hint" class="quick-fill-row" style="display: none;"></div>
     `;
   }
 
@@ -423,11 +408,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
       dataObj.flockId = document.getElementById('f_flock') ? document.getElementById('f_flock').value : '';
       dataObj.n = document.getElementById('f_n').value.trim();
     } else if (kind === 'debt') {
-      dataObj.dir = document.getElementById('f_dir').value;
       dataObj.who = document.getElementById('f_who').value.trim();
       dataObj.amt = document.getElementById('f_amt').value.trim();
-      dataObj.paidAmt = document.getElementById('f_paidAmt').value.trim();
-      dataObj.note = document.getElementById('f_note').value.trim();
     }
 
     // Run strict validation
@@ -573,12 +555,12 @@ function openForm(kind, editIndex = null, prefillData = null) {
       o.n = +dataObj.n;
       delete o.note;
     } else if (kind === 'debt') {
-      o.dir = dataObj.dir;
+      o.dir = 'لنا';
       o.who = dataObj.who;
       o.amt = +dataObj.amt;
-      o.paidAmt = dataObj.paidAmt !== '' ? +dataObj.paidAmt : (isEdit ? (existing.paidAmt || 0) : 0);
+      o.paidAmt = isEdit ? Math.min(o.amt, +(existing.paidAmt || 0)) : 0;
       o.paid = o.paidAmt >= o.amt;
-      o.note = dataObj.note;
+      delete o.note;
       o.payments = isEdit && existing.payments ? existing.payments : [];
     }
 
@@ -762,6 +744,36 @@ function updateFeedHint() {
   updateFeedLiveHint();
 }
 
+function detectAmountInDebtNote() {
+  const whoEl = document.getElementById('f_who');
+  const amtEl = document.getElementById('f_amt');
+  const hintEl = document.getElementById('debt_amt_hint');
+  if (!whoEl || !amtEl || !hintEl) return;
+  if (amtEl.value.trim() !== '') {
+    hintEl.style.display = 'none';
+    return;
+  }
+
+  // Detect explicit currency numbers like "2000 ج" or "2000 جنيه"
+  const m = whoEl.value.match(/(\d+(?:\.\d+)?)\s*(?:جنيهاً|جنيها|جنيه|ج(?=$|\s|[.،,]))/);
+  if (m && +m[1] > 0) {
+    const val = +m[1];
+    hintEl.style.display = 'flex';
+    hintEl.innerHTML = `
+      <button type="button" class="quick-fill-btn" onclick="document.getElementById('f_amt').value=${val}; clearDebtAmountHint();">
+        💡 هل المبلغ ${f(val)} ج؟ اضغط لتعبئة خانة المبلغ تلقائياً
+      </button>
+    `;
+  } else {
+    hintEl.style.display = 'none';
+  }
+}
+
+function clearDebtAmountHint() {
+  const hintEl = document.getElementById('debt_amt_hint');
+  if (hintEl) hintEl.style.display = 'none';
+}
+
 // ==========================================================================
 // DEBT PARTIAL / FULL PAYMENT MODAL
 // ==========================================================================
@@ -775,11 +787,10 @@ function openPaymentModal(debtIndex) {
   const total = +d.amt || 0;
   const paid = +d.paidAmt || (d.paid ? total : 0);
   const remaining = Math.max(0, total - paid);
-  const isUs = d.dir === 'لنا';
 
   formEl.innerHTML = `
     <div class="form-header">
-      <div class="form-title">تسجيل سداد دين 💵</div>
+      <div class="form-title">تسجيل تحصيل / دفعة 💵</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
 
@@ -787,15 +798,15 @@ function openPaymentModal(debtIndex) {
 
     <div class="card" style="margin-bottom: 16px; padding: 14px; background: rgba(0,0,0,0.2);">
       <div style="font-size: 15px; font-weight: 800; color: var(--text-title); margin-bottom: 4px;">
-        الطرف: ${d.who}
+        ${d.who}
       </div>
-      <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
-        ${isUs ? '🟢 مستحق لنا عنده (دين لنا)' : '🔴 مستحق علينا له (دين علينا)'}
+      <div style="font-size: 13px; color: var(--emerald); margin-bottom: 8px;">
+        🟢 مستحق لنا عند الغير
       </div>
       <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-subtle); padding-top: 8px;">
-        <span>إجمالي الدين: <b>${f(total)} ج</b></span>
-        <span>المسدد سابقاً: <b style="color:var(--emerald);">${f(paid)} ج</b></span>
-        <span>المتبقي المطلوب: <b style="color:var(--amber); font-size:16px;">${f(remaining)} ج</b></span>
+        <span>الإجمالي: <b>${f(total)} ج</b></span>
+        <span>المحصل سابقاً: <b style="color:var(--emerald);">${f(paid)} ج</b></span>
+        <span>المتبقي: <b style="color:var(--amber); font-size:16px;">${f(remaining)} ج</b></span>
       </div>
     </div>
 
@@ -914,22 +925,21 @@ function delSale(i) {
 function delDebt(i) {
   const cycle = cur();
   const d = cycle.debt[i];
-  const isUs = d.dir === 'لنا';
   const rem = Math.max(0, d.amt - (d.paidAmt || 0));
 
   showConfirmModal({
     icon: '🗑️',
-    title: 'تأكيد حذف المديونية ⚠️',
-    subtitle: 'هل أنت متأكد من رغبتك في حذف هذا السجل للمديونية نهائياً؟',
+    title: 'تأكيد حذف المستحق ⚠️',
+    subtitle: 'هل أنت متأكد من رغبتك في حذف هذا السجل نهائياً؟',
     itemIcon: '📝',
-    itemTitle: `${d.who} (${isUs ? '🟢 مستحق لنا عنده' : '🔴 مستحق علينا له'})`,
-    itemMeta: `المبلغ الأصلي: ${f(d.amt)} ج • المسدد: ${f(d.paidAmt || 0)} ج • المتبقي: ${f(rem)} ج`,
-    warningNote: (d.payments && d.payments.length > 0) ? `تحذير: يحتوي هذا السجل على (${d.payments.length}) دفعات مسددة مسجلة سيتم مسحها بالكامل مع السجل.` : '',
-    confirmBtnText: 'نعم، احذف المديونية نهائياً',
+    itemTitle: `${d.who}`,
+    itemMeta: `المبلغ: ${f(d.amt)} ج • المحصل: ${f(d.paidAmt || 0)} ج • المتبقي: ${f(rem)} ج`,
+    warningNote: (d.payments && d.payments.length > 0) ? `تحذير: يحتوي هذا السجل على (${d.payments.length}) دفعات محصلة مسجلة سيتم مسحها بالكامل مع السجل.` : '',
+    confirmBtnText: 'نعم، احذف نهائياً',
     onConfirm: () => {
       cycle.debt.splice(i, 1);
       saveData();
-      showToast('تم حذف المديونية بنجاح');
+      showToast('تم الحذف بنجاح');
       render();
     }
   });

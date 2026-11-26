@@ -157,41 +157,38 @@ function renderFeedTab(c, k) {
   `;
 }
 
-// 3. Debt Tab with Direction Clarity & Partial Payments History
+// 3. Receivables Tab (مستحق لنا عند الغير فقط - مبسط كأنها نوتة)
 function renderDebtTab(c, k) {
   const allDebts = c.debt || [];
   let filtered = allDebts;
-  if (S.debtFilter === 'us') filtered = allDebts.filter(d => d.dir === 'لنا');
-  if (S.debtFilter === 'them') filtered = allDebts.filter(d => d.dir === 'علينا');
   if (S.debtFilter === 'unpaid') filtered = allDebts.filter(d => !d.paid);
+  const collectedDebt = Math.max(0, (k.debtUsTotal || 0) - (k.debtUsRemaining || 0));
 
   return `
     <div class="tab-summary-grid" style="grid-template-columns: repeat(2, 1fr);">
       <div class="tab-summary-card">
-        <span class="tab-summary-label">🟢 مستحق لنا عند الغير (دين لنا)</span>
+        <span class="tab-summary-label">🟢 المتبقي المطلوب تحصيله</span>
         <span class="tab-summary-val color-emerald">${f(k.debtUsRemaining)} ج</span>
-        <span class="tab-summary-sub">المتبقي المطلوب تحصيله (من أصل ${f(k.debtUsTotal)} ج)</span>
+        <span class="tab-summary-sub">من أصل ${f(k.debtUsTotal)} ج مستحقات لنا</span>
       </div>
       <div class="tab-summary-card">
-        <span class="tab-summary-label">🔴 مستحق علينا للغير (دين علينا)</span>
-        <span class="tab-summary-val color-rose">${f(k.debtThemRemaining)} ج</span>
-        <span class="tab-summary-sub">المتبقي المطلوب سداده (من أصل ${f(k.debtThemTotal)} ج)</span>
+        <span class="tab-summary-label">✅ ما تم تحصيله</span>
+        <span class="tab-summary-val">${f(collectedDebt)} ج</span>
+        <span class="tab-summary-sub">${allDebts.length} بنود مسجلة</span>
       </div>
     </div>
 
     <button class="btn btn-primary btn-full" onclick="openForm('debt')">
-      <span>+</span> إضافة مديونية جديدة
+      <span>+</span> تسجيل مستحق لنا عند الغير
     </button>
 
-    <!-- Filter Chips for Debts -->
+    <!-- Filter Chips for Receivables -->
     <div class="filter-chips">
-      <button class="filter-chip ${S.debtFilter === 'all' ? 'active' : ''}" onclick="S.debtFilter='all'; render()">الكل (${allDebts.length})</button>
-      <button class="filter-chip ${S.debtFilter === 'us' ? 'active' : ''}" onclick="S.debtFilter='us'; render()">🟢 لنا عند الغير</button>
-      <button class="filter-chip ${S.debtFilter === 'them' ? 'active' : ''}" onclick="S.debtFilter='them'; render()">🔴 علينا للغير</button>
-      <button class="filter-chip ${S.debtFilter === 'unpaid' ? 'active' : ''}" onclick="S.debtFilter='unpaid'; render()">⏳ غير مسددة فقط</button>
+      <button class="filter-chip ${S.debtFilter !== 'unpaid' ? 'active' : ''}" onclick="S.debtFilter='all'; render()">الكل (${allDebts.length})</button>
+      <button class="filter-chip ${S.debtFilter === 'unpaid' ? 'active' : ''}" onclick="S.debtFilter='unpaid'; render()">⏳ متبقي للتحصيل</button>
     </div>
 
-    <!-- Debts List -->
+    <!-- Receivables List -->
     <div class="card">
       ${filtered.length ? filtered.slice().reverse().map(e => {
         const i = allDebts.indexOf(e);
@@ -201,53 +198,49 @@ function renderDebtTab(c, k) {
         const isPaid = e.paid || remaining === 0;
         const isPartial = paidAmt > 0 && remaining > 0;
         const percent = total > 0 ? Math.min(100, Math.round((paidAmt / total) * 100)) : 0;
-        const isUs = e.dir === 'لنا';
         const isHistoryOpen = !!S.openPayments[e.id || i];
         const payments = e.payments || [];
 
         return `
           <div class="record-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
               <div>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                   <span class="record-title" style="font-size: 16px;">${e.who}</span>
-                  <span class="badge ${isUs ? 'badge-debt-us' : 'badge-debt-them'}">
-                    ${isUs ? '🟢 مستحق لنا عنده' : '🔴 مستحق علينا له'}
-                  </span>
-                  <span class="badge ${isPaid ? 'badge-paid' : (isPartial ? 'badge-partial' : 'badge-unpaid')}">
-                    ${isPaid ? 'مسدد بالكامل ✓' : (isPartial ? `سداد جزئي (باقي ${f(remaining)} ج)` : `غير مسدد (مطلوب ${f(remaining)} ج)`)}
+                  <span class="badge ${isPaid ? 'badge-paid' : (isPartial ? 'badge-partial' : 'badge-debt-us')}">
+                    ${isPaid ? 'تم التحصيل بالكامل ✓' : (isPartial ? `تحصيل جزئي (باقي ${f(remaining)} ج)` : '🟢 مستحق لنا')}
                   </span>
                 </div>
                 <div class="record-date">${fd(e.d)} ${e.note ? '• ' + e.note : ''}</div>
               </div>
-              <div style="text-align: left;">
-                <span class="record-value ${isUs ? 'color-emerald' : 'color-rose'}">${f(total)} ج</span>
-                <div style="font-size: 12px; color: var(--text-dim); font-weight: 700;">
-                  المتبقي: <b style="color:${remaining > 0 ? 'var(--amber)' : 'var(--emerald)'};">${f(remaining)} ج</b>
-                </div>
+              <div style="text-align: left; flex-shrink: 0;">
+                <span class="record-value color-emerald">${f(total)} ج</span>
+                ${!isPaid && paidAmt > 0 ? `
+                  <div style="font-size: 12px; color: var(--text-dim); font-weight: 700;">
+                    المتبقي: <b style="color:var(--amber);">${f(remaining)} ج</b>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
-            <!-- Progress Bar -->
-            <div class="debt-progress-track">
-              <div class="debt-progress-bar" style="width: ${percent}%; background: ${isPaid ? 'var(--emerald)' : (isPartial ? 'var(--amber)' : 'var(--rose)')};"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-weight: 600;">
-              <span>تم سداد: ${f(paidAmt)} ج (${percent}%)</span>
-              <span>المتبقي: ${f(remaining)} ج</span>
-            </div>
+            ${paidAmt > 0 ? `
+              <!-- Progress Bar -->
+              <div class="debt-progress-track">
+                <div class="debt-progress-bar" style="width: ${percent}%; background: ${isPaid ? 'var(--emerald)' : 'var(--amber)'};"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-weight: 600;">
+                <span>تم تحصيله: ${f(paidAmt)} ج (${percent}%)</span>
+                <span>المتبقي: ${f(remaining)} ج</span>
+              </div>
+            ` : ''}
 
-            <!-- Action Buttons for Debt -->
+            <!-- Action Buttons -->
             <div class="debt-actions-row">
               ${!isPaid ? `
                 <button class="btn btn-sm btn-primary" onclick="openPaymentModal(${i})">
-                  💵 تسجيل سداد / دفعة
+                  💵 تسجيل تحصيل / دفعة
                 </button>
-              ` : `
-                <button class="btn btn-sm btn-outline" onclick="openPaymentModal(${i})">
-                  + سداد إضافي
-                </button>
-              `}
+              ` : ''}
               ${payments.length > 0 ? `
                 <button class="btn btn-sm btn-outline" onclick="togglePaymentsHistory('${e.id || i}')">
                   📜 سجل الدفعات (${payments.length})
@@ -261,15 +254,15 @@ function renderDebtTab(c, k) {
             ${isHistoryOpen && payments.length > 0 ? `
               <div class="payment-history-box">
                 <div class="payment-history-header">
-                  <span>سجل الدفعات المسددة لهذا الدين:</span>
+                  <span>سجل الدفعات المحصلة:</span>
                   <button type="button" class="btn btn-sm btn-outline" onclick="togglePaymentsHistory('${e.id || i}')" style="padding: 2px 8px; font-size: 11px;">إخفاء</button>
                 </div>
                 ${payments.map((p, pIdx) => `
                   <div class="payment-history-item">
                     <div>
-                      <b>${fd(p.d)}</b>: سداد مبلغ <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${p.note})` : ''}
+                      <b>${fd(p.d)}</b>: تحصيل مبلغ <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${p.note})` : ''}
                     </div>
-                    <button class="btn btn-sm btn-danger" onclick="deletePayment(${i}, ${pIdx})" title="حذف هذه الدفعة والتراجع عن السداد" style="padding: 2px 6px; font-size: 11px;">
+                    <button class="btn btn-sm btn-danger" onclick="deletePayment(${i}, ${pIdx})" title="حذف هذه الدفعة والتراجع عن التحصيل" style="padding: 2px 6px; font-size: 11px;">
                       🗑️ إلغاء الدفعة
                     </button>
                   </div>
@@ -281,7 +274,7 @@ function renderDebtTab(c, k) {
       }).join('') : `
         <div class="empty-state">
           <div class="empty-state-icon">📝</div>
-          لا توجد مديونيات مسجلة في هذا القسم
+          لا توجد مستحقات مسجلة حتى الآن
         </div>
       `}
     </div>

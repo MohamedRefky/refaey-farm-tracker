@@ -178,19 +178,14 @@ function normalizeData(cycles) {
         unit: e.unit || 'شكارة'
       }));
 
-    // Normalize debts
+    // Normalize debts (receivables owed to us only)
     c.debt = (c.debt || []).map((d, i) => {
       const amt = +d.amt || 0;
-      let dir = d.dir;
-      if (dir === 'ليا عنده' || dir === 'لنا') dir = 'لنا';
-      else if (dir === 'عليا لحد' || dir === 'علينا') dir = 'علينا';
-      else dir = 'لنا';
-
       const paidAmt = d.paidAmt !== undefined ? +d.paidAmt : (d.paid ? amt : 0);
       return {
         ...d,
         id: d.id || Date.now() + i,
-        dir,
+        dir: 'لنا',
         amt,
         paidAmt,
         paid: paidAmt >= amt,

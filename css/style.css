@@ -851,7 +851,7 @@ label {
   margin: 14px 0 6px;
 }
 
-input, select {
+input, select, textarea {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-main);
@@ -864,7 +864,13 @@ input, select {
   outline: none;
 }
 
-input:focus, select:focus {
+textarea {
+  resize: vertical;
+  min-height: 76px;
+  line-height: 1.5;
+}
+
+input:focus, select:focus, textarea:focus {
   border-color: var(--emerald);
   box-shadow: 0 0 0 3px var(--emerald-glow);
   background: rgba(255, 255, 255, 0.08);
@@ -1861,7 +1867,7 @@ select option {
     font-size: 12px;
     margin: 10px 0 4px;
   }
-  input, select {
+  input, select, textarea {
     font-size: 16px !important; /* Critical to prevent iOS auto-zoom */
     padding: 11px 12px;
     min-height: 44px;

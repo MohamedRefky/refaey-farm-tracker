@@ -233,7 +233,7 @@ function detail(a) {
       </button>
       <button class="quick-action-btn" onclick="quickAdd('debt')">
         <span class="quick-action-icon">📝</span>
-        <span>+ مديونية</span>
+        <span>+ مستحقات لنا</span>
       </button>
     </div>
 
