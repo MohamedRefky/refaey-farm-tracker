@@ -124,6 +124,7 @@ function list(a) {
 function openCycle(id) {
   S.v = id;
   S.summary = false;
+  S.editCycle = false;
   S.tab = 'exp';
   S.expFilter = 'all';
   S.incFilter = 'all';
@@ -140,9 +141,13 @@ function detail(a) {
   if (!c) {
     S.v = 'list';
     S.summary = false;
+    S.editCycle = false;
     return list(a);
   }
   const k = calc(c);
+  if (S.editCycle) {
+    return editCyclePage(a, c);
+  }
   if (S.summary) {
     return summaryPage(a, c, k);
   }
@@ -154,7 +159,7 @@ function detail(a) {
   let h = `
     <!-- Top Nav with Summary & Edit Support -->
     <div class="detail-top-nav">
-      <button class="back-btn" onclick="S.v='list'; S.summary=false; render()">
+      <button class="back-btn" onclick="S.v='list'; S.summary=false; S.editCycle=false; render()">
         <span>→</span> <span class="nav-text">الدورات</span>
       </button>
       <div class="detail-nav-actions">

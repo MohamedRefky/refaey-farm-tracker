@@ -42,11 +42,7 @@ function showFormError(msg, fieldId) {
 function clearFormErrors() {
   const container = document.getElementById('form_error_container');
   if (container) container.innerHTML = '';
-  const { fm: formEl } = ensureModalElements();
-  if (formEl) {
-    const inputs = formEl.querySelectorAll('.input-error');
-    inputs.forEach(el => el.classList.remove('input-error'));
-  }
+  document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
 }
 
 // Validation function returning detailed error message or null if valid
@@ -1196,97 +1192,121 @@ function collectAndValidateFlockRows(cycleForEdit = null) {
 }
 
 function editCycle() {
-  const c = cur();
+  S.summary = false;
+  S.editCycle = true;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeEditCyclePage() {
+  S.editCycle = false;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function editCyclePage(a, c) {
   if (!c) return;
-  const { m: modal, fm: formEl } = ensureModalElements();
-  if (!modal || !formEl) return;
-
   const flocks = c.flocks || [];
-  formEl.innerHTML = `
-    <div class="form-header">
-      <div class="form-title">تعديل بيانات الدورة والأنواع ✏️</div>
-      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
-    </div>
 
-    <div id="form_error_container"></div>
-
-    <label>اسم الدورة *</label>
-    <input id="edit_nn" value="${esc(c.name || '')}" placeholder="اسم الدورة">
-
-    <label>تاريخ البدء</label>
-    <input type="date" id="edit_ns" value="${c.start || today()}">
-
-    <label>حالة الدورة</label>
-    <select id="edit_status">
-      <option value="ongoing" ${!c.end ? 'selected' : ''}>شغالة الآن (جارية)</option>
-      <option value="closed" ${c.end ? 'selected' : ''}>مقفولة (مكتملة)</option>
-    </select>
-
-    <label style="margin-top: 16px;">🐣 أنواع الكتاكيت في الدورة</label>
-    <div class="flock-rows-list" id="edit_flocks_list">
-      ${flocks.map((fl, idx) => {
-        const rec = flockRecordCounts(c, fl.id);
-        return buildFlockRowHtml(idx, fl, rec.total > 0, rec.total);
-      }).join('')}
-    </div>
-
-    <button type="button" class="btn btn-outline btn-full" onclick="addFlockRow('edit_flocks_list')" style="border-style: dashed; border-color: var(--emerald); color: var(--emerald); margin-bottom: 10px;">
-      + إضافة نوع كتكوت آخر
-    </button>
-
-    <div class="flock-total-bar" id="flocks_modal_summary"></div>
-
-    <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديلات الدورة</button>
-      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
-    </div>
-
-    <div style="margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 14px; text-align: center;">
-      <button type="button" class="btn btn-sm btn-danger" onclick="deleteCycle(${c.id})">
-        حذف هذه الدورة وكافة سجلاتها نهائياً 🗑️
+  a.innerHTML = `
+    <div class="detail-top-nav">
+      <button class="back-btn" onclick="closeEditCyclePage()">
+        <span>→</span> <span>رجوع للدورة</span>
       </button>
+      <span class="badge ${!c.end ? 'badge-active' : 'badge-closed'}">
+        ${!c.end ? 'شغالة الآن' : 'مكتملة'}
+      </span>
+    </div>
+
+    <div class="card">
+      <form id="edit_cycle_form" autocomplete="off">
+        <div class="form-header">
+          <div class="form-title">تعديل بيانات الدورة والأنواع ✏️</div>
+        </div>
+
+        <div id="form_error_container"></div>
+
+        <label>اسم الدورة *</label>
+        <input id="edit_nn" value="${esc(c.name || '')}" placeholder="اسم الدورة">
+
+        <label>تاريخ البدء</label>
+        <input type="date" id="edit_ns" value="${c.start || today()}">
+
+        <label>حالة الدورة</label>
+        <select id="edit_status">
+          <option value="ongoing" ${!c.end ? 'selected' : ''}>شغالة الآن (جارية)</option>
+          <option value="closed" ${c.end ? 'selected' : ''}>مقفولة (مكتملة)</option>
+        </select>
+
+        <label style="margin-top: 16px;">🐣 أنواع الكتاكيت في الدورة</label>
+        <div class="flock-rows-list" id="edit_flocks_list">
+          ${flocks.map((fl, idx) => {
+            const rec = flockRecordCounts(c, fl.id);
+            return buildFlockRowHtml(idx, fl, rec.total > 0, rec.total);
+          }).join('')}
+        </div>
+
+        <button type="button" class="btn btn-outline btn-full" onclick="addFlockRow('edit_flocks_list')" style="border-style: dashed; border-color: var(--emerald); color: var(--emerald); margin-bottom: 10px;">
+          + إضافة نوع كتكوت آخر
+        </button>
+
+        <div class="flock-total-bar" id="flocks_modal_summary"></div>
+
+        <div class="form-actions-row">
+          <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديلات الدورة</button>
+          <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeEditCyclePage()">إلغاء</button>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 14px; text-align: center;">
+          <button type="button" class="btn btn-sm btn-danger" onclick="deleteCycle(${c.id})">
+            حذف هذه الدورة وكافة سجلاتها نهائياً 🗑️
+          </button>
+        </div>
+      </form>
     </div>
   `;
 
   refreshFlockRowLabels('edit_flocks_list');
   updateFlocksModalSummary();
 
-  formEl.onsubmit = ev => {
-    ev.preventDefault();
-    clearFormErrors();
+  const editFormEl = document.getElementById('edit_cycle_form');
+  if (editFormEl) {
+    editFormEl.onsubmit = ev => {
+      ev.preventDefault();
+      clearFormErrors();
 
-    const nn = document.getElementById('edit_nn').value.trim();
-    const ns = document.getElementById('edit_ns').value;
-    const st = document.getElementById('edit_status').value;
+      const nn = document.getElementById('edit_nn').value.trim();
+      const ns = document.getElementById('edit_ns').value;
+      const st = document.getElementById('edit_status').value;
 
-    if (!nn) {
-      showFormError('يرجى إدخال اسم الدورة.', 'edit_nn');
-      return;
-    }
+      if (!nn) {
+        showFormError('يرجى إدخال اسم الدورة.', 'edit_nn');
+        return;
+      }
 
-    const nextStart = ns || c.start;
-    const targetEnd = st === 'closed' ? (c.end || today()) : null;
-    if (targetEnd && nextStart && nextStart > targetEnd) {
-      showFormError(`تاريخ بداية الدورة (${fd(nextStart)}) لا يمكن أن يكون بعد تاريخ إغلاقها (${fd(targetEnd)}).`, 'edit_ns');
-      return;
-    }
+      const nextStart = ns || c.start;
+      const targetEnd = st === 'closed' ? (c.end || today()) : null;
+      if (targetEnd && nextStart && nextStart > targetEnd) {
+        showFormError(`تاريخ بداية الدورة (${fd(nextStart)}) لا يمكن أن يكون بعد تاريخ إغلاقها (${fd(targetEnd)}).`, 'edit_ns');
+        return;
+      }
 
-    const updatedFlocks = collectAndValidateFlockRows(c);
-    if (!updatedFlocks) return;
+      const updatedFlocks = collectAndValidateFlockRows(c);
+      if (!updatedFlocks) return;
 
-    c.name = nn;
-    c.start = nextStart;
-    c.flocks = updatedFlocks;
-    syncCycleCount(c);
-    c.end = targetEnd;
+      c.name = nn;
+      c.start = nextStart;
+      c.flocks = updatedFlocks;
+      syncCycleCount(c);
+      c.end = targetEnd;
 
-    if (saveAndNotify('تم حفظ تعديلات الدورة بنجاح ✓')) {
-      closeM();
-      render();
-    }
-  };
-
-  modal.classList.add('on');
+      if (saveAndNotify('تم حفظ تعديلات الدورة بنجاح ✓')) {
+        S.editCycle = false;
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+  }
 }
 
 // Quick 1-step modal to add or edit an individual chick type directly
@@ -1440,6 +1460,8 @@ function deleteCycle(id) {
         C.splice(idx, 1);
         if (saveAndNotify('تم حذف الدورة بنجاح')) {
           closeM();
+          S.editCycle = false;
+          S.summary = false;
           S.v = 'list';
           render();
         }
