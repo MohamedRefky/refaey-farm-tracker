@@ -26,12 +26,8 @@ function renderSalesTab(c, k) {
       </div>
     </div>
 
-    <button class="btn btn-primary btn-full" onclick="openForm('inc')">
-      <span>+</span> تسجيل حركة بيع جديدة
-    </button>
-
     ${flocks.length > 1 ? `
-      <div class="filter-chips">
+      <div class="filter-chips" style="margin-top: 0;">
         <button class="filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="S.incFilter='all'; render()">
           الكل (${arr.length})
         </button>
@@ -46,7 +42,7 @@ function renderSalesTab(c, k) {
       </div>
     ` : ''}
 
-    <div class="card" style="margin-top: 14px;">
+    <div class="card" style="margin-top: 8px;">
       ${filtered.length ? filtered.slice().reverse().map(e => {
         const i = arr.indexOf(e);
         const total = +e.amt || 0;
@@ -93,33 +89,12 @@ function renderFeedTab(c, k) {
       <div class="tab-summary-card">
         <span class="tab-summary-label">إجمالي العلف المشترى</span>
         <span class="tab-summary-val color-emerald">${f(k.feedPurchasedKg)} كجم</span>
-        <span class="tab-summary-sub">${(k.feedPurchasedKg / bagKg).toFixed(1)} شكارة تم شراؤها</span>
+        <span class="tab-summary-sub">${allFeed.length} حركة شراء</span>
       </div>
       <div class="tab-summary-card">
         <span class="tab-summary-label">إجمالي تكلفة العلف</span>
         <span class="tab-summary-val color-rose">${f(feedCost)} ج</span>
         <span class="tab-summary-sub">إجمالي المدفوع للعلف</span>
-      </div>
-      <div class="tab-summary-card">
-        <span class="tab-summary-label">عدد التوريدات</span>
-        <span class="tab-summary-val">${allFeed.length}</span>
-        <span class="tab-summary-sub">حركات شراء مسجلة</span>
-      </div>
-    </div>
-
-    <!-- Action Button: Buy Feed -->
-    <div style="margin-bottom: 14px;">
-      <button class="btn btn-primary btn-full" onclick="openExpenseWithCat('علف')">
-        <span>🌾</span> + تسجيل شراء وتوريد علف للمزرعة
-      </button>
-    </div>
-
-    <!-- Bag Weight Config -->
-    <div class="card" style="padding: 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
-      <span style="font-weight: 700; font-size: 13px; color: var(--text-muted);">وزن الشكارة الافتراضي:</span>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <input type="number" value="${bagKg}" onchange="bagKg = +this.value || 50; render();" style="width: 80px; padding: 6px 10px;">
-        <span style="font-weight: 700; font-size: 13px;">كجم</span>
       </div>
     </div>
 
@@ -178,12 +153,8 @@ function renderDebtTab(c, k) {
       </div>
     </div>
 
-    <button class="btn btn-primary btn-full" onclick="openForm('debt')">
-      <span>+</span> تسجيل مستحق لنا عند الغير
-    </button>
-
     <!-- Filter Chips for Receivables -->
-    <div class="filter-chips">
+    <div class="filter-chips" style="margin-top: 0;">
       <button class="filter-chip ${S.debtFilter !== 'unpaid' ? 'active' : ''}" onclick="S.debtFilter='all'; render()">الكل (${allDebts.length})</button>
       <button class="filter-chip ${S.debtFilter === 'unpaid' ? 'active' : ''}" onclick="S.debtFilter='unpaid'; render()">⏳ متبقي للتحصيل</button>
     </div>
@@ -281,38 +252,28 @@ function renderDebtTab(c, k) {
   `;
 }
 
-// 4. Generic Tab for Expenses & Mortalities
+// 4. Generic Tab for Expenses & Mortalities (Clean list without duplicate action buttons)
 function renderGenericTab(c, k) {
   const T = K[S.tab];
   const arr = c[S.tab] || [];
 
   return `
     ${S.tab === 'exp' ? `
-      <div class="quick-actions-bar expense-quick-actions" style="margin: 0 0 14px;">
-        <button class="quick-action-btn" onclick="openExpenseWithCat('علف')" title="تسجيل شراء علف">
-          <span class="quick-action-icon">🌾</span>
-          <span>+ علف</span>
-        </button>
-        <button class="quick-action-btn" onclick="openExpenseWithCat('دواء')" title="تسجيل أدوية وبيطري">
-          <span class="quick-action-icon">💊</span>
-          <span>+ دواء</span>
-        </button>
-        <button class="quick-action-btn" onclick="openExpenseWithCat('غاز')" title="تسجيل غاز وتدفئة">
-          <span class="quick-action-icon">🔥</span>
-          <span>+ غاز</span>
-        </button>
-        <button class="quick-action-btn" onclick="openExpenseWithCat('مصاريف أخرى')" title="تسجيل مصاريف أخرى">
-          <span class="quick-action-icon">📦</span>
-          <span>+ مصاريف أخرى</span>
-        </button>
+      <div class="tab-summary-grid" style="margin-bottom: 10px;">
+        <div class="tab-summary-card">
+          <span class="tab-summary-label">مصاريف التشغيل المشتركة</span>
+          <span class="tab-summary-val color-rose">${f(k.otherExp)} ج</span>
+          <span class="tab-summary-sub">علف + دواء + غاز + أخرى</span>
+        </div>
+        <div class="tab-summary-card">
+          <span class="tab-summary-label">تكلفة الكتاكيت</span>
+          <span class="tab-summary-val">${f(k.chickCost)} ج</span>
+          <span class="tab-summary-sub">${f(c.n)} كتكوت في البداية</span>
+        </div>
       </div>
-    ` : `
-      <button class="btn btn-primary btn-full" onclick="openForm('${S.tab}')">
-        <span>+</span> إضافة ${T.t} جديد
-      </button>
-    `}
+    ` : ''}
 
-    <div class="card" style="margin-top: 14px;">
+    <div class="card">
       ${arr.length ? arr.slice().reverse().map(e => {
         const r = T.r(e);
         const i = arr.indexOf(e);

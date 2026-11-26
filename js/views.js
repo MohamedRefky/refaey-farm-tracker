@@ -192,124 +192,115 @@ function detail(a) {
           </small>
         </div>
       </div>
-    </div>
 
-    <!-- 💸 EXPENSES QUICK ACTIONS (تسجيل المصروفات للدورة كلها) -->
-    <div class="section-title" style="margin-top: 24px;">
-      <span>💸 تسجيل مصروف للدورة</span>
-      <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">يتقسم على الأنواع تلقائياً</span>
-    </div>
-    <div class="quick-actions-bar expense-quick-actions">
-      <button class="quick-action-btn" onclick="openExpenseWithCat('علف')" title="تسجيل شراء علف">
-        <span class="quick-action-icon">🌾</span>
-        <span>+ علف</span>
-      </button>
-      <button class="quick-action-btn" onclick="openExpenseWithCat('دواء')" title="تسجيل شراء أدوية وبيطري">
-        <span class="quick-action-icon">💊</span>
-        <span>+ دواء</span>
-      </button>
-      <button class="quick-action-btn" onclick="openExpenseWithCat('غاز')" title="تسجيل غاز وتدفئة">
-        <span class="quick-action-icon">🔥</span>
-        <span>+ غاز</span>
-      </button>
-      <button class="quick-action-btn" onclick="openExpenseWithCat('مصاريف أخرى')" title="تسجيل مصاريف ونثريات أخرى">
-        <span class="quick-action-icon">📦</span>
-        <span>+ مصاريف أخرى</span>
-      </button>
-    </div>
-
-    <!-- ⚡ OTHER ACTIONS BAR (تسجيل المعاملات) -->
-    <div class="section-title">
-      <span>⚡ تسجيل حركة</span>
-    </div>
-    <div class="quick-actions-bar">
-      <button class="quick-action-btn" onclick="quickAdd('inc')">
-        <span class="quick-action-icon">📈</span>
-        <span>+ بيع طيور</span>
-      </button>
-      <button class="quick-action-btn" onclick="quickAdd('dead')">
-        <span class="quick-action-icon">⚠️</span>
-        <span>+ نافق</span>
-      </button>
-      <button class="quick-action-btn" onclick="quickAdd('debt')">
-        <span class="quick-action-icon">📝</span>
-        <span>+ مستحقات لنا</span>
-      </button>
-    </div>
-
-    <!-- Flock Status Statistics Grid -->
-    <div class="section-title">
-      <span>حالة القطيع والطيور</span>
-    </div>
-    <div class="stats-grid">
-      ${statBox('العدد الأصلي', f(c.n), 'بداية الدورة', '🐣')}
-      ${statBox('النافق', f(k.dead), 'نسبة ' + k.mort.toFixed(1) + '% ' + (k.mort > 5 ? '(مرتفعة)' : '(طبيعية)'), '⚠️', k.mort > 5 ? 'color-rose' : '')}
-      ${statBox('المباع', f(k.sold), 'بمتوسط ' + f(k.avg) + ' ج/طائر', '💰', 'color-emerald')}
-      ${statBox('المتبقي بالمزرعة', f(k.remaining), 'طيور حية متاحة', '🏠')}
-    </div>
-
-    <!-- Per-Flock Type Breakdown Cards (Mobile-Friendly) -->
-    <div class="section-title">
-      <span>🐔 تفاصيل كل نوع فراخ</span>
-      <button type="button" class="btn btn-sm btn-outline" onclick="openAddFlockModal()" style="border-color: var(--emerald); color: var(--emerald);">
-        + إضافة نوع جديد
-      </button>
-    </div>
-    <div class="flock-cards-list">
-      ${k.flockStats.map(fs => `
-        <div class="flock-stat-card">
-          <div class="flock-stat-head">
-            <div class="flock-stat-title">
-              <span>🐣</span>
-              <span>${fs.name}</span>
-              <span class="cycle-flock-pill">${fs.share.toFixed(0)}%</span>
-            </div>
-            <span class="badge ${fs.remaining > 0 ? 'badge-active' : 'badge-closed'}">
-              ${fs.remaining > 0 ? `متبقي ${f(fs.remaining)} طائر` : 'تم البيع بالكامل ✓'}
-            </span>
-          </div>
-
-          <div class="flock-mini-grid">
-            <div class="flock-mini-box">
-              <span class="flock-mini-label">الأصل</span>
-              <span class="flock-mini-val">${f(fs.count)}</span>
-            </div>
-            <div class="flock-mini-box">
-              <span class="flock-mini-label">النافق</span>
-              <span class="flock-mini-val ${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</span>
-            </div>
-            <div class="flock-mini-box">
-              <span class="flock-mini-label">المباع</span>
-              <span class="flock-mini-val color-emerald">${f(fs.sold)}</span>
-            </div>
-            <div class="flock-mini-box">
-              <span class="flock-mini-label">المتبقي</span>
-              <span class="flock-mini-val">${f(fs.remaining)}</span>
-            </div>
-          </div>
-
-          <div class="flock-finance-row">
-            <div>
-              <div>التكلفة: <b>${f(fs.totalCost)} ج</b> <small style="color:var(--text-dim);">(كتاكيت ${f(fs.cost)} + مصاريف ${f(fs.sharedCost)})</small></div>
-              <div>المبيعات: <b class="color-emerald">${f(fs.revenue)} ج</b> ${fs.sold > 0 ? `<small style="color:var(--text-dim);">(متوسط ${f(fs.avgPrice)} ج/طائر)</small>` : ''}</div>
-            </div>
-            <div class="flock-profit-pill ${fs.profit >= 0 ? 'color-emerald' : 'color-rose'}">
-              ${fs.profit >= 0 ? 'ربح +' : 'خسارة -'}${f(Math.abs(fs.profit))} ج
-            </div>
-          </div>
+      <div class="hero-flock-strip">
+        <div class="hero-strip-item">
+          <span>🐣 الأصل</span>
+          <b>${f(c.n)}</b>
         </div>
-      `).join('')}
+        <div class="hero-strip-item">
+          <span>🏠 متبقي</span>
+          <b class="color-emerald">${f(k.remaining)}</b>
+        </div>
+        <div class="hero-strip-item">
+          <span>⚠️ نافق</span>
+          <b class="${k.mort > 5 ? 'color-rose' : ''}">${f(k.dead)} (${k.mort.toFixed(1)}%)</b>
+        </div>
+        <div class="hero-strip-item">
+          <span>🌾 علف</span>
+          <b>${f(k.feedPurchasedKg)} كجم</b>
+        </div>
+      </div>
     </div>
 
-    <!-- Production Efficiency & Cost Grid -->
-    <div class="section-title">مؤشرات الكفاءة والتكلفة الحيوية</div>
-    <div class="stats-grid">
-      ${statBox('تكلفة الطائر الحي', f(k.cpb) + ' ج', 'المصروف ÷ الحي', '💵')}
-      ${statBox('ربح الطائر المباع', f(k.ppb) + ' ج', (k.ppb >= 0 ? 'صافي مكسب الفرخة' : 'صافي عجز الفرخة'), '📈', k.ppb >= 0 ? 'color-emerald' : 'color-rose')}
-      ${statBox('العلف المشترى', f(k.feedPurchasedKg) + ' كجم', ((k.feedPurchasedKg / bagKg).toFixed(1)) + ' شكارة تم شراؤها', '🌾')}
+    <!-- ⚡ UNIFIED QUICK ACTION HUB (بدون تكرار - كل الأزرار في مكان واحد واضح) -->
+    <div class="card action-hub-card">
+      <div class="action-hub-group">
+        <div class="action-hub-label">
+          <span>💸 تسجيل مصروف للدورة</span>
+          <small>يتقسم على الأنواع تلقائياً</small>
+        </div>
+        <div class="quick-actions-bar expense-quick-actions">
+          <button class="quick-action-btn" onclick="openExpenseWithCat('علف')">
+            <span class="quick-action-icon">🌾</span>
+            <span>+ علف</span>
+          </button>
+          <button class="quick-action-btn" onclick="openExpenseWithCat('دواء')">
+            <span class="quick-action-icon">💊</span>
+            <span>+ دواء</span>
+          </button>
+          <button class="quick-action-btn" onclick="openExpenseWithCat('غاز')">
+            <span class="quick-action-icon">🔥</span>
+            <span>+ غاز</span>
+          </button>
+          <button class="quick-action-btn" onclick="openExpenseWithCat('مصاريف أخرى')">
+            <span class="quick-action-icon">📦</span>
+            <span>+ أخرى</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="action-hub-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-subtle);">
+        <div class="action-hub-label">
+          <span>⚡ تسجيل حركة</span>
+        </div>
+        <div class="quick-actions-bar other-quick-actions">
+          <button class="quick-action-btn" onclick="quickAdd('inc')">
+            <span class="quick-action-icon">📈</span>
+            <span>+ بيع</span>
+          </button>
+          <button class="quick-action-btn" onclick="quickAdd('dead')">
+            <span class="quick-action-icon">⚠️</span>
+            <span>+ نافق</span>
+          </button>
+          <button class="quick-action-btn" onclick="quickAdd('debt')">
+            <span class="quick-action-icon">📝</span>
+            <span>+ مستحقات</span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Navigation Tabs -->
+    <!-- 🐔 COMPACT PER-FLOCK BREAKDOWN CARD -->
+    <div class="card flock-summary-card">
+      <div class="flock-card-top">
+        <span style="font-size: 16px; font-weight: 800; color: var(--text-title);">🐔 أنواع الفراخ بالقطيع</span>
+        <button type="button" class="btn btn-sm btn-outline" onclick="openAddFlockModal()" style="border-color: var(--emerald); color: var(--emerald);">
+          + نوع جديد
+        </button>
+      </div>
+
+      <div class="flock-compact-list">
+        ${k.flockStats.map(fs => `
+          <div class="flock-compact-row">
+            <div class="flock-compact-head">
+              <div class="flock-stat-title" style="font-size: 15px;">
+                <span>🐣</span>
+                <span>${fs.name}</span>
+                <span class="cycle-flock-pill">${fs.share.toFixed(0)}%</span>
+              </div>
+              <span class="badge ${fs.remaining > 0 ? 'badge-active' : 'badge-closed'}">
+                ${fs.remaining > 0 ? `متبقي ${f(fs.remaining)} / ${f(fs.count)}` : `تم البيع (${f(fs.count)}) ✓`}
+              </span>
+            </div>
+
+            <div class="flock-compact-meta">
+              <span>مباع: <b class="color-emerald">${f(fs.sold)}</b> • نافق: <b class="${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</b></span>
+              <span>التكلفة: <b>${f(fs.totalCost)} ج</b> <small>(كتاكيت ${f(fs.cost)} + مصاريف ${f(fs.sharedCost)})</small></span>
+            </div>
+
+            <div class="flock-compact-foot">
+              <span>المبيعات: <b class="color-emerald">${f(fs.revenue)} ج</b>${fs.sold > 0 ? ` <small>(متوسط ${f(fs.avgPrice)} ج)</small>` : ''}</span>
+              <span class="flock-profit-pill ${fs.profit >= 0 ? 'color-emerald' : 'color-rose'}">
+                ${fs.profit >= 0 ? 'ربح +' : 'خسارة -'}${f(Math.abs(fs.profit))} ج
+              </span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- Navigation Tabs (All 6 tabs visible in a clean grid) -->
     <div class="tabs-container">
       ${tabs.map(t => `
         <button class="tab-pill ${S.tab === t[0] ? 'active' : ''}" onclick="S.tab='${t[0]}'; render()">
