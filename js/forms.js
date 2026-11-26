@@ -176,9 +176,39 @@ function openForm(kind, editIndex = null, prefillData = null) {
     }
   }
 
+  let catVal = 'علف';
+  if (isUnified) {
+    if (isEdit) {
+      if (isFeedKind) {
+        catVal = 'علف';
+      } else if (existing) {
+        catVal = existing.cat || 'علف';
+      }
+    } else if (prefillData) {
+      if (typeof prefillData === 'string') {
+        catVal = prefillData;
+      } else if (prefillData.cat) {
+        catVal = prefillData.cat;
+      }
+    }
+
+    // Normalize to 5 standard categories
+    if (catVal === 'أدوية وتحصينات' || catVal === 'بيطري' || catVal === 'أدوية') catVal = 'دواء';
+    else if (catVal === 'كهرباء وغاز' || catVal === 'تدفئة' || catVal === 'كهرباء') catVal = 'غاز';
+    else if (catVal === 'أخرى' || catVal === 'مصاريف أخرى') catVal = 'مصاريف أخرى';
+    else if (!['علف', 'كتاكيت', 'دواء', 'غاز', 'مصاريف أخرى'].includes(catVal)) catVal = 'مصاريف أخرى';
+  }
+
   let titleText = '';
   if (isUnified) {
-    titleText = isEdit ? 'تعديل المصروف أو العلف' : 'تسجيل مصروف أو حركة علف';
+    const catTitles = {
+      'علف': 'شراء وتوريد علف 🌾',
+      'كتاكيت': 'شراء كتاكيت 🐣',
+      'دواء': 'مصروف أدوية وبيطري 💊',
+      'غاز': 'مصروف غاز وتدفئة 🔥',
+      'مصاريف أخرى': 'مصاريف أخرى 📦'
+    };
+    titleText = (isEdit ? 'تعديل ' : 'تسجيل ') + (catTitles[catVal] || 'مصروف');
   } else {
     titleText = (isEdit ? 'تعديل ' : 'تسجيل ') + (K[kind] ? K[kind].t : '');
   }
@@ -210,11 +240,11 @@ function openForm(kind, editIndex = null, prefillData = null) {
         <span>الطيور الحية المتبقية بالدورة: <b>${f(avail)} طائر</b></span>
       </div>
     `;
-  } else if (isUnified) {
+  } else if (isUnified && catVal === 'علف') {
     h += `
       <div class="form-hint-banner">
         <span>🏬</span>
-        <span>رصيد العلف بالمخزن حالياً: <b>${f(k.feedStockKg)} كجم</b> (${(k.feedStockKg / bagKg).toFixed(1)} شكارة)</span>
+        <span>رصيد العلف المشترى بالدورة: <b>${f(k.feedPurchasedKg)} كجم</b> (${(k.feedPurchasedKg / bagKg).toFixed(1)} شكارة)</span>
       </div>
     `;
   }
@@ -233,58 +263,29 @@ function openForm(kind, editIndex = null, prefillData = null) {
   `;
 
   if (isUnified) {
-    let catVal = 'علف';
-
-    if (isEdit) {
-      if (isFeedKind) {
-        catVal = 'علف';
-      } else if (existing) {
-        catVal = existing.cat || 'علف';
-      }
-    } else if (prefillData) {
-      if (typeof prefillData === 'string') {
-        catVal = prefillData;
-      } else if (prefillData.cat) {
-        catVal = prefillData.cat;
-      }
-    }
-
-    // Normalize to 5 standard categories
-    if (catVal === 'أدوية وتحصينات' || catVal === 'بيطري' || catVal === 'أدوية') catVal = 'دواء';
-    else if (catVal === 'كهرباء وغاز' || catVal === 'تدفئة' || catVal === 'كهرباء') catVal = 'غاز';
-    else if (catVal === 'أخرى' || catVal === 'مصاريف أخرى') catVal = 'مصاريف أخرى';
-    else if (!['علف', 'كتاكيت', 'دواء', 'غاز', 'مصاريف أخرى'].includes(catVal)) catVal = 'مصاريف أخرى';
-
     const amtVal = isEdit ? (existing && existing.amt !== undefined ? existing.amt : (linkedRef ? linkedRef.amt : '')) : '';
     const feedUnitVal = (linkedRef && linkedRef.unit) || (existing && existing.unit) || 'شكارة';
     const feedQVal = isEdit ? ((linkedRef && linkedRef.q !== undefined) ? linkedRef.q : (existing && existing.q !== undefined ? existing.q : '')) : '';
     const feedNoteVal = (linkedRef && (linkedRef.note || linkedRef.txt)) || (existing && (existing.note || existing.txt)) || '';
     const stdNoteVal = isEdit && existing ? (existing.note || '') : '';
 
+    let noteLabel = 'ملاحظة أو بيان (اختياري)';
+    let notePlaceholder = 'مثلاً: تفاصيل المصروف...';
+    if (catVal === 'كتاكيت') {
+      noteLabel = 'بيان الكتاكيت (اختياري)';
+      notePlaceholder = 'مثال: 1000 كتكوت ساسو، معمل كذا...';
+    } else if (catVal === 'دواء') {
+      noteLabel = 'اسم الدواء أو التحصين (اختياري)';
+      notePlaceholder = 'مثال: فيتامينات، مضاد سموم، جمبورو...';
+    } else if (catVal === 'غاز') {
+      noteLabel = 'بيان الغاز / التدفئة (اختياري)';
+      notePlaceholder = 'مثال: شحن أنبوبة، غاز صب...';
+    } else if (catVal === 'مصاريف أخرى') {
+      noteLabel = 'بيان المصروف (اختياري)';
+      notePlaceholder = 'اكتب بيان أو تفاصيل المصروف...';
+    }
+
     h += `
-      <label>تصنيف المصروف *</label>
-      <div class="expense-cat-selector">
-        <button type="button" class="expense-cat-btn ${catVal === 'علف' ? 'active' : ''}" data-cat="علف" onclick="selectExpenseCat('علف')">
-          <span class="expense-cat-icon">🌾</span>
-          <span>علف</span>
-        </button>
-        <button type="button" class="expense-cat-btn ${catVal === 'كتاكيت' ? 'active' : ''}" data-cat="كتاكيت" onclick="selectExpenseCat('كتاكيت')">
-          <span class="expense-cat-icon">🐣</span>
-          <span>كتاكيت</span>
-        </button>
-        <button type="button" class="expense-cat-btn ${catVal === 'دواء' ? 'active' : ''}" data-cat="دواء" onclick="selectExpenseCat('دواء')">
-          <span class="expense-cat-icon">💊</span>
-          <span>دواء</span>
-        </button>
-        <button type="button" class="expense-cat-btn ${catVal === 'غاز' ? 'active' : ''}" data-cat="غاز" onclick="selectExpenseCat('غاز')">
-          <span class="expense-cat-icon">🔥</span>
-          <span>غاز</span>
-        </button>
-        <button type="button" class="expense-cat-btn ${catVal === 'مصاريف أخرى' ? 'active' : ''}" data-cat="مصاريف أخرى" onclick="selectExpenseCat('مصاريف أخرى')">
-          <span class="expense-cat-icon">📦</span>
-          <span>مصاريف أخرى</span>
-        </button>
-      </div>
       <input type="hidden" id="f_cat" value="${catVal}">
 
       <!-- Money Amount Field -->
@@ -316,8 +317,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
 
       <!-- Standard Note Field (Visible when category is NOT feed) -->
       <div id="std_note_wrapper" style="display: ${catVal !== 'علف' ? 'block' : 'none'};">
-        <label id="std_note_label">ملاحظة أو بيان (اختياري)</label>
-        <input id="f_std_note" type="text" value="${stdNoteVal}" placeholder="مثلاً: دفعة كتاكيت ساسو، شحن غاز، فيتامينات...">
+        <label id="std_note_label">${noteLabel}</label>
+        <input id="f_std_note" type="text" value="${stdNoteVal}" placeholder="${notePlaceholder}">
       </div>
     `;
   } else if (kind === 'inc') {
