@@ -261,65 +261,59 @@ function detail(a) {
       </div>
     </div>
 
-    <!-- 🐔 COMPACT PER-FLOCK BREAKDOWN CARD -->
+    <!-- 🐔 COMPACT PER-FLOCK BREAKDOWN CARD (2 slim lines per type, tap for details) -->
     <div class="card flock-summary-card">
       <div class="flock-card-top">
-        <span style="font-size: 16px; font-weight: 800; color: var(--text-title);">🐔 أنواع الفراخ بالقطيع</span>
+        <span style="font-size: 15px; font-weight: 800; color: var(--text-title);">🐔 أنواع الفراخ بالقطيع</span>
         <button type="button" class="btn btn-sm btn-outline" onclick="openAddFlockModal()" style="border-color: var(--emerald); color: var(--emerald);">
           + نوع جديد
         </button>
       </div>
 
-      <div class="flock-compact-list">
+      <div class="flock-slim-list">
         ${k.flockStats.map(fs => {
           const hasSales = fs.sold > 0 || fs.revenue > 0;
-          const profitLabel = !hasSales
+          const isExpanded = !!S.openFlocks[fs.id];
+          const rightText = !hasSales
             ? 'لم يُبع بعد'
-            : (fs.profit >= 0 ? `ربح +${f(fs.profit)} ج` : `خسارة -${f(Math.abs(fs.profit))} ج`);
-          const profitCls = !hasSales
-            ? ''
+            : (fs.profit >= 0 ? `+${f(fs.profit)} ج` : `-${f(Math.abs(fs.profit))} ج`);
+          const rightCls = !hasSales
+            ? 'flock-status-muted'
             : (fs.profit >= 0 ? 'color-emerald' : 'color-rose');
 
           return `
-            <div class="flock-compact-row">
-              <div class="flock-compact-head">
-                <div class="flock-stat-title" style="font-size: 16px;">
+            <div class="flock-slim-item ${isExpanded ? 'expanded' : ''}" onclick="toggleFlockDetails(${fs.id})">
+              <div class="flock-slim-main">
+                <div class="flock-slim-name">
                   <span>🐣</span>
-                  <span>${fs.name}</span>
-                </div>
-                <span class="badge ${fs.remaining > 0 ? 'badge-active' : 'badge-closed'}">
-                  ${fs.remaining > 0 ? `متبقي ${f(fs.remaining)} من ${f(fs.count)}` : `تم البيع (${f(fs.count)}) ✓`}
-                </span>
-              </div>
-
-              <div class="flock-2x2-grid">
-                <div class="flock-cell">
-                  <span class="flock-cell-label">الطيور</span>
-                  <span class="flock-cell-val" style="font-size: 13px; font-family: var(--font-sans);">
-                    مباع <b class="color-emerald">${f(fs.sold)}</b> • نافق <b class="${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</b>
+                  <b>${fs.name}</b>
+                  <span class="flock-rem-pill ${fs.remaining === 0 ? 'done' : ''}">
+                    ${fs.remaining > 0 ? `متبقي ${f(fs.remaining)} / ${f(fs.count)}` : `تم البيع ✓`}
                   </span>
                 </div>
-                <div class="flock-cell">
-                  <span class="flock-cell-label">إجمالي التكلفة</span>
-                  <span class="flock-cell-val">${f(fs.totalCost)} ج</span>
-                </div>
-                <div class="flock-cell">
-                  <span class="flock-cell-label">المبيعات</span>
-                  <span class="flock-cell-val color-emerald">${f(fs.revenue)} ج</span>
-                </div>
-                <div class="flock-cell">
-                  <span class="flock-cell-label">الصافي</span>
-                  <span class="flock-cell-val ${profitCls}" ${!hasSales ? 'style="font-size: 13px; font-family: var(--font-sans); color: var(--text-muted);"' : ''}>
-                    ${profitLabel}
-                  </span>
+                <div class="flock-slim-result ${rightCls}">
+                  <span>${rightText}</span>
+                  <span class="flock-chevron">${isExpanded ? '▴' : '▾'}</span>
                 </div>
               </div>
 
-              <div class="flock-compact-foot" style="justify-content: flex-start; gap: 10px; font-size: 11.5px;">
-                <span>ثمن الكتاكيت: <b>${f(fs.cost)} ج</b></span>
-                <span>•</span>
-                <span>نصيب المصاريف: <b>${f(fs.sharedCost)} ج</b></span>
+              <div class="flock-slim-sub">
+                ${hasSales
+                  ? `بيع: <b class="color-emerald">${f(fs.revenue)} ج</b> • تكلفة: <b>${f(fs.totalCost)} ج</b>`
+                  : `تكلفة حتى الآن: <b>${f(fs.totalCost)} ج</b> • نافق: <b class="${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</b>`
+                }
               </div>
+
+              ${isExpanded ? `
+                <div class="flock-slim-details">
+                  <span>الأصل: <b>${f(fs.count)}</b></span>
+                  <span>•</span>
+                  <span>مباع: <b class="color-emerald">${f(fs.sold)}</b></span>
+                  <span>•</span>
+                  <span>نافق: <b class="${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</b></span>
+                  <span class="flock-details-break">ثمن الكتاكيت: <b>${f(fs.cost)} ج</b> • نصيب المصاريف: <b>${f(fs.sharedCost)} ج</b></span>
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('')}
@@ -365,4 +359,9 @@ function detail(a) {
   }
 
   a.innerHTML = h;
+}
+
+function toggleFlockDetails(id) {
+  S.openFlocks[id] = !S.openFlocks[id];
+  render();
 }

@@ -9,7 +9,8 @@ let S = {
   tab: 'exp',         // 'exp', 'inc', 'dead', 'feed', 'debt', 'ch'
   incFilter: 'all',   // 'all' or a flock type id
   debtFilter: 'all',  // 'all', 'us', 'them', 'unpaid'
-  openPayments: {}    // tracks expanded payment histories: { [debtId]: true }
+  openPayments: {},   // tracks expanded payment histories: { [debtId]: true }
+  openFlocks: {}      // tracks expanded flock detail rows: { [flockId]: true }
 };
 
 // Field Schemas and Display Helpers
