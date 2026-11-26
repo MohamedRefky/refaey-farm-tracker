@@ -2508,6 +2508,14 @@ select option {
   color: var(--text-dim);
 }
 
+.flock-details-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 4px;
+}
+
 @media (max-width: 640px) {
   .hero-flock-strip {
     grid-template-columns: repeat(2, 1fr);

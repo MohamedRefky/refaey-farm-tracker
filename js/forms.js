@@ -1289,37 +1289,51 @@ function editCycle() {
   modal.classList.add('on');
 }
 
-// Quick 1-step modal to add a new chick type to an existing cycle anytime
+// Quick 1-step modal to add or edit an individual chick type directly
 function openAddFlockModal() {
+  openFlockModal(null);
+}
+
+function openFlockModal(flockId = null) {
   const c = cur();
   if (!c) return;
+  const isEditFlock = flockId !== null;
+  const existingFlock = isEditFlock ? (c.flocks || []).find(fl => fl.id === flockId) : null;
+  if (isEditFlock && !existingFlock) return;
+
   const { m: modal, fm: formEl } = ensureModalElements();
   if (!modal || !formEl) return;
 
+  const nameVal = isEditFlock ? existingFlock.name : '';
+  const countVal = isEditFlock ? existingFlock.count : '';
+  const costVal = isEditFlock ? existingFlock.cost : '';
+
   formEl.innerHTML = `
     <div class="form-header">
-      <div class="form-title">إضافة نوع كتاكيت جديد للدورة 🐣</div>
+      <div class="form-title">${isEditFlock ? 'تعديل بيانات النوع ✏️' : 'إضافة نوع كتاكيت جديد للدورة 🐣'}</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
 
     <div id="form_error_container"></div>
 
-    <div class="form-hint-banner">
-      <span>💡</span>
-      <span>سيتم إضافة هذا النوع للدورة الحالية، وتُوزع مصاريف الدورة المشتركة عليه تلقائياً حسب العدد.</span>
-    </div>
+    ${!isEditFlock ? `
+      <div class="form-hint-banner">
+        <span>💡</span>
+        <span>سيتم إضافة هذا النوع للدورة الحالية، وتُوزع مصاريف الدورة المشتركة عليه تلقائياً حسب العدد.</span>
+      </div>
+    ` : ''}
 
     <label>اسم النوع (كتابة باليد) *</label>
-    <input id="af_name" type="text" placeholder="اكتب اسم النوع هنا...">
+    <input id="af_name" type="text" value="${esc(nameVal)}" placeholder="اكتب اسم النوع هنا...">
 
     <label>عدد الكتاكيت *</label>
-    <input id="af_count" type="number" inputmode="numeric" placeholder="مثلاً: 200">
+    <input id="af_count" type="number" inputmode="numeric" value="${countVal}" placeholder="مثلاً: 200">
 
     <label>تكلفة شراء الكتاكيت (جنيه) *</label>
-    <input id="af_cost" type="number" inputmode="decimal" step="any" placeholder="مثلاً: 3800">
+    <input id="af_cost" type="number" inputmode="decimal" step="any" value="${costVal}" placeholder="مثلاً: 3800">
 
     <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">إضافة النوع للدورة</button>
+      <button class="btn btn-primary" style="flex: 2;" type="submit">${isEditFlock ? 'حفظ التعديلات' : 'إضافة النوع للدورة'}</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
   `;
@@ -1345,23 +1359,66 @@ function openAddFlockModal() {
       return;
     }
 
-    c.flocks = c.flocks || [];
-    const maxFlockId = c.flocks.reduce((m, fl) => Math.max(m, +fl.id || 0), 0);
-    c.flocks.push({
-      id: Math.max(Date.now(), maxFlockId) + 1,
-      name,
-      count: +countStr,
-      cost: +costStr
-    });
+    if (isEditFlock) {
+      const usedBirds = (c.inc || []).filter(x => x.flockId === existingFlock.id).reduce((s, x) => s + (+x.cnt || 0), 0)
+        + (c.dead || []).filter(x => x.flockId === existingFlock.id).reduce((s, x) => s + (+x.n || 0), 0);
+      if (+countStr < usedBirds) {
+        showFormError(`عفواً، العدد (${countStr}) أقل من الطيور المسجل بيعها ونفوقها بالفعل (${usedBirds} طائر).`, 'af_count');
+        return;
+      }
+      existingFlock.name = name;
+      existingFlock.count = +countStr;
+      existingFlock.cost = +costStr;
+    } else {
+      c.flocks = c.flocks || [];
+      const maxFlockId = c.flocks.reduce((m, fl) => Math.max(m, +fl.id || 0), 0);
+      c.flocks.push({
+        id: Math.max(Date.now(), maxFlockId) + 1,
+        name,
+        count: +countStr,
+        cost: +costStr
+      });
+    }
     syncCycleCount(c);
 
-    if (saveAndNotify(`تمت إضافة نوع "${name}" للدورة بنجاح 🐥`)) {
+    const msg = isEditFlock ? `تم تعديل نوع "${name}" بنجاح ✓` : `تمت إضافة نوع "${name}" للدورة بنجاح 🐥`;
+    if (saveAndNotify(msg)) {
       closeM();
       render();
     }
   };
 
   modal.classList.add('on');
+}
+
+function delFlock(flockId) {
+  const c = cur();
+  if (!c || !Array.isArray(c.flocks) || c.flocks.length <= 1) return;
+  const idx = c.flocks.findIndex(fl => fl.id === flockId);
+  if (idx === -1) return;
+  const fl = c.flocks[idx];
+
+  if (flockRecordCounts(c, flockId).total > 0) {
+    showToast('⚠️ لا يمكن حذف نوع مرتبط بحركات بيع أو نافق مسجلة', 3200);
+    return;
+  }
+
+  showConfirmModal({
+    icon: '🗑️',
+    title: 'تأكيد حذف نوع الكتاكيت ⚠️',
+    subtitle: 'هل تريد حذف هذا النوع من الدورة؟ سيتم تحديث إجمالي أعداد وتكلفة الدورة تلقائياً.',
+    itemIcon: '🐣',
+    itemTitle: `${fl.name}`,
+    itemMeta: `العدد: ${f(fl.count)} طائر • التكلفة: ${f(fl.cost)} ج`,
+    confirmBtnText: 'نعم، احذف هذا النوع',
+    onConfirm: () => {
+      c.flocks.splice(idx, 1);
+      syncCycleCount(c);
+      if (saveAndNotify(`تم حذف نوع "${fl.name}" بنجاح`)) {
+        render();
+      }
+    }
+  });
 }
 
 function deleteCycle(id) {

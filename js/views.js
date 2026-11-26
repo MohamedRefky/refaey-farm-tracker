@@ -324,6 +324,12 @@ function detail(a) {
                   <span>•</span>
                   <span>نافق: <b class="${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</b></span>
                   <span class="flock-details-break">ثمن الكتاكيت: <b>${f(fs.cost)} ج</b> • نصيب المصاريف: <b>${f(fs.sharedCost)} ج</b></span>
+                  <div class="flock-details-actions" onclick="event.stopPropagation()">
+                    <button type="button" class="labeled-action-btn" onclick="openFlockModal(${fs.id})">✏️ تعديل</button>
+                    ${((c.flocks || []).length > 1 && flockRecordCounts(c, fs.id).total === 0) ? `
+                      <button type="button" class="labeled-action-btn danger" onclick="delFlock(${fs.id})">🗑️ حذف</button>
+                    ` : ''}
+                  </div>
                 </div>
               ` : ''}
             </div>
