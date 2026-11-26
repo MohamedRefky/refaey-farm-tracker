@@ -299,11 +299,11 @@ function renderDeadTab(c, k) {
   `;
 }
 
-// 5. Analytics Tab
+// 5. Cycle Summary Breakdown Charts (Plain, easy-to-read Arabic)
 function renderAnalyticsTab(c, k) {
   const by = {};
   if (k.chickCost > 0) {
-    by['كتاكيت (بداية الدورة)'] = k.chickCost;
+    by['ثمن الكتاكيت'] = k.chickCost;
   }
   (c.exp || []).forEach(e => {
     by[e.cat] = (by[e.cat] || 0) + e.amt;
@@ -322,37 +322,49 @@ function renderAnalyticsTab(c, k) {
   const T = c.n || 1;
   const flockProfitBars = (k.flockStats || []).length > 1
     ? bars(
-        k.flockStats.map(fs => ({
-          n: fs.name,
-          v: fs.profit,
-          c: fs.profit >= 0 ? 'var(--emerald)' : 'var(--rose)',
-          cls: fs.profit >= 0 ? 'color-emerald' : 'color-rose',
-          t: (fs.profit >= 0 ? 'ربح ' : 'خسارة ') + f(Math.abs(fs.profit)) + ' ج'
-        })),
+        k.flockStats.map(fs => {
+          const hasSales = fs.sold > 0 || fs.revenue > 0;
+          if (!hasSales) {
+            return {
+              n: fs.name,
+              v: fs.totalCost,
+              c: 'var(--sky)',
+              cls: '',
+              t: 'صرفت عليه ' + f(fs.totalCost) + ' ج (لم يُبع بعد)'
+            };
+          }
+          return {
+            n: fs.name,
+            v: fs.profit,
+            c: fs.profit >= 0 ? 'var(--emerald)' : 'var(--rose)',
+            cls: fs.profit >= 0 ? 'color-emerald' : 'color-rose',
+            t: (fs.profit >= 0 ? 'مكسب +' : 'خسارة -') + f(Math.abs(fs.profit)) + ' ج'
+          };
+        }),
         x => x.t
       )
     : '';
 
   return `
     <div class="card">
-      <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
-        صرفت فلوسك على إيه؟ (توزيع التكاليف)
+      <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
+        💸 فلوسك اتصرفت على إيه؟
       </h3>
       ${it.length ? bars(it, x => x.t) : '<div class="empty-state"><div class="empty-state-icon">💸</div>مفيش مصروفات مسجلة بعد</div>'}
     </div>
 
     ${flockProfitBars ? `
       <div class="card">
-        <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
-          مقارنة ربحية كل نوع في هذه الدورة
+        <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
+          🐔 موقف كل نوع فراخ في الدورة
         </h3>
         ${flockProfitBars}
       </div>
     ` : ''}
 
     <div class="card">
-      <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
-        الطيور راحت فين؟ (توزيع القطيع)
+      <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
+        📦 حساب الطيور (اتباع ونافق وباقي)
       </h3>
       <div class="bar-track" style="height: 16px; border-radius: 8px;">
         <div class="bar-segment" style="width: ${(k.sold / T) * 100}%; background: var(--emerald);" title="مباع"></div>
@@ -366,12 +378,14 @@ function renderAnalyticsTab(c, k) {
       </div>
     </div>
 
-    <div class="card">
-      <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
-        مقارنة ربحية هذه الدورة مع الدورات الأخرى
-      </h3>
-      ${profitChart()}
-    </div>
+    ${C.length > 1 ? `
+      <div class="card">
+        <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
+          📊 مقارنة مكسب الدورات
+        </h3>
+        ${profitChart()}
+      </div>
+    ` : ''}
   `;
 }
 

@@ -123,6 +123,7 @@ function list(a) {
 
 function openCycle(id) {
   S.v = id;
+  S.summary = false;
   S.tab = 'exp';
   S.expFilter = 'all';
   S.incFilter = 'all';
@@ -138,23 +139,27 @@ function detail(a) {
   const c = cur();
   if (!c) {
     S.v = 'list';
+    S.summary = false;
     return list(a);
+  }
+  const k = calc(c);
+  if (S.summary) {
+    return summaryPage(a, c, k);
   }
   if (!['exp', 'inc', 'dead', 'debt'].includes(S.tab)) {
     S.tab = 'exp';
   }
-  const k = calc(c);
   const isOngoing = !c.end;
 
   let h = `
-    <!-- Top Nav with Reports & Edit Support -->
+    <!-- Top Nav with Summary & Edit Support -->
     <div class="detail-top-nav">
-      <button class="back-btn" onclick="S.v='list'; render()">
+      <button class="back-btn" onclick="S.v='list'; S.summary=false; render()">
         <span>→</span> <span class="nav-text">الدورات</span>
       </button>
       <div class="detail-nav-actions">
-        <button class="print-btn" onclick="openReportsModal()" title="التقارير والرسوم البيانية">
-          <span>📊</span> <span>التقارير</span>
+        <button class="print-btn" onclick="openCycleSummary()" title="ملخص وحسابات الدورة">
+          <span>📊</span> <span>ملخص الدورة</span>
         </button>
         <button class="print-btn" onclick="editCycle()" title="تعديل بيانات الدورة">
           <span>✏️</span> <span>تعديل</span>
@@ -366,23 +371,73 @@ function toggleFlockDetails(id) {
   render();
 }
 
-function openReportsModal() {
-  const c = cur();
-  if (!c) return;
-  const k = calc(c);
-  const { m: modal, fm: formEl } = ensureModalElements();
-  if (!modal || !formEl) return;
+function openCycleSummary() {
+  S.summary = true;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-  formEl.innerHTML = `
-    <div class="form-header">
-      <div class="form-title">📊 تقارير وملخص الدورة</div>
-      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+function closeCycleSummary() {
+  S.summary = false;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Full-page clean Cycle Summary view (replaces cramped reports modal)
+function summaryPage(a, c, k) {
+  const hasSales = k.sold > 0 || k.totalSales > 0;
+  const netLabel = !hasSales
+    ? 'المصروف حتى الآن (لم تبدأ المبيعات)'
+    : (k.p >= 0 ? 'صافي المكسب حتى الآن' : 'صافي الخسارة حتى الآن');
+  const netVal = !hasSales ? f(k.e) : f(Math.abs(k.p));
+  const netCls = !hasSales ? '' : (k.p >= 0 ? 'color-emerald' : 'color-rose');
+
+  a.innerHTML = `
+    <div class="detail-top-nav">
+      <button class="back-btn" onclick="closeCycleSummary()">
+        <span>→</span> <span>رجوع للدورة</span>
+      </button>
+      <span class="badge ${!c.end ? 'badge-active' : 'badge-closed'}">
+        ${!c.end ? 'شغالة الآن' : 'مكتملة'}
+      </span>
     </div>
+
+    <div class="card hero-card">
+      <div class="hero-label">
+        <span>📊</span> ملخص حسابات: ${esc(c.name)}
+      </div>
+      <div class="hero-substat-label" style="margin-bottom: 10px;">
+        ${netLabel}
+      </div>
+      <div class="hero-big-number ${netCls}">
+        <span class="money-privacy-value">${netVal}</span> <small>جنيه مصري</small>
+      </div>
+
+      <div class="hero-stats-row">
+        <div class="hero-substat">
+          <span class="hero-substat-label">إجمالي المبيعات</span>
+          <span class="hero-substat-value color-emerald">${f(k.totalSales)} ج</span>
+        </div>
+        <div class="hero-substat">
+          <span class="hero-substat-label">إجمالي التكلفة</span>
+          <span class="hero-substat-value color-rose">${f(k.e)} ج</span>
+          <small style="display:block; font-size:11px; color:var(--text-dim); margin-top:2px;">
+            (كتاكيت: ${f(k.chickCost)} ج + مصاريف: ${f(k.otherExp)} ج)
+          </small>
+        </div>
+        ${k.debtUsRemaining > 0 ? `
+          <div class="hero-substat">
+            <span class="hero-substat-label">مستحقات لينا بره</span>
+            <span class="hero-substat-value color-amber">${f(k.debtUsRemaining)} ج</span>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+
     ${renderAnalyticsTab(c, k)}
-    <div class="form-actions-row">
-      <button class="btn btn-outline btn-full" type="button" onclick="closeM()">إغلاق</button>
-    </div>
+
+    <button class="btn btn-outline btn-full" onclick="closeCycleSummary()" style="margin-top: 8px;">
+      → العودة لصفحة الدورة
+    </button>
   `;
-  formEl.onsubmit = ev => { ev.preventDefault(); closeM(); };
-  modal.classList.add('on');
 }

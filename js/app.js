@@ -6,6 +6,7 @@
 // Global UI State
 let S = {
   v: 'list',          // 'list' for all cycles or cycle ID
+  summary: false,     // dedicated full-page cycle summary view
   tab: 'exp',         // 'exp', 'inc', 'dead', 'debt'
   expFilter: 'all',   // 'all', 'علف', 'دواء', 'غاز', 'مصاريف أخرى'
   incFilter: 'all',   // 'all' or a flock type id
