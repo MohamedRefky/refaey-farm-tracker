@@ -2048,11 +2048,11 @@ select option {
     gap: 8px;
   }
   .detail-nav-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 6px;
   }
   .detail-nav-actions .print-btn {
+    flex: 1;
     justify-content: center;
   }
   .cycle-details-grid {

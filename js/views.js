@@ -138,7 +138,7 @@ function detail(a) {
   const isOngoing = !c.end;
 
   let h = `
-    <!-- Top Nav with Print and Edit Support -->
+    <!-- Top Nav with Edit Support -->
     <div class="detail-top-nav">
       <button class="back-btn" onclick="S.v='list'; render()">
         <span>→</span> <span class="nav-text">العودة لكل الدورات</span>
@@ -146,9 +146,6 @@ function detail(a) {
       <div class="detail-nav-actions">
         <button class="print-btn" onclick="editCycle()" title="تعديل بيانات الدورة">
           <span>✏️</span> <span>تعديل</span>
-        </button>
-        <button class="print-btn" onclick="downloadCyclePdf()" title="تنزيل كشف الدورة بصيغة PDF">
-          <span>📄</span> <span>تنزيل PDF</span>
         </button>
       </div>
     </div>

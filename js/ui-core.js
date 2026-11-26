@@ -24,7 +24,7 @@ function applyMoneyPrivacy(root = document.body) {
 
   while ((node = walker.nextNode())) {
     const parent = node.parentElement;
-    if (!parent || parent.closest('script, style, textarea, input, #cycle-pdf-export')) continue;
+    if (!parent || parent.closest('script, style, textarea, input')) continue;
 
     const original = moneyTextOriginals.has(node) ? moneyTextOriginals.get(node) : node.nodeValue;
     moneyTextOriginals.set(node, original);
