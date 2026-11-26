@@ -1,6 +1,17 @@
 /**
- * Refaey Farm Tracker - Data Layer & Persistence
+ * Refaey Farm Tracker - Data Layer & Persistence (Offline-First & Firebase-Ready)
  */
+
+// HTML-escape user-entered strings before inserting into templates
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[ch]);
+}
 
 // Available expense categories (chick cost is tracked per flock type, not here)
 const cats = ['علف', 'دواء', 'غاز', 'مصاريف أخرى'];
@@ -87,8 +98,64 @@ const initialCycles = [
 
 // Persistent State Storage
 const STORAGE_KEY = 'refaey_farm_cycles_v8';
+const PENDING_SYNC_KEY = 'refaey_pending_sync_v1';
 const LEGACY_STORAGE_KEYS = [];
 let C = [];
+let storageWriteFailed = false;
+let hasPendingSync = false;
+let cloudSyncHandler = null; // Future Firebase hook: setCloudSyncHandler(fn)
+
+try {
+  hasPendingSync = localStorage.getItem(PENDING_SYNC_KEY) === '1';
+} catch (e) {
+  hasPendingSync = false;
+}
+
+function setCloudSyncHandler(fn) {
+  cloudSyncHandler = typeof fn === 'function' ? fn : null;
+}
+
+function markPendingSync() {
+  hasPendingSync = true;
+  try {
+    localStorage.setItem(PENDING_SYNC_KEY, '1');
+  } catch (e) {
+    // Ignore secondary storage errors
+  }
+  if (typeof updateSyncStatusBanner === 'function') updateSyncStatusBanner();
+}
+
+function clearPendingSync() {
+  hasPendingSync = false;
+  try {
+    localStorage.removeItem(PENDING_SYNC_KEY);
+  } catch (e) {
+    // Ignore
+  }
+  if (typeof updateSyncStatusBanner === 'function') updateSyncStatusBanner();
+}
+
+function flushPendingSync() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (typeof cloudSyncHandler === 'function') {
+    Promise.resolve(cloudSyncHandler(C))
+      .then(() => {
+        const hadPending = hasPendingSync;
+        clearPendingSync();
+        if (hadPending && typeof showToast === 'function') {
+          showToast('✅ عاد الإنترنت وتمت مزامنة البيانات المحفوظة');
+        }
+      })
+      .catch(() => markPendingSync());
+  } else if (hasPendingSync) {
+    clearPendingSync();
+    if (typeof showToast === 'function') {
+      showToast('🟢 عاد الاتصال بالإنترنت — بياناتك محفوظة بأمان على جهازك');
+    }
+  } else if (typeof updateSyncStatusBanner === 'function') {
+    updateSyncStatusBanner();
+  }
+}
 
 // Keeps the legacy total count in sync with the flock types
 function syncCycleCount(c) {
@@ -262,9 +329,38 @@ function loadData() {
 function saveData() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(C));
+    storageWriteFailed = false;
+
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+      markPendingSync();
+    } else if (typeof cloudSyncHandler === 'function') {
+      Promise.resolve(cloudSyncHandler(C))
+        .then(() => clearPendingSync())
+        .catch(() => markPendingSync());
+    } else if (typeof updateSyncStatusBanner === 'function') {
+      updateSyncStatusBanner();
+    }
+    return true;
   } catch (err) {
     console.error('Storage error', err);
+    storageWriteFailed = true;
+    if (typeof updateSyncStatusBanner === 'function') updateSyncStatusBanner();
+    if (typeof showToast === 'function') {
+      showToast('⚠️ تعذر الحفظ في ذاكرة الجهاز! تأكد من مساحة المتصفح أو الخروج من التصفح الخفي.', 4500);
+    }
+    return false;
   }
+}
+
+function saveAndNotify(successMsg) {
+  if (!saveData()) return false;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    showToast('📡 لا يوجد نت: تم الحفظ على جهازك بأمان وسيرتفع عند عودة النت', 3600);
+  } else {
+    showToast(successMsg);
+  }
+  return true;
 }
 
 function resetDataPrompt() {
@@ -331,7 +427,8 @@ function today() {
 }
 
 // Sleek Toast Notification
-function showToast(message) {
+let toastTimerId = null;
+function showToast(message, durationMs = 2400) {
   let toast = document.getElementById('toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -340,9 +437,10 @@ function showToast(message) {
   }
   toast.textContent = message;
   toast.classList.add('show');
-  setTimeout(() => {
+  if (toastTimerId) clearTimeout(toastTimerId);
+  toastTimerId = setTimeout(() => {
     toast.classList.remove('show');
-  }, 2400);
+  }, durationMs);
 }
 
 // Initial Load

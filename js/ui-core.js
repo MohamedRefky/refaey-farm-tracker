@@ -143,27 +143,27 @@ function showConfirmModal({
 
   cm.innerHTML = `
     <div class="confirm-box" onclick="event.stopPropagation()">
-      <div class="confirm-icon-badge">${icon}</div>
-      <div class="confirm-title">${title}</div>
-      <div class="confirm-subtitle">${subtitle}</div>
+      <div class="confirm-icon-badge">${esc(icon)}</div>
+      <div class="confirm-title">${esc(title)}</div>
+      <div class="confirm-subtitle">${esc(subtitle)}</div>
 
       <div class="confirm-item-card">
-        <div class="confirm-item-icon">${itemIcon}</div>
+        <div class="confirm-item-icon">${esc(itemIcon)}</div>
         <div style="flex: 1; text-align: right; min-width: 0;">
-          <div class="confirm-item-text">${itemTitle}</div>
-          ${itemMeta ? `<div class="confirm-item-meta">${itemMeta}</div>` : ''}
+          <div class="confirm-item-text">${esc(itemTitle)}</div>
+          ${itemMeta ? `<div class="confirm-item-meta">${esc(itemMeta)}</div>` : ''}
         </div>
       </div>
 
       ${warningNote ? `
         <div class="confirm-warning-tag">
-          ⚠️ ${warningNote}
+          ⚠️ ${esc(warningNote)}
         </div>
       ` : ''}
 
       <div class="confirm-actions">
         <button type="button" class="btn btn-danger" id="cm_confirm_btn" style="flex: 1;">
-          ${confirmBtnText}
+          ${esc(confirmBtnText)}
         </button>
         <button type="button" class="btn btn-outline" id="cm_cancel_btn" style="flex: 1;" onclick="closeConfirmModal()">
           إلغاء وتراجع
@@ -189,10 +189,45 @@ function closeConfirmModal() {
   if (cm) cm.classList.remove('on');
 }
 
+// ==========================================================================
+// 5. CONNECTIVITY & STORAGE SAFETY BANNER
+// ==========================================================================
+function updateSyncStatusBanner() {
+  const banner = document.getElementById('sync_status_banner');
+  if (!banner) return;
+
+  if (typeof storageWriteFailed !== 'undefined' && storageWriteFailed) {
+    banner.style.display = 'flex';
+    banner.className = 'sync-status-banner danger';
+    banner.textContent = '⚠️ تحذير: تعذر الحفظ في ذاكرة الجهاز! قد تكون مساحة المتصفح ممتلئة أو التصفح في وضع خفي.';
+    return;
+  }
+
+  const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (isOffline) {
+    banner.style.display = 'flex';
+    banner.className = 'sync-status-banner offline';
+    banner.textContent = (typeof hasPendingSync !== 'undefined' && hasPendingSync)
+      ? '📡 لا يوجد إنترنت: تعديلاتك محفوظة على جهازك بأمان وستُرفع تلقائياً عند عودة النت.'
+      : '📡 وضع عدم الاتصال: يمكنك التسجيل كالمعتاد وسيُحفظ كل شيء على جهازك لحين عودة النت.';
+    return;
+  }
+
+  if (typeof hasPendingSync !== 'undefined' && hasPendingSync && typeof cloudSyncHandler === 'function') {
+    banner.style.display = 'flex';
+    banner.className = 'sync-status-banner offline';
+    banner.textContent = '⏳ جاري انتظار مزامنة التعديلات المحفوظة...';
+    return;
+  }
+
+  banner.style.display = 'none';
+}
+
 // Initialize UI Core Events & Observers
 document.addEventListener('DOMContentLoaded', () => {
   updateLiveClock();
   setInterval(updateLiveClock, 10000);
+  updateSyncStatusBanner();
 
   const savedTheme = localStorage.getItem('refaey_theme') || 'dark';
   updateThemeUI(savedTheme);

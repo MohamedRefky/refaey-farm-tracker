@@ -24,7 +24,7 @@ const K = {
       ['amt', 'number', '', 'المبلغ المدفوع (جنيه)'],
       ['note', 'text', '', 'ملاحظة أو بيان (اختياري)']
     ],
-    r: e => [e.cat + (e.note ? ' - ' + e.note : ''), f(e.amt) + ' ج']
+    r: e => [esc(e.cat) + (e.note ? ' - ' + esc(e.note) : ''), f(e.amt) + ' ج']
   },
   inc: {
     t: 'حركة بيع طيور',
@@ -38,7 +38,7 @@ const K = {
     r: e => {
       const flock = e.flockId ? flockName(cur(), e.flockId) : '';
       return [
-        `بيع ${e.cnt} طائر${flock ? ' - ' + flock : ''}${e.buyer ? ' (' + e.buyer + ')' : ''}`,
+        `بيع ${e.cnt} طائر${flock ? ' - ' + esc(flock) : ''}${e.buyer ? ' (' + esc(e.buyer) + ')' : ''}`,
         `${f(e.amt)} ج`
       ];
     }
@@ -53,7 +53,7 @@ const K = {
     r: e => {
       const flock = e.flockId ? flockName(cur(), e.flockId) : '';
       return [
-        'نفوق ' + e.n + ' طائر' + (flock ? ' - ' + flock : ''),
+        'نفوق ' + e.n + ' طائر' + (flock ? ' - ' + esc(flock) : ''),
         e.n + ' طيور'
       ];
     }
@@ -66,7 +66,7 @@ const K = {
       ['q', 'number', '', 'الكمية'],
       ['note', 'text', '', 'نوع العلف / بيان (بادي، نامي، ناهي...)']
     ],
-    r: e => [`شراء علف: ` + (e.txt || (e.q ? `${e.q} ${e.unit || 'شكارة'}` : 'علف')), f(e.kg) + ' كجم']
+    r: e => [`شراء علف: ` + esc(e.txt || (e.q ? `${e.q} ${e.unit || 'شكارة'}` : 'علف')), f(e.kg) + ' كجم']
   },
   debt: {
     t: 'مستحق لنا عند الغير',
@@ -75,7 +75,7 @@ const K = {
       ['who', 'text', '', 'المستحقات / التفاصيل'],
       ['amt', 'number', '', 'المبلغ (جنيه)']
     ],
-    r: e => [e.who, f(e.amt) + ' ج']
+    r: e => [esc(e.who), f(e.amt) + ' ج']
   }
 };
 
@@ -118,6 +118,30 @@ document.addEventListener('keydown', e => {
     closeM();
     closeConfirmModal();
   }
+});
+
+// Sync data automatically across open browser tabs & handle network reconnects
+window.addEventListener('storage', e => {
+  if (e.key === STORAGE_KEY && e.newValue) {
+    try {
+      C = normalizeData(JSON.parse(e.newValue));
+      updateNid();
+      render();
+      showToast('🔄 تم تحديث البيانات تلقائياً من تبويب آخر');
+    } catch (err) {
+      console.error('Tab sync parse error', err);
+    }
+  }
+});
+
+window.addEventListener('offline', () => {
+  if (typeof updateSyncStatusBanner === 'function') updateSyncStatusBanner();
+  showToast('📡 انقطع الإنترنت — لا تقلق، تسجيلاتك ستُحفظ على الجهاز بأمان', 3200);
+});
+
+window.addEventListener('online', () => {
+  if (typeof flushPendingSync === 'function') flushPendingSync();
+  if (typeof updateSyncStatusBanner === 'function') updateSyncStatusBanner();
 });
 
 // Run Initial App Render

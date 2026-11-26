@@ -74,11 +74,11 @@ function list(a) {
             <div class="cycle-title-group">
               <div class="cycle-icon-box">🐔</div>
               <div>
-                <div class="cycle-name">${c.name}</div>
+                <div class="cycle-name">${esc(c.name)}</div>
                 <div class="cycle-date">بدأت: ${fd(c.start)} ${isOngoing ? `• <b style="color:var(--emerald);">اليوم الـ ${Math.max(1, Math.floor((new Date(today()) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)}</b>` : (c.end ? `• استغرقت ${Math.max(1, Math.floor((new Date(c.end) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)} يوم` : '')}</div>
                 ${(c.flocks && c.flocks.length) ? `
                   <div class="cycle-flocks-pills">
-                    ${c.flocks.map(fl => `<span class="cycle-flock-pill">🐣 ${fl.name} (${f(fl.count)})</span>`).join('')}
+                    ${c.flocks.map(fl => `<span class="cycle-flock-pill">🐣 ${esc(fl.name)} (${f(fl.count)})</span>`).join('')}
                   </div>
                 ` : ''}
               </div>
@@ -168,7 +168,7 @@ function detail(a) {
         <div class="hero-cycle-info">
           <div class="cycle-icon-box hero-icon" style="width: 50px; height: 50px; font-size: 24px;">🐔</div>
           <div>
-            <h2 class="hero-cycle-name">${c.name}</h2>
+            <h2 class="hero-cycle-name">${esc(c.name)}</h2>
             <div class="hero-substat-label">
               بدأت: ${fd(c.start)} ${c.end ? ' • انتهت: ' + fd(c.end) + ' (استغرقت ' + (Math.max(1, Math.floor((new Date(c.end) - new Date(c.start))/(1000*60*60*24))+1)) + ' يوم)' : ' • <b style="color:var(--emerald);">عمر الدورة: اليوم الـ ' + (Math.max(1, Math.floor((new Date(today()) - new Date(c.start))/(1000*60*60*24))+1)) + '</b>'}
             </div>
@@ -293,7 +293,7 @@ function detail(a) {
               <div class="flock-slim-main">
                 <div class="flock-slim-name">
                   <span>🐣</span>
-                  <b>${fs.name}</b>
+                  <b>${esc(fs.name)}</b>
                   <span class="flock-rem-pill ${fs.remaining === 0 ? 'done' : ''}">
                     ${fs.remaining > 0 ? `متبقي ${f(fs.remaining)} / ${f(fs.count)}` : `تم البيع ✓`}
                   </span>

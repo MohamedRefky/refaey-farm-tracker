@@ -8,27 +8,25 @@
 
 ## Key Features
 
-- **Flock Cycle Management:**
-  - Create and track multiple broiler cycles simultaneously.
-  - Close cycles upon completion of sales.
-  - Real-time net profit/loss calculation per cycle with cycle-by-cycle comparisons.
+- **Multi-Type Flock Cycle Management:**
+  - Create broiler cycles with multiple hand-typed poultry types (with bird count & chick cost per type), and add new types anytime.
+  - Close cycles upon completion of sales with start/end date validation.
+  - Real-time net profit/loss calculation per cycle and per bird type.
 
 - **Flock & Mortality Tracking:**
-  - Automated **Mortality Rate (%)** calculation with alerts for abnormal rates.
-  - Real-time counts for active birds, sold birds, and remaining inventory in the farm.
+  - Automated **Mortality Rate (%)** calculation per cycle and per type.
+  - Real-time counts for active birds, sold birds, and remaining birds per type.
 
-- **Production Efficiency & Key Metrics:**
-  - **Cost per Bird:** Dynamic distribution of total expenses across live birds.
-  - **Profit per Bird:** Average net revenue and profit margin per bird sold.
+- **Shared Cycle Expenses & Feed Purchases:**
+  - Record shared expenses once for the entire cycle (`علف`، `دواء`، `غاز`، `مصاريف أخرى`) — automatically distributed across flock types proportionally by bird count.
+  - Feed unit selector supporting **50 kg bags**, **100 kg bags**, and **kilograms (kg)** with automatic total weight calculation.
 
-- **Expense & Income Ledger:**
-  - Categorized expense tracking (Chicks, Feed, Medication/Vaccines, Labor, Utilities, Transport, and Others).
-  - Detailed sales records (bird count, total weight in kg, sale price, and buyer).
-  - Visual breakdown charts showing where budget was allocated.
+- **Sales & Receivables Notebook:**
+  - Fast mobile-friendly sales logging per chicken type (bird count + total sale value).
+  - Receivables tracker ("مستحق لنا عند الغير") with partial/full payment collection, payment history editing/cancellation, and automatic consistency sync.
 
-- **Debt & Receivables Tracker:**
-  - Track receivables ("Owed to me") and payables ("Owed by me").
-  - Simple one-click settlement status toggle.
+- **Offline-First & Multi-Tab Safe Storage:**
+  - Data is currently stored locally on the user's device (`localStorage`) with explicit failure alerts, cross-tab synchronization (`storage` event), offline recording protection (`navigator.onLine`), and sync hooks ready for future Firebase integration.
 
 - **Interactive & Clean UI:**
   - Sleek, mobile-first, and responsive interface.

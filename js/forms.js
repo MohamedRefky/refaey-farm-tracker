@@ -25,7 +25,7 @@ function showFormError(msg, fieldId) {
     container.innerHTML = `
       <div class="form-error-alert">
         <span style="font-size: 18px;">⚠️</span>
-        <span>${msg}</span>
+        <span>${esc(msg)}</span>
       </div>
     `;
   }
@@ -282,13 +282,13 @@ function openForm(kind, editIndex = null, prefillData = null) {
         <div id="feed_live_hint" style="margin: 6px 0 12px; font-size: 12px; font-weight: 700; color: var(--emerald);"></div>
 
         <label>نوع العلف أو بيان (اختياري)</label>
-        <input id="f_feed_note" type="text" value="${feedNoteVal}" placeholder="مثال: بادي 23%، نامي 21%، ناهي 19%...">
+        <input id="f_feed_note" type="text" value="${esc(feedNoteVal)}" placeholder="مثال: بادي 23%، نامي 21%، ناهي 19%...">
       </div>
 
       <!-- Standard Note Field (Visible when category is NOT feed) -->
       <div id="std_note_wrapper" style="display: ${catVal !== 'علف' ? 'block' : 'none'};">
         <label id="std_note_label">${noteLabel}</label>
-        <input id="f_std_note" type="text" value="${stdNoteVal}" placeholder="${notePlaceholder}">
+        <input id="f_std_note" type="text" value="${esc(stdNoteVal)}" placeholder="${notePlaceholder}">
       </div>
     `;
   } else if (kind === 'inc') {
@@ -327,7 +327,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
       <div id="sale_status_box" style="margin-bottom: 14px;"></div>
 
       <label>اسم المشتري / ملاحظة (اختياري)</label>
-      <input id="f_buyer" type="text" value="${buyerVal}" placeholder="مثال: تاجر الأحد، محل البركة...">
+      <input id="f_buyer" type="text" value="${esc(buyerVal)}" placeholder="مثال: تاجر الأحد، محل البركة...">
     `;
   } else if (kind === 'dead') {
     // Simplified Mortality Form: Flock Type Buttons + Dead Count only
@@ -362,7 +362,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
       </div>
 
       <label>المستحقات / التفاصيل (اكتب براحتك كأنها نوتة) *</label>
-      <textarea id="f_who" rows="3" placeholder="مثال: أبو علي التاجر - باقي حساب بيع فراخ ساسو..." oninput="detectAmountInDebtNote()">${combinedWhoVal}</textarea>
+      <textarea id="f_who" rows="3" placeholder="مثال: أبو علي التاجر - باقي حساب بيع فراخ ساسو..." oninput="detectAmountInDebtNote()">${esc(combinedWhoVal)}</textarea>
 
       <label>المبلغ (جنيه) *</label>
       <input id="f_amt" type="number" inputmode="decimal" step="any" value="${amtVal}" placeholder="مثلاً: 2000" oninput="clearDebtAmountHint()">
@@ -428,6 +428,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
         const amtNum = +dataObj.amt;
         let targetExp = isExpKind && isEdit ? cycle.exp[editIndex] : linkedRef;
         let targetFeed = isFeedKind && isEdit ? cycle.feed[editIndex] : linkedRef;
+        let expToastMsg = '';
 
         if (targetExp && targetFeed) {
           targetExp.d = dataObj.d;
@@ -442,7 +443,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
           targetFeed.kg = totalKg;
           targetFeed.note = dataObj.feed_note;
           targetFeed.txt = feedTxt;
-          showToast('تم تعديل شراء العلف بنجاح ✓');
+          expToastMsg = 'تم تعديل شراء العلف بنجاح ✓';
         } else if (targetExp && !targetFeed) {
           targetExp.d = dataObj.d;
           targetExp.amt = amtNum;
@@ -461,7 +462,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
             txt: feedTxt,
             expRefId: targetExp.id
           });
-          showToast('تم تحديث المصروف وتوريد العلف بنجاح ✓');
+          expToastMsg = 'تم تحديث المصروف وتوريد العلف بنجاح ✓';
         } else if (!targetExp && targetFeed) {
           targetFeed.d = dataObj.d;
           targetFeed.type = 'purchased';
@@ -480,7 +481,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
             note: dataObj.feed_note,
             feedRefId: targetFeed.id
           });
-          showToast('تم تحديث شراء العلف والمصروف المالي ✓');
+          expToastMsg = 'تم تحديث شراء العلف والمصروف المالي ✓';
         } else {
           const newExpId = Date.now() + Math.floor(Math.random() * 1000);
           const newFeedId = newExpId + 1;
@@ -503,11 +504,21 @@ function openForm(kind, editIndex = null, prefillData = null) {
             txt: feedTxt,
             expRefId: newExpId
           });
-          showToast('تم تسجيل شراء وتوريد العلف بنجاح ✓');
+          expToastMsg = 'تم تسجيل شراء وتوريد العلف بنجاح ✓';
         }
+
+        if (!isEdit && S.expFilter && S.expFilter !== 'all' && S.expFilter !== dataObj.cat) {
+          S.expFilter = 'all';
+        }
+        if (saveAndNotify(expToastMsg)) {
+          closeM();
+          render();
+        }
+        return;
       } else {
         // Standard expense
         const amtNum = +dataObj.amt;
+        let expToastMsg = '';
         if (isExpKind && isEdit) {
           const targetExp = cycle.exp[editIndex];
           targetExp.d = dataObj.d;
@@ -519,7 +530,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
             if (oldFeedIdx !== -1) cycle.feed.splice(oldFeedIdx, 1);
             delete targetExp.feedRefId;
           }
-          showToast(`تم تعديل مصروف (${targetExp.cat}) بنجاح ✓`);
+          expToastMsg = `تم تعديل مصروف (${targetExp.cat}) بنجاح ✓`;
         } else {
           cycle.exp.push({
             id: Date.now() + Math.floor(Math.random() * 1000),
@@ -528,17 +539,18 @@ function openForm(kind, editIndex = null, prefillData = null) {
             amt: amtNum,
             note: dataObj.note
           });
-          showToast(`تمت إضافة مصروف (${dataObj.cat}) بنجاح ✓`);
+          expToastMsg = `تمت إضافة مصروف (${dataObj.cat}) بنجاح ✓`;
         }
-      }
 
-      if (!isEdit && S.expFilter && S.expFilter !== 'all' && S.expFilter !== dataObj.cat) {
-        S.expFilter = 'all';
+        if (!isEdit && S.expFilter && S.expFilter !== 'all' && S.expFilter !== dataObj.cat) {
+          S.expFilter = 'all';
+        }
+        if (saveAndNotify(expToastMsg)) {
+          closeM();
+          render();
+        }
+        return;
       }
-      saveData();
-      closeM();
-      render();
-      return;
     }
 
     // Kind is inc, dead, or debt
@@ -567,19 +579,21 @@ function openForm(kind, editIndex = null, prefillData = null) {
       syncDebtPaymentsToAmount(o);
     }
 
+    let toastMsg = '';
     if (isEdit) {
       cycle[kind][editIndex] = o;
-      showToast(`تم تعديل ${K[kind].t} بنجاح ✓`);
+      toastMsg = `تم تعديل ${K[kind].t} بنجاح ✓`;
     } else {
       cycle[kind].push(o);
       if (kind === 'inc' && S.incFilter !== 'all' && String(S.incFilter) !== String(o.flockId)) S.incFilter = 'all';
       if (kind === 'debt' && S.debtFilter === 'unpaid') S.debtFilter = 'all';
-      showToast(`تمت إضافة ${K[kind].t} بنجاح ✓`);
+      toastMsg = `تمت إضافة ${K[kind].t} بنجاح ✓`;
     }
 
-    saveData();
-    closeM();
-    render();
+    if (saveAndNotify(toastMsg)) {
+      closeM();
+      render();
+    }
   };
 
   modal.classList.add('on');
@@ -598,7 +612,7 @@ function buildFlockPickerHtml(cycle, selectedFlockId, kind, editIndex) {
       <input type="hidden" id="f_flock" value="${fl.id}">
       <div class="form-hint-banner" style="margin: 8px 0 6px;">
         <span>🐣</span>
-        <span>النوع: <b>${fl.name}</b> (${availWord}: <b>${f(avail)} طائر</b>)</span>
+        <span>النوع: <b>${esc(fl.name)}</b> (${availWord}: <b>${f(avail)} طائر</b>)</span>
       </div>
     `;
   }
@@ -617,7 +631,7 @@ function buildFlockPickerHtml(cycle, selectedFlockId, kind, editIndex) {
             data-flock-id="${fl.id}"
             ${isDisabled ? 'disabled' : ''}
             onclick="selectFlockOption(${fl.id}, '${kind}', ${avail})">
-            <span class="flock-pick-name">🐣 ${fl.name}</span>
+            <span class="flock-pick-name">🐣 ${esc(fl.name)}</span>
             <span class="flock-pick-meta">${avail > 0 ? `${availWord}: ${f(avail)} طائر` : 'لا يوجد متبقي (0)'}</span>
           </button>
         `;
@@ -809,7 +823,7 @@ function openPaymentModal(debtIndex, paymentIndex = null) {
 
     <div class="card" style="margin-bottom: 16px; padding: 14px; background: rgba(0,0,0,0.2);">
       <div style="font-size: 15px; font-weight: 800; color: var(--text-title); margin-bottom: 4px;">
-        ${d.who}
+        ${esc(d.who)}
       </div>
       <div style="font-size: 13px; color: var(--emerald); margin-bottom: 8px;">
         🟢 مستحق لنا عند الغير
@@ -873,10 +887,11 @@ function openPaymentModal(debtIndex, paymentIndex = null) {
 
     syncDebtPaymentsToAmount(d);
 
-    saveData();
-    closeM();
-    showToast(isEditPayment ? `تم تعديل الدفعة إلى ${f(paymentAmt)} ج ✓` : `تم تسجيل سداد مبلغ ${f(paymentAmt)} ج بنجاح ✓`);
-    render();
+    const pMsg = isEditPayment ? `تم تعديل الدفعة إلى ${f(paymentAmt)} ج ✓` : `تم تسجيل سداد مبلغ ${f(paymentAmt)} ج بنجاح ✓`;
+    if (saveAndNotify(pMsg)) {
+      closeM();
+      render();
+    }
   };
 
   modal.classList.add('on');
@@ -901,9 +916,9 @@ function deletePayment(debtIndex, paymentIndex) {
       d.payments.splice(paymentIndex, 1);
       syncDebtPaymentsToAmount(d);
 
-      saveData();
-      showToast('تم إلغاء الدفعة واسترجاع الرصيد بنجاح');
-      render();
+      if (saveAndNotify('تم إلغاء الدفعة واسترجاع الرصيد بنجاح')) {
+        render();
+      }
     }
   });
 }
@@ -924,9 +939,9 @@ function delSale(i) {
     confirmBtnText: 'نعم، حذف حركة البيع نهائياً',
     onConfirm: () => {
       cycle.inc.splice(i, 1);
-      saveData();
-      showToast('تم حذف حركة البيع وتحديث الأرصدة');
-      render();
+      if (saveAndNotify('تم حذف حركة البيع وتحديث الأرصدة')) {
+        render();
+      }
     }
   });
 }
@@ -948,9 +963,9 @@ function delDebt(i) {
     confirmBtnText: 'نعم، احذف نهائياً',
     onConfirm: () => {
       cycle.debt.splice(i, 1);
-      saveData();
-      showToast('تم الحذف بنجاح');
-      render();
+      if (saveAndNotify('تم الحذف بنجاح')) {
+        render();
+      }
     }
   });
 }
@@ -981,9 +996,9 @@ function del(i) {
           if (feedIdx !== -1) cycle.feed.splice(feedIdx, 1);
         }
         cycle.exp.splice(i, 1);
-        saveData();
-        showToast('تم حذف المصروف وتحديث رصيد المخزن بنجاح');
-        render();
+        if (saveAndNotify('تم حذف المصروف وتحديث رصيد المخزن بنجاح')) {
+          render();
+        }
       }
     });
   } else if (kind === 'dead') {
@@ -999,9 +1014,9 @@ function del(i) {
       confirmBtnText: 'نعم، احذف السجل',
       onConfirm: () => {
         cycle.dead.splice(i, 1);
-        saveData();
-        showToast('تم حذف تسجيل النافق واسترجاع الطيور');
-        render();
+        if (saveAndNotify('تم حذف تسجيل النافق واسترجاع الطيور')) {
+          render();
+        }
       }
     });
   } else if (kind === 'feed') {
@@ -1024,9 +1039,9 @@ function del(i) {
           if (expIdx !== -1) cycle.exp.splice(expIdx, 1);
         }
         cycle.feed.splice(i, 1);
-        saveData();
-        showToast('تم حذف حركة العلف وتحديث المصروفات بنجاح');
-        render();
+        if (saveAndNotify('تم حذف حركة العلف وتحديث المصروفات بنجاح')) {
+          render();
+        }
       }
     });
   } else {
@@ -1041,7 +1056,7 @@ function del(i) {
 // CYCLE & MULTI-FLOCK MANAGEMENT (Create, Edit, Add Flock, Delete, Close)
 // ==========================================================================
 function buildFlockRowHtml(idx, flock = {}, isLocked = false, lockCount = 0) {
-  const safeName = String(flock.name || '').replace(/"/g, '&quot;');
+  const safeName = esc(flock.name || '');
   const countVal = flock.count !== undefined && flock.count !== '' ? flock.count : '';
   const costVal = flock.cost !== undefined && flock.cost !== '' ? flock.cost : '';
   const idVal = flock.id || '';
@@ -1196,7 +1211,7 @@ function editCycle() {
     <div id="form_error_container"></div>
 
     <label>اسم الدورة *</label>
-    <input id="edit_nn" value="${c.name || ''}" placeholder="اسم الدورة">
+    <input id="edit_nn" value="${esc(c.name || '')}" placeholder="اسم الدورة">
 
     <label>تاريخ البدء</label>
     <input type="date" id="edit_ns" value="${c.start || today()}">
@@ -1249,24 +1264,26 @@ function editCycle() {
       return;
     }
 
+    const nextStart = ns || c.start;
+    const targetEnd = st === 'closed' ? (c.end || today()) : null;
+    if (targetEnd && nextStart && nextStart > targetEnd) {
+      showFormError(`تاريخ بداية الدورة (${fd(nextStart)}) لا يمكن أن يكون بعد تاريخ إغلاقها (${fd(targetEnd)}).`, 'edit_ns');
+      return;
+    }
+
     const updatedFlocks = collectAndValidateFlockRows(c);
     if (!updatedFlocks) return;
 
     c.name = nn;
-    c.start = ns || c.start;
+    c.start = nextStart;
     c.flocks = updatedFlocks;
     syncCycleCount(c);
+    c.end = targetEnd;
 
-    if (st === 'closed' && !c.end) {
-      c.end = today();
-    } else if (st === 'ongoing') {
-      c.end = null;
+    if (saveAndNotify('تم حفظ تعديلات الدورة بنجاح ✓')) {
+      closeM();
+      render();
     }
-
-    saveData();
-    closeM();
-    showToast('تم حفظ تعديلات الدورة بنجاح ✓');
-    render();
   };
 
   modal.classList.add('on');
@@ -1338,10 +1355,10 @@ function openAddFlockModal() {
     });
     syncCycleCount(c);
 
-    saveData();
-    closeM();
-    showToast(`تمت إضافة نوع "${name}" للدورة بنجاح 🐥`);
-    render();
+    if (saveAndNotify(`تمت إضافة نوع "${name}" للدورة بنجاح 🐥`)) {
+      closeM();
+      render();
+    }
   };
 
   modal.classList.add('on');
@@ -1364,11 +1381,11 @@ function deleteCycle(id) {
       const idx = C.findIndex(x => x.id === id);
       if (idx !== -1) {
         C.splice(idx, 1);
-        saveData();
-        closeM();
-        S.v = 'list';
-        showToast('تم حذف الدورة بنجاح');
-        render();
+        if (saveAndNotify('تم حذف الدورة بنجاح')) {
+          closeM();
+          S.v = 'list';
+          render();
+        }
       }
     }
   });
@@ -1447,12 +1464,12 @@ function newCycle() {
     syncCycleCount(newObj);
 
     C.push(newObj);
-    saveData();
-    closeM();
-    S.v = newObj.id;
-    S.tab = 'exp';
-    showToast('تم إنشاء الدورة الجديدة بنجاح 🐥');
-    render();
+    if (saveAndNotify('تم إنشاء الدورة الجديدة بنجاح 🐥')) {
+      closeM();
+      S.v = newObj.id;
+      S.tab = 'exp';
+      render();
+    }
   };
 
   modal.classList.add('on');
@@ -1461,6 +1478,11 @@ function newCycle() {
 function closeC() {
   const cycle = cur();
   if (!cycle) return;
+
+  if (cycle.start && cycle.start > today()) {
+    showToast('⚠️ لا يمكن إغلاق دورة تاريخ بدايتها في المستقبل!', 3200);
+    return;
+  }
 
   showConfirmModal({
     icon: '🔒',
@@ -1472,9 +1494,9 @@ function closeC() {
     confirmBtnText: 'نعم، إغلاق وقفل الدورة',
     onConfirm: () => {
       cycle.end = today();
-      saveData();
-      showToast('تم إغلاق الدورة بنجاح ✓');
-      render();
+      if (saveAndNotify('تم إغلاق الدورة بنجاح ✓')) {
+        render();
+      }
     }
   });
 }

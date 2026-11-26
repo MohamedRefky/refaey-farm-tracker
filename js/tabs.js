@@ -28,7 +28,7 @@ function renderSalesTab(c, k) {
           const count = arr.filter(x => x.flockId === fl.id).length;
           return `
             <button class="filter-chip ${activeFilter === fl.id ? 'active' : ''}" onclick="S.incFilter=${fl.id}; render()">
-              🐣 ${fl.name} (${count})
+              🐣 ${esc(fl.name)} (${count})
             </button>
           `;
         }).join('')}
@@ -52,8 +52,8 @@ function renderSalesTab(c, k) {
             <div class="record-clean-top">
               <div class="record-main">
                 <div class="record-title">
-                  <span class="record-cat-badge">🐣 ${typeName}</span>
-                  <span>بيع ${f(e.cnt)} طائر${e.buyer ? ' • ' + e.buyer : ''}</span>
+                  <span class="record-cat-badge">🐣 ${esc(typeName)}</span>
+                  <span>بيع ${f(e.cnt)} طائر${e.buyer ? ' • ' + esc(e.buyer) : ''}</span>
                 </div>
                 <div class="record-date">${fds(e.d)}${e.cnt ? ` • متوسط ${f(total / e.cnt)} ج/طائر` : ''}</div>
               </div>
@@ -139,7 +139,7 @@ function renderExpensesTab(c, k) {
               <div class="record-main">
                 <div class="record-title">
                   <span>${icon}</span>
-                  <span>${label}</span>
+                  <span>${esc(label)}</span>
                 </div>
                 <div class="record-date">${fds(e.d)}${subInfo}</div>
               </div>
@@ -199,10 +199,10 @@ function renderDebtTab(c, k) {
               <div class="record-main">
                 <div class="record-title">
                   <span>📝</span>
-                  <span>${e.who}</span>
+                  <span>${esc(e.who)}</span>
                 </div>
                 <div class="record-date">
-                  ${fds(e.d)}${e.note ? ' • ' + e.note : ''} •
+                  ${fds(e.d)}${e.note ? ' • ' + esc(e.note) : ''} •
                   <b class="${isPaid ? 'color-emerald' : 'color-amber'}">
                     ${isPaid ? 'تم التحصيل ✓' : (isPartial ? `باقي ${f(remaining)} ج` : 'متبقي بالكامل')}
                   </b>
@@ -233,7 +233,7 @@ function renderDebtTab(c, k) {
                 ${payments.map((p, pIdx) => `
                   <div class="payment-history-item">
                     <div>
-                      <b>${fds(p.d)}</b>: تحصيل <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${p.note})` : ''}
+                      <b>${fds(p.d)}</b>: تحصيل <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${esc(p.note)})` : ''}
                     </div>
                     <div class="record-icon-actions">
                       <button class="labeled-action-btn" onclick="openPaymentModal(${i}, ${pIdx})" style="padding: 3px 8px; font-size: 11px;">✏️ تعديل</button>
@@ -276,7 +276,7 @@ function renderDeadTab(c, k) {
             <div class="record-clean-top">
               <div class="record-main">
                 <div class="record-title">
-                  <span class="record-cat-badge">🐣 ${typeName}</span>
+                  <span class="record-cat-badge">🐣 ${esc(typeName)}</span>
                   <span>نفوق ${f(e.n)} طائر</span>
                 </div>
                 <div class="record-date">${fds(e.d)}</div>

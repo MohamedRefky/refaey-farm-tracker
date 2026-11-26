@@ -175,8 +175,8 @@ function bars(items, fmt) {
   return items.map(x => `
     <div class="chart-row">
       <div class="chart-header">
-        <span>${x.n}</span>
-        <span class="num ${x.cls || ''}">${fmt(x)}</span>
+        <span>${esc(x.n)}</span>
+        <span class="num ${x.cls || ''}">${esc(fmt(x))}</span>
       </div>
       <div class="bar-track">
         <div class="bar-segment" style="width: ${Math.max(2, (Math.abs(x.v) / m) * 100)}%; background: ${x.c};"></div>
