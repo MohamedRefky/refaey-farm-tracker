@@ -107,6 +107,39 @@ function allFlockNames() {
   return names;
 }
 
+// Keeps debt payments list, paidAmt, and paid status strictly consistent with total amt
+function syncDebtPaymentsToAmount(debtObj) {
+  if (!debtObj) return debtObj;
+  const totalAmt = Math.max(0, +debtObj.amt || 0);
+  debtObj.amt = totalAmt;
+
+  if (Array.isArray(debtObj.payments) && debtObj.payments.length > 0) {
+    let payments = debtObj.payments
+      .map(p => ({ ...p, amt: Math.max(0, +p.amt || 0) }))
+      .filter(p => p.amt > 0);
+    let sumPayments = payments.reduce((s, p) => s + p.amt, 0);
+
+    if (sumPayments > totalAmt) {
+      let excess = sumPayments - totalAmt;
+      for (let idx = payments.length - 1; idx >= 0 && excess > 0; idx--) {
+        const cut = Math.min(payments[idx].amt, excess);
+        payments[idx].amt -= cut;
+        excess -= cut;
+      }
+      payments = payments.filter(p => p.amt > 0);
+    }
+
+    debtObj.payments = payments;
+    debtObj.paidAmt = payments.reduce((s, p) => s + p.amt, 0);
+  } else {
+    debtObj.payments = [];
+    debtObj.paidAmt = Math.min(totalAmt, Math.max(0, +(debtObj.paidAmt || 0)));
+  }
+
+  debtObj.paid = debtObj.paidAmt >= totalAmt;
+  return debtObj;
+}
+
 function normalizeData(cycles) {
   if (!Array.isArray(cycles)) return [];
   cycles.forEach(c => {
@@ -182,15 +215,14 @@ function normalizeData(cycles) {
     c.debt = (c.debt || []).map((d, i) => {
       const amt = +d.amt || 0;
       const paidAmt = d.paidAmt !== undefined ? +d.paidAmt : (d.paid ? amt : 0);
-      return {
+      return syncDebtPaymentsToAmount({
         ...d,
         id: d.id || Date.now() + i,
         dir: 'لنا',
         amt,
         paidAmt,
-        paid: paidAmt >= amt,
         payments: Array.isArray(d.payments) ? d.payments : []
-      };
+      });
     });
   });
   return cycles;

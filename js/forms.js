@@ -558,10 +558,10 @@ function openForm(kind, editIndex = null, prefillData = null) {
       o.dir = 'لنا';
       o.who = dataObj.who;
       o.amt = +dataObj.amt;
-      o.paidAmt = isEdit ? Math.min(o.amt, +(existing.paidAmt || 0)) : 0;
-      o.paid = o.paidAmt >= o.amt;
+      o.paidAmt = isEdit ? +(existing.paidAmt || 0) : 0;
       delete o.note;
-      o.payments = isEdit && existing.payments ? existing.payments : [];
+      o.payments = isEdit && Array.isArray(existing.payments) ? existing.payments.map(p => ({ ...p })) : [];
+      syncDebtPaymentsToAmount(o);
     }
 
     if (isEdit) {
@@ -777,20 +777,26 @@ function clearDebtAmountHint() {
 // ==========================================================================
 // DEBT PARTIAL / FULL PAYMENT MODAL
 // ==========================================================================
-function openPaymentModal(debtIndex) {
+function openPaymentModal(debtIndex, paymentIndex = null) {
   const cycle = cur();
   if (!cycle || !cycle.debt || !cycle.debt[debtIndex]) return;
   const d = cycle.debt[debtIndex];
   const { m: modal, fm: formEl } = ensureModalElements();
   if (!modal || !formEl) return;
 
+  const isEditPayment = paymentIndex !== null && d.payments && d.payments[paymentIndex];
+  const existingPayment = isEditPayment ? d.payments[paymentIndex] : null;
+
   const total = +d.amt || 0;
   const paid = +d.paidAmt || (d.paid ? total : 0);
   const remaining = Math.max(0, total - paid);
+  const maxAllowed = isEditPayment ? (remaining + (+existingPayment.amt || 0)) : remaining;
+  const dateVal = isEditPayment && existingPayment.d ? existingPayment.d : today();
+  const amtVal = isEditPayment ? existingPayment.amt : '';
 
   formEl.innerHTML = `
     <div class="form-header">
-      <div class="form-title">تسجيل تحصيل / دفعة 💵</div>
+      <div class="form-title">${isEditPayment ? 'تعديل دفعة التحصيل ✏️' : 'تسجيل تحصيل / دفعة 💵'}</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
 
@@ -805,25 +811,27 @@ function openPaymentModal(debtIndex) {
       </div>
       <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-subtle); padding-top: 8px;">
         <span>الإجمالي: <b>${f(total)} ج</b></span>
-        <span>المحصل سابقاً: <b style="color:var(--emerald);">${f(paid)} ج</b></span>
+        <span>المحصل: <b style="color:var(--emerald);">${f(paid)} ج</b></span>
         <span>المتبقي: <b style="color:var(--amber); font-size:16px;">${f(remaining)} ج</b></span>
       </div>
     </div>
 
     <label>تاريخ السداد</label>
-    <input type="date" id="p_d" value="${today()}">
+    <input type="date" id="p_d" value="${dateVal}">
 
-    <label>المبلغ المسدد الآن (جنيه) *</label>
-    <input type="number" id="p_amt" inputmode="decimal" step="any" placeholder="المبلغ المدفوع بالجنيه">
+    <label>${isEditPayment ? 'مبلغ الدفعة الجديد (جنيه) *' : 'المبلغ المسدد الآن (جنيه) *'}</label>
+    <input type="number" id="p_amt" inputmode="decimal" step="any" value="${amtVal}" placeholder="المبلغ المدفوع بالجنيه">
 
-    <div class="quick-fill-row">
-      <button type="button" class="quick-fill-btn" onclick="document.getElementById('p_amt').value = ${remaining};">
-        ⚡ سداد كامل المبلغ المتبقي (${f(remaining)} ج)
-      </button>
-    </div>
+    ${maxAllowed > 0 ? `
+      <div class="quick-fill-row">
+        <button type="button" class="quick-fill-btn" onclick="document.getElementById('p_amt').value = ${maxAllowed};">
+          ⚡ سداد كامل المتاح (${f(maxAllowed)} ج)
+        </button>
+      </div>
+    ` : ''}
 
     <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">تسجيل السداد والحفظ</button>
+      <button class="btn btn-primary" style="flex: 2;" type="submit">${isEditPayment ? 'حفظ تعديل الدفعة' : 'تسجيل السداد والحفظ'}</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
   `;
@@ -836,30 +844,33 @@ function openPaymentModal(debtIndex) {
     const pDVal = document.getElementById('p_d').value || today();
 
     if (!pAmtVal || isNaN(pAmtVal) || +pAmtVal <= 0) {
-      showFormError('يرجى إدخال مبلغ سداد صحيح أكبر من الصفر.', 'p_amt');
+      showFormError('يرجى إدخال مبلغ صحيح أكبر من الصفر.', 'p_amt');
       return;
     }
 
     const paymentAmt = +pAmtVal;
-    if (paymentAmt > remaining) {
-      showFormError(`عفواً، مبلغ السداد (${f(paymentAmt)} ج) أكبر من المبلغ المتبقي المطلوب (${f(remaining)} ج).`, 'p_amt');
+    if (paymentAmt > maxAllowed) {
+      showFormError(`عفواً، المبلغ (${f(paymentAmt)} ج) أكبر من الحد المسموح (${f(maxAllowed)} ج).`, 'p_amt');
       return;
     }
 
-    // Record payment
     d.payments = d.payments || [];
-    d.payments.push({
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      d: pDVal,
-      amt: paymentAmt
-    });
+    if (isEditPayment) {
+      d.payments[paymentIndex].d = pDVal;
+      d.payments[paymentIndex].amt = paymentAmt;
+    } else {
+      d.payments.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        d: pDVal,
+        amt: paymentAmt
+      });
+    }
 
-    d.paidAmt = (d.paidAmt || 0) + paymentAmt;
-    d.paid = d.paidAmt >= d.amt;
+    syncDebtPaymentsToAmount(d);
 
     saveData();
     closeM();
-    showToast(`تم تسجيل سداد مبلغ ${f(paymentAmt)} ج بنجاح ✓`);
+    showToast(isEditPayment ? `تم تعديل الدفعة إلى ${f(paymentAmt)} ج ✓` : `تم تسجيل سداد مبلغ ${f(paymentAmt)} ج بنجاح ✓`);
     render();
   };
 
@@ -882,9 +893,8 @@ function deletePayment(debtIndex, paymentIndex) {
     itemMeta: `تاريخ السداد: ${fd(payment.d)} ${payment.note ? '• البيان: ' + payment.note : ''}`,
     confirmBtnText: 'نعم، إلغاء الدفعة واسترجاع الرصيد',
     onConfirm: () => {
-      d.paidAmt = Math.max(0, (d.paidAmt || 0) - payment.amt);
-      d.paid = d.paidAmt >= d.amt;
       d.payments.splice(paymentIndex, 1);
+      syncDebtPaymentsToAmount(d);
 
       saveData();
       showToast('تم إلغاء الدفعة واسترجاع الرصيد بنجاح');

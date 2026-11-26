@@ -231,7 +231,10 @@ function renderDebtTab(c, k) {
                     <div>
                       <b>${fds(p.d)}</b>: تحصيل <span class="num color-emerald">${f(p.amt)} ج</span> ${p.note ? `(${p.note})` : ''}
                     </div>
-                    <button class="labeled-action-btn danger" onclick="deletePayment(${i}, ${pIdx})" style="padding: 3px 8px; font-size: 11px;">🗑️ إلغاء</button>
+                    <div class="record-icon-actions">
+                      <button class="labeled-action-btn" onclick="openPaymentModal(${i}, ${pIdx})" style="padding: 3px 8px; font-size: 11px;">✏️ تعديل</button>
+                      <button class="labeled-action-btn danger" onclick="deletePayment(${i}, ${pIdx})" style="padding: 3px 8px; font-size: 11px;">🗑️ إلغاء</button>
+                    </div>
                   </div>
                 `).join('')}
               </div>
