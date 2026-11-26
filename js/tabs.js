@@ -309,9 +309,9 @@ function renderGenericTab(c, k) {
           <span class="quick-action-icon">🔥</span>
           <span>+ غاز</span>
         </button>
-        <button class="quick-action-btn" onclick="openExpenseWithCat('أخرى')" title="تسجيل مصاريف أخرى">
+        <button class="quick-action-btn" onclick="openExpenseWithCat('مصاريف أخرى')" title="تسجيل مصاريف أخرى">
           <span class="quick-action-icon">📦</span>
-          <span>+ أخرى</span>
+          <span>+ مصاريف أخرى</span>
         </button>
       </div>
     ` : `

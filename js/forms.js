@@ -252,7 +252,8 @@ function openForm(kind, editIndex = null, prefillData = null) {
     // Normalize to 5 standard categories
     if (catVal === 'أدوية وتحصينات' || catVal === 'بيطري' || catVal === 'أدوية') catVal = 'دواء';
     else if (catVal === 'كهرباء وغاز' || catVal === 'تدفئة' || catVal === 'كهرباء') catVal = 'غاز';
-    else if (!['علف', 'كتاكيت', 'دواء', 'غاز', 'أخرى'].includes(catVal)) catVal = 'أخرى';
+    else if (catVal === 'أخرى' || catVal === 'مصاريف أخرى') catVal = 'مصاريف أخرى';
+    else if (!['علف', 'كتاكيت', 'دواء', 'غاز', 'مصاريف أخرى'].includes(catVal)) catVal = 'مصاريف أخرى';
 
     const amtVal = isEdit ? (existing && existing.amt !== undefined ? existing.amt : (linkedRef ? linkedRef.amt : '')) : '';
     const feedUnitVal = (linkedRef && linkedRef.unit) || (existing && existing.unit) || 'شكارة';
@@ -279,9 +280,9 @@ function openForm(kind, editIndex = null, prefillData = null) {
           <span class="expense-cat-icon">🔥</span>
           <span>غاز</span>
         </button>
-        <button type="button" class="expense-cat-btn ${catVal === 'أخرى' ? 'active' : ''}" data-cat="أخرى" onclick="selectExpenseCat('أخرى')">
+        <button type="button" class="expense-cat-btn ${catVal === 'مصاريف أخرى' ? 'active' : ''}" data-cat="مصاريف أخرى" onclick="selectExpenseCat('مصاريف أخرى')">
           <span class="expense-cat-icon">📦</span>
-          <span>أخرى</span>
+          <span>مصاريف أخرى</span>
         </button>
       </div>
       <input type="hidden" id="f_cat" value="${catVal}">

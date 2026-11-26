@@ -3,7 +3,7 @@
  */
 
 // Available expense categories
-const cats = ['علف', 'كتاكيت', 'دواء', 'غاز', 'أخرى'];
+const cats = ['علف', 'كتاكيت', 'دواء', 'غاز', 'مصاريف أخرى'];
 
 // Default sample data for demo/new users
 const initialCycles = [
@@ -18,7 +18,7 @@ const initialCycles = [
       { id: 10, d: '2026-08-05', cat: 'علف', amt: 22000, note: '30 شكارة (بادي 23%)', feedRefId: 11 },
       { id: 3, d: '2026-08-20', cat: 'دواء', amt: 3500, note: 'تحصينات واستقبال' },
       { id: 20, d: '2026-08-25', cat: 'علف', amt: 26000, note: '34 شكارة (نامي 21%)', feedRefId: 13 },
-      { id: 5, d: '2026-09-01', cat: 'أخرى', amt: 4000, note: 'يوميات وعمالة' }
+      { id: 5, d: '2026-09-01', cat: 'مصاريف أخرى', amt: 4000, note: 'يوميات وعمالة' }
     ],
     inc: [
       { id: 1, d: '2026-09-08', cnt: 480, kg: 960, amt: 43200, paidAmt: 43200, buyer: 'تاجر الأحد' },
@@ -92,7 +92,7 @@ function normalizeData(cycles) {
       if (cat === 'أدوية وتحصينات' || cat === 'بيطري' || cat === 'أدوية') cat = 'دواء';
       else if (cat === 'كهرباء وغاز' || cat === 'تدفئة' || cat === 'كهرباء') cat = 'غاز';
       else if (cat === 'علف' || cat === 'كتاكيت' || cat === 'دواء' || cat === 'غاز') { /* keep */ }
-      else cat = 'أخرى';
+      else cat = 'مصاريف أخرى';
       return { ...e, cat };
     });
     c.dead = c.dead || [];
