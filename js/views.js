@@ -125,6 +125,8 @@ function openCycle(id) {
   S.v = id;
   S.summary = false;
   S.editCycle = false;
+  S.restock = false;
+  S.restockFlockId = null;
   S.tab = 'exp';
   S.expFilter = 'all';
   S.incFilter = 'all';
@@ -142,11 +144,16 @@ function detail(a) {
     S.v = 'list';
     S.summary = false;
     S.editCycle = false;
+    S.restock = false;
+    S.restockFlockId = null;
     return list(a);
   }
   const k = calc(c);
   if (S.editCycle) {
     return editCyclePage(a, c);
+  }
+  if (S.restock) {
+    return restockPage(a, c);
   }
   if (S.summary) {
     return summaryPage(a, c, k);
@@ -159,7 +166,7 @@ function detail(a) {
   let h = `
     <!-- Top Nav with Summary & Edit Support -->
     <div class="detail-top-nav">
-      <button class="back-btn" onclick="S.v='list'; S.summary=false; S.editCycle=false; render()">
+      <button class="back-btn" onclick="S.v='list'; S.summary=false; S.editCycle=false; S.restock=false; S.restockFlockId=null; render()">
         <span>→</span> <span class="nav-text">الدورات</span>
       </button>
       <div class="detail-nav-actions">
@@ -405,6 +412,9 @@ function toggleFlockDetails(id) {
 }
 
 function openCycleSummary() {
+  S.editCycle = false;
+  S.restock = false;
+  S.restockFlockId = null;
   S.summary = true;
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -1245,6 +1245,8 @@ function collectAndValidateFlockRows(cycleForEdit = null, cycleStartDate = null)
 
 function editCycle() {
   S.summary = false;
+  S.restock = false;
+  S.restockFlockId = null;
   S.editCycle = true;
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1361,182 +1363,216 @@ function editCyclePage(a, c) {
   }
 }
 
-// Unified Restock Modal: add chicks to an existing type OR add a brand-new type
+// Full-page Add / Restock Chicks View: add chicks to an existing type OR add a brand-new type
 // with explicit Yes/No selection on whether past expenses apply to this new batch.
 function openAddFlockModal() {
   openRestockModal(null);
 }
 
 function openRestockModal(preselectedFlockId = null) {
-  const c = cur();
-  if (!c) return;
+  closeM();
+  S.summary = false;
+  S.editCycle = false;
+  S.restock = true;
+  S.restockFlockId = preselectedFlockId;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeRestockPage() {
+  S.restock = false;
+  S.restockFlockId = null;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function restockPage(a, c) {
+  if (!a || !c) return;
+  const preselectedFlockId = S.restockFlockId;
   const flocks = c.flocks || [];
   const k = calc(c);
   const hasOldExp = (c.exp || []).length > 0 && k.otherExp > 0;
-  const { m: modal, fm: formEl } = ensureModalElements();
-  if (!modal || !formEl) return;
 
-  const initialMode = (preselectedFlockId !== null || flocks.length > 0) && preselectedFlockId !== null ? 'existing' : (flocks.length > 0 ? 'existing' : 'new');
-  const defaultExistingId = preselectedFlockId !== null ? preselectedFlockId : (flocks.length === 1 ? flocks[0].id : '');
+  const initialMode = preselectedFlockId !== null
+    ? 'existing'
+    : (flocks.length > 0 ? 'existing' : 'new');
+  const defaultExistingId = preselectedFlockId !== null
+    ? preselectedFlockId
+    : (flocks.length === 1 ? flocks[0].id : '');
 
-  formEl.innerHTML = `
-    <div class="form-header">
-      <div class="form-title">إضافة كتاكيت جديدة للدورة 🐣</div>
-      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+  a.innerHTML = `
+    <div class="detail-top-nav">
+      <button class="back-btn" onclick="closeRestockPage()">
+        <span>→</span> <span>رجوع للدورة</span>
+      </button>
+      <span class="badge ${!c.end ? 'badge-active' : 'badge-closed'}">
+        ${!c.end ? 'شغالة الآن' : 'مكتملة'}
+      </span>
     </div>
 
-    <div id="form_error_container"></div>
+    <div class="card">
+      <form id="restock_form" autocomplete="off">
+        <div class="form-header">
+          <div class="form-title">إضافة كتاكيت جديدة للدورة 🐣</div>
+        </div>
 
-    ${flocks.length > 0 ? `
-      <input type="hidden" id="rs_mode" value="${initialMode}">
-      <div class="restock-mode-tabs">
-        <button type="button" class="restock-mode-btn ${initialMode === 'existing' ? 'active' : ''}" data-mode="existing" onclick="switchRestockMode('existing')">
-          <span>➕ زيادة على نوع موجود</span>
-        </button>
-        <button type="button" class="restock-mode-btn ${initialMode === 'new' ? 'active' : ''}" data-mode="new" onclick="switchRestockMode('new')">
-          <span>🐣 نوع جديد مختلف</span>
-        </button>
-      </div>
-    ` : `<input type="hidden" id="rs_mode" value="new">`}
+        <div id="form_error_container"></div>
 
-    <div id="rs_existing_section" style="display: ${initialMode === 'existing' ? 'block' : 'none'};">
-      <label>اختر النوع اللي هتزود عليه *</label>
-      <input type="hidden" id="rs_flock_id" value="${defaultExistingId}">
-      <div class="flock-picker-grid">
-        ${flocks.map(fl => {
-          const avail = flockAvailability(c, fl.id, 'inc', null);
-          const isActive = String(defaultExistingId) === String(fl.id);
-          return `
-            <button type="button" class="flock-pick-btn rs-flock-btn ${isActive ? 'active' : ''}" data-flock-id="${fl.id}" onclick="selectRestockFlock(${fl.id})">
-              <span class="flock-pick-name">🐣 ${esc(fl.name)}</span>
-              <span class="flock-pick-meta">متبقي حالياً: ${f(avail)} طائر</span>
+        ${flocks.length > 0 ? `
+          <input type="hidden" id="rs_mode" value="${initialMode}">
+          <div class="restock-mode-tabs">
+            <button type="button" class="restock-mode-btn ${initialMode === 'existing' ? 'active' : ''}" data-mode="existing" onclick="switchRestockMode('existing')">
+              <span>➕ زيادة على نوع موجود</span>
             </button>
-          `;
-        }).join('')}
-      </div>
-    </div>
+            <button type="button" class="restock-mode-btn ${initialMode === 'new' ? 'active' : ''}" data-mode="new" onclick="switchRestockMode('new')">
+              <span>🐣 نوع جديد مختلف</span>
+            </button>
+          </div>
+        ` : `<input type="hidden" id="rs_mode" value="new">`}
 
-    <div id="rs_new_section" style="display: ${initialMode === 'new' ? 'block' : 'none'};">
-      <label>اسم النوع الجديد (كتابة باليد) *</label>
-      <input id="rs_new_name" type="text" placeholder="اكتب اسم النوع هنا...">
-    </div>
+        <div id="rs_existing_section" style="display: ${initialMode === 'existing' ? 'block' : 'none'};">
+          <label>اختر النوع اللي هتزود عليه *</label>
+          <input type="hidden" id="rs_flock_id" value="${defaultExistingId}">
+          <div class="flock-picker-grid">
+            ${flocks.map(fl => {
+              const avail = flockAvailability(c, fl.id, 'inc', null);
+              const isActive = String(defaultExistingId) === String(fl.id);
+              return `
+                <button type="button" class="flock-pick-btn rs-flock-btn ${isActive ? 'active' : ''}" data-flock-id="${fl.id}" onclick="selectRestockFlock(${fl.id})">
+                  <span class="flock-pick-name">🐣 ${esc(fl.name)}</span>
+                  <span class="flock-pick-meta">متبقي حالياً: ${f(avail)} طائر</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
 
-    <div class="flock-row-inputs-grid" style="margin-top: 6px;">
-      <div>
-        <label>العدد الجديد (طائر) *</label>
-        <input id="rs_count" type="number" inputmode="numeric" placeholder="مثلاً: 100">
-      </div>
-      <div>
-        <label>ثمن الكتاكيت الجديدة (ج) *</label>
-        <input id="rs_cost" type="number" inputmode="decimal" step="any" placeholder="مثلاً: 1200">
-      </div>
-    </div>
+        <div id="rs_new_section" style="display: ${initialMode === 'new' ? 'block' : 'none'};">
+          <label>اسم النوع الجديد (كتابة باليد) *</label>
+          <input id="rs_new_name" type="text" placeholder="اكتب اسم النوع هنا...">
+        </div>
 
-    <label>تاريخ استلام الدفعة (للعلم)</label>
-    <input type="date" id="rs_d" value="${today()}">
+        <div class="flock-row-inputs-grid" style="margin-top: 6px;">
+          <div>
+            <label>العدد الجديد (طائر) *</label>
+            <input id="rs_count" type="number" inputmode="numeric" placeholder="مثلاً: 100">
+          </div>
+          <div>
+            <label>ثمن الكتاكيت الجديدة (ج) *</label>
+            <input id="rs_cost" type="number" inputmode="decimal" step="any" placeholder="مثلاً: 1200">
+          </div>
+        </div>
 
-    ${hasOldExp ? `
-      <label style="margin-top: 14px;">المصاريف اللي اتصرفت قبل دلوقتي (${f(k.otherExp)} ج) تتحسب على الكتاكيت الجديدة دي كمان؟ *</label>
-      <input type="hidden" id="rs_include_old" value="">
-      <div class="restock-choice-list">
-        <button type="button" class="restock-choice-btn" data-val="no" onclick="selectRestockOldExp('no')">
-          <span class="restock-choice-title">🟢 لا — احسب عليهم المصاريف الجديدة اللي جاية بس</span>
-          <span class="restock-choice-desc">الأكل والمصاريف القديمة كانت للطيور الموجودة قبل كده، والجداد دول يتحسبوا في المصاريف الجاية بس.</span>
-        </button>
-        <button type="button" class="restock-choice-btn" data-val="yes" onclick="selectRestockOldExp('yes')">
-          <span class="restock-choice-title">🔵 أيوة — احسب عليهم من المصاريف القديمة كمان</span>
-          <span class="restock-choice-desc">لسه فيه علف وأكل موجود في المزرعة من قبل كده، والكتاكيت الجديدة دي هتاكل منه معاهم.</span>
-        </button>
-      </div>
-    ` : `<input type="hidden" id="rs_include_old" value="no">`}
+        <label>تاريخ استلام الدفعة (للعلم)</label>
+        <input type="date" id="rs_d" value="${today()}">
 
-    <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">إضافة وحفظ</button>
-      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
+        ${hasOldExp ? `
+          <label style="margin-top: 14px;">المصاريف اللي اتصرفت قبل دلوقتي (${f(k.otherExp)} ج) تتحسب على الكتاكيت الجديدة دي كمان؟ *</label>
+          <input type="hidden" id="rs_include_old" value="">
+          <div class="restock-choice-list">
+            <button type="button" class="restock-choice-btn" data-val="no" onclick="selectRestockOldExp('no')">
+              <span class="restock-choice-title">🟢 لا — احسب عليهم المصاريف الجديدة اللي جاية بس</span>
+              <span class="restock-choice-desc">الأكل والمصاريف القديمة كانت للطيور الموجودة قبل كده، والجداد دول يتحسبوا في المصاريف الجاية بس.</span>
+            </button>
+            <button type="button" class="restock-choice-btn" data-val="yes" onclick="selectRestockOldExp('yes')">
+              <span class="restock-choice-title">🔵 أيوة — احسب عليهم من المصاريف القديمة كمان</span>
+              <span class="restock-choice-desc">لسه فيه علف وأكل موجود في المزرعة من قبل كده، والكتاكيت الجديدة دي هتاكل منه معاهم.</span>
+            </button>
+          </div>
+        ` : `<input type="hidden" id="rs_include_old" value="no">`}
+
+        <div class="form-actions-row">
+          <button class="btn btn-primary" style="flex: 2;" type="submit">إضافة وحفظ</button>
+          <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeRestockPage()">إلغاء</button>
+        </div>
+      </form>
     </div>
   `;
 
-  formEl.onsubmit = ev => {
-    ev.preventDefault();
-    clearFormErrors();
+  const restockFormEl = document.getElementById('restock_form');
+  if (restockFormEl) {
+    restockFormEl.onsubmit = ev => {
+      ev.preventDefault();
+      clearFormErrors();
 
-    const mode = document.getElementById('rs_mode').value;
-    const countStr = document.getElementById('rs_count').value.trim();
-    const costStr = document.getElementById('rs_cost').value.trim();
-    const dVal = document.getElementById('rs_d').value || today();
-    const includeOldChoice = document.getElementById('rs_include_old').value;
+      const mode = document.getElementById('rs_mode').value;
+      const countStr = document.getElementById('rs_count').value.trim();
+      const costStr = document.getElementById('rs_cost').value.trim();
+      const dVal = document.getElementById('rs_d').value || today();
+      const includeOldChoice = document.getElementById('rs_include_old').value;
 
-    let targetFlock = null;
-    let newName = '';
-    if (mode === 'existing') {
-      const fId = +document.getElementById('rs_flock_id').value;
-      targetFlock = (c.flocks || []).find(fl => fl.id === fId);
-      if (!targetFlock) {
-        showFormError('يرجى اختيار نوع الفراخ اللي هتزود عليه أولاً.', null);
+      let targetFlock = null;
+      let newName = '';
+      if (mode === 'existing') {
+        const fId = +document.getElementById('rs_flock_id').value;
+        targetFlock = (c.flocks || []).find(fl => fl.id === fId);
+        if (!targetFlock) {
+          showFormError('يرجى اختيار نوع الفراخ اللي هتزود عليه أولاً.', null);
+          return;
+        }
+      } else {
+        newName = document.getElementById('rs_new_name').value.trim();
+        if (!newName) {
+          showFormError('يرجى كتابة اسم النوع الجديد.', 'rs_new_name');
+          return;
+        }
+      }
+
+      if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
+        showFormError('يرجى إدخال عدد صحيح أكبر من الصفر (بدون كسور).', 'rs_count');
         return;
       }
-    } else {
-      newName = document.getElementById('rs_new_name').value.trim();
-      if (!newName) {
-        showFormError('يرجى كتابة اسم النوع الجديد.', 'rs_new_name');
+      if (costStr === '' || isNaN(costStr) || +costStr < 0) {
+        showFormError('يرجى إدخال ثمن الكتاكيت الجديدة (0 أو أكبر).', 'rs_cost');
         return;
       }
-    }
+      if (hasOldExp && includeOldChoice !== 'yes' && includeOldChoice !== 'no') {
+        showFormError('يرجى اختيار "أيوة" أو "لا" بخصوص حساب المصاريف القديمة على الكتاكيت الجديدة.', null);
+        return;
+      }
 
-    if (!countStr || isNaN(countStr) || +countStr <= 0 || !Number.isInteger(+countStr)) {
-      showFormError('يرجى إدخال عدد صحيح أكبر من الصفر (بدون كسور).', 'rs_count');
-      return;
-    }
-    if (costStr === '' || isNaN(costStr) || +costStr < 0) {
-      showFormError('يرجى إدخال ثمن الكتاكيت الجديدة (0 أو أكبر).', 'rs_cost');
-      return;
-    }
-    if (hasOldExp && includeOldChoice !== 'yes' && includeOldChoice !== 'no') {
-      showFormError('يرجى اختيار "أيوة" أو "لا" بخصوص حساب المصاريف القديمة على الكتاكيت الجديدة.', null);
-      return;
-    }
-
-    const batchSeq = nextCycleSeq(c);
-    const newBatch = {
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      d: dVal,
-      count: +countStr,
-      cost: +costStr,
-      seq: batchSeq,
-      includeOld: includeOldChoice === 'yes'
-    };
-
-    if (mode === 'existing') {
-      targetFlock.batches = Array.isArray(targetFlock.batches) ? targetFlock.batches : [];
-      targetFlock.batches.push(newBatch);
-      syncFlockFromBatches(targetFlock);
-      S.openFlocks[targetFlock.id] = true;
-    } else {
-      c.flocks = c.flocks || [];
-      const maxFlockId = c.flocks.reduce((m, fl) => Math.max(m, +fl.id || 0), 0);
-      const createdFlock = syncFlockFromBatches({
-        id: Math.max(Date.now(), maxFlockId) + 1,
-        name: newName,
+      const batchSeq = nextCycleSeq(c);
+      const newBatch = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        d: dVal,
         count: +countStr,
         cost: +costStr,
-        batches: [newBatch]
-      });
-      c.flocks.push(createdFlock);
-      targetFlock = createdFlock;
-    }
+        seq: batchSeq,
+        includeOld: includeOldChoice === 'yes'
+      };
 
-    syncCycleCount(c);
-    const toastMsg = mode === 'existing'
-      ? `تمت إضافة ${f(+countStr)} طائر على "${targetFlock.name}" بنجاح 🐥`
-      : `تمت إضافة نوع "${targetFlock.name}" للدورة بنجاح 🐥`;
+      if (mode === 'existing') {
+        targetFlock.batches = Array.isArray(targetFlock.batches) ? targetFlock.batches : [];
+        targetFlock.batches.push(newBatch);
+        syncFlockFromBatches(targetFlock);
+        S.openFlocks[targetFlock.id] = true;
+      } else {
+        c.flocks = c.flocks || [];
+        const maxFlockId = c.flocks.reduce((m, fl) => Math.max(m, +fl.id || 0), 0);
+        const createdFlock = syncFlockFromBatches({
+          id: Math.max(Date.now(), maxFlockId) + 1,
+          name: newName,
+          count: +countStr,
+          cost: +costStr,
+          batches: [newBatch]
+        });
+        c.flocks.push(createdFlock);
+        targetFlock = createdFlock;
+      }
 
-    if (saveAndNotify(toastMsg)) {
-      closeM();
-      render();
-    }
-  };
+      syncCycleCount(c);
+      const toastMsg = mode === 'existing'
+        ? `تمت إضافة ${f(+countStr)} طائر على "${targetFlock.name}" بنجاح 🐥`
+        : `تمت إضافة نوع "${targetFlock.name}" للدورة بنجاح 🐥`;
 
-  modal.classList.add('on');
+      if (saveAndNotify(toastMsg)) {
+        S.restock = false;
+        S.restockFlockId = null;
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+  }
 }
 
 function switchRestockMode(mode) {
@@ -1840,6 +1876,8 @@ function deleteCycle(id) {
         if (saveAndNotify('تم حذف الدورة بنجاح')) {
           closeM();
           S.editCycle = false;
+          S.restock = false;
+          S.restockFlockId = null;
           S.summary = false;
           S.v = 'list';
           render();

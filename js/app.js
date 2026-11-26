@@ -8,6 +8,8 @@ let S = {
   v: 'list',          // 'list' for all cycles or cycle ID
   summary: false,     // dedicated full-page cycle summary view
   editCycle: false,   // dedicated full-page cycle edit view
+  restock: false,     // dedicated full-page add/restock chicks view
+  restockFlockId: null, // optional preselected flock id when restocking
   tab: 'exp',         // 'exp', 'inc', 'dead', 'debt'
   expFilter: 'all',   // 'all', 'علف', 'دواء', 'غاز', 'مصاريف أخرى'
   incFilter: 'all',   // 'all' or a flock type id
