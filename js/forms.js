@@ -1469,20 +1469,31 @@ function restockPage(a, c) {
         ${hasOldExp ? `
           <label style="margin-top: 14px;">المصاريف اللي اتصرفت قبل دلوقتي (${f(k.otherExp)} ج) تتحسب على الكتاكيت الجديدة دي كمان؟ *</label>
           <input type="hidden" id="rs_include_old" value="">
-          <div class="restock-choice-list">
-            <button type="button" class="restock-choice-btn" data-val="no" onclick="selectRestockOldExp('no')">
-              <span class="restock-choice-title">🟢 لا — احسب عليهم المصاريف الجديدة اللي جاية بس</span>
-              <span class="restock-choice-desc">الأكل والمصاريف القديمة كانت للطيور الموجودة قبل كده، والجداد دول يتحسبوا في المصاريف الجاية بس.</span>
+          <div id="rs_choice_status" class="restock-choice-status pending">
+            <span>⏳ لسه مختارتش — اضغط على واحد من الاختيارين تحت عشان تقدر تحفظ</span>
+          </div>
+          <div class="restock-choice-list" id="rs_choice_list">
+            <button type="button" class="restock-choice-btn choice-no" data-val="no" aria-pressed="false" onclick="selectRestockOldExp('no')">
+              <span class="restock-choice-radio" aria-hidden="true"></span>
+              <span class="restock-choice-body">
+                <span class="restock-choice-title">لا — احسب عليهم المصاريف الجديدة اللي جاية بس</span>
+                <span class="restock-choice-desc">الأكل والمصاريف القديمة كانت للطيور الموجودة قبل كده، والجداد دول يتحسبوا في المصاريف الجاية بس.</span>
+              </span>
             </button>
-            <button type="button" class="restock-choice-btn" data-val="yes" onclick="selectRestockOldExp('yes')">
-              <span class="restock-choice-title">🔵 أيوة — احسب عليهم من المصاريف القديمة كمان</span>
-              <span class="restock-choice-desc">لسه فيه علف وأكل موجود في المزرعة من قبل كده، والكتاكيت الجديدة دي هتاكل منه معاهم.</span>
+            <button type="button" class="restock-choice-btn choice-yes" data-val="yes" aria-pressed="false" onclick="selectRestockOldExp('yes')">
+              <span class="restock-choice-radio" aria-hidden="true"></span>
+              <span class="restock-choice-body">
+                <span class="restock-choice-title">أيوة — احسب عليهم من المصاريف القديمة كمان</span>
+                <span class="restock-choice-desc">لسه فيه علف وأكل موجود في المزرعة من قبل كده، والكتاكيت الجديدة دي هتاكل منه معاهم.</span>
+              </span>
             </button>
           </div>
         ` : `<input type="hidden" id="rs_include_old" value="no">`}
 
         <div class="form-actions-row">
-          <button class="btn btn-primary" style="flex: 2;" type="submit">إضافة وحفظ</button>
+          <button id="rs_submit_btn" class="btn btn-primary" style="flex: 2;" type="submit" ${hasOldExp ? 'disabled aria-disabled="true"' : ''}>
+            ${hasOldExp ? '🔒 اختر أيوة أو لا أولاً' : 'إضافة وحفظ'}
+          </button>
           <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeRestockPage()">إلغاء</button>
         </div>
       </form>
@@ -1598,9 +1609,30 @@ function selectRestockFlock(flockId) {
 function selectRestockOldExp(val) {
   const input = document.getElementById('rs_include_old');
   if (input) input.value = val;
+
+  const list = document.getElementById('rs_choice_list');
+  if (list) list.classList.add('has-selection');
+
   document.querySelectorAll('.restock-choice-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.val === val);
+    const isMatch = btn.dataset.val === val;
+    btn.classList.toggle('active', isMatch);
+    btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
   });
+
+  const statusEl = document.getElementById('rs_choice_status');
+  if (statusEl) {
+    statusEl.className = `restock-choice-status ${val === 'yes' ? 'selected-yes' : 'selected-no'}`;
+    statusEl.innerHTML = val === 'yes'
+      ? '<span>✓ اختيارك: أيوة — تشمل المصاريف القديمة كمان</span>'
+      : '<span>✓ اختيارك: لا — المصاريف الجديدة اللي جاية بس</span>';
+  }
+
+  const submitBtn = document.getElementById('rs_submit_btn');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.setAttribute('aria-disabled', 'false');
+    submitBtn.textContent = 'إضافة وحفظ ✓';
+  }
 }
 
 function openEditBatchModal(flockId, batchIdx) {
@@ -1634,12 +1666,18 @@ function openEditBatchModal(flockId, batchIdx) {
     ${hasEarlierExp ? `
       <label style="margin-top: 12px;">هل تتحمل هذه الدفعة من المصاريف التي سبقتها؟ *</label>
       <input type="hidden" id="rs_include_old" value="${b.includeOld === false ? 'no' : 'yes'}">
-      <div class="restock-choice-list">
-        <button type="button" class="restock-choice-btn ${b.includeOld === false ? 'active' : ''}" data-val="no" onclick="selectRestockOldExp('no')">
-          <span class="restock-choice-title">🟢 لا — المصاريف الجديدة اللي بعدها بس</span>
+      <div class="restock-choice-list has-selection" id="rs_choice_list">
+        <button type="button" class="restock-choice-btn choice-no ${b.includeOld === false ? 'active' : ''}" data-val="no" aria-pressed="${b.includeOld === false ? 'true' : 'false'}" onclick="selectRestockOldExp('no')">
+          <span class="restock-choice-radio" aria-hidden="true"></span>
+          <span class="restock-choice-body">
+            <span class="restock-choice-title">لا — المصاريف الجديدة اللي بعدها بس</span>
+          </span>
         </button>
-        <button type="button" class="restock-choice-btn ${b.includeOld !== false ? 'active' : ''}" data-val="yes" onclick="selectRestockOldExp('yes')">
-          <span class="restock-choice-title">🔵 أيوة — تشمل المصاريف القديمة كمان</span>
+        <button type="button" class="restock-choice-btn choice-yes ${b.includeOld !== false ? 'active' : ''}" data-val="yes" aria-pressed="${b.includeOld !== false ? 'true' : 'false'}" onclick="selectRestockOldExp('yes')">
+          <span class="restock-choice-radio" aria-hidden="true"></span>
+          <span class="restock-choice-body">
+            <span class="restock-choice-title">أيوة — تشمل المصاريف القديمة كمان</span>
+          </span>
         </button>
       </div>
     ` : ''}

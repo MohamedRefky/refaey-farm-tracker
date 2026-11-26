@@ -2605,14 +2605,47 @@ select option {
 .restock-choice-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 8px 0 12px;
+  gap: 10px;
+  margin: 8px 0 14px;
+}
+
+.restock-choice-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  margin: 6px 0 2px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px dashed var(--border-subtle);
+}
+
+.restock-choice-status.pending {
+  background: var(--amber-light);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.restock-choice-status.selected-no {
+  background: var(--emerald-light);
+  border-style: solid;
+  border-color: var(--emerald);
+  color: var(--emerald);
+}
+
+.restock-choice-status.selected-yes {
+  background: var(--sky-light);
+  border-style: solid;
+  border-color: var(--sky);
+  color: var(--sky);
 }
 
 .restock-choice-btn {
   width: 100%;
   text-align: right;
-  padding: 11px 12px;
+  padding: 13px 14px;
   border-radius: var(--radius-md);
   border: 2px solid var(--border-subtle);
   background: var(--bg-subtle);
@@ -2621,18 +2654,74 @@ select option {
   cursor: pointer;
   transition: var(--transition);
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .restock-choice-btn:hover {
   border-color: var(--emerald);
+  transform: translateY(-1px);
 }
 
-.restock-choice-btn.active {
+.restock-choice-btn.choice-yes:hover {
+  border-color: var(--sky);
+}
+
+.restock-choice-list.has-selection .restock-choice-btn:not(.active) {
+  opacity: 0.62;
+}
+
+.restock-choice-btn.choice-no.active {
   border-color: var(--emerald);
   background: var(--emerald-light);
-  box-shadow: 0 0 12px var(--emerald-glow);
+  box-shadow: 0 0 14px var(--emerald-glow);
+}
+
+.restock-choice-btn.choice-yes.active {
+  border-color: var(--sky);
+  background: var(--sky-light);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+}
+
+.restock-choice-radio {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--text-dim);
+  background: var(--bg-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.restock-choice-btn.choice-no.active .restock-choice-radio {
+  border-color: var(--emerald);
+  background: var(--emerald);
+}
+
+.restock-choice-btn.choice-yes.active .restock-choice-radio {
+  border-color: var(--sky);
+  background: var(--sky);
+}
+
+.restock-choice-btn.active .restock-choice-radio::after {
+  content: '✓';
+  color: #06281c;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.restock-choice-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .restock-choice-title {
@@ -2644,7 +2733,16 @@ select option {
 .restock-choice-desc {
   font-size: 11.5px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.45;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.48;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: grayscale(0.35);
 }
 
 @media (max-width: 640px) {
