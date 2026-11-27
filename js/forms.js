@@ -1002,7 +1002,7 @@ function openFeedStocktakeModal(editIndex = null) {
     <input id="fst_date" type="date" value="${current ? current.d : today()}">
     <label>الرصيد المتبقي الآن *</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <input id="fst_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${remQty}" placeholder="عدد الشكاير (مثلاً 1.5)">
+      <input id="fst_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${remQty}" placeholder="عدد الشكاير (مثلاً 1.5)" required>
       <select id="fst_unit">
         <option value="شكارة (50 كجم)" ${unit.includes('50') ? 'selected' : ''}>شكارة 50 كجم</option>
         <option value="شكارة (100 كجم)" ${unit.includes('100') ? 'selected' : ''}>شكارة 100 كجم</option>
@@ -1033,10 +1033,11 @@ function openFeedStocktakeModal(editIndex = null) {
     ev.preventDefault();
     clearFormErrors();
     const date = document.getElementById('fst_date').value || today();
-    const qty = +(document.getElementById('fst_qty').value || 0);
+    const qtyRaw = document.getElementById('fst_qty').value.trim();
+    const qty = +qtyRaw;
     const qtyUnit = document.getElementById('fst_unit').value;
     const remainingKg = qty * getUnitKgFactor(qtyUnit);
-    if (!Number.isFinite(qty) || qty < 0) {
+    if (qtyRaw === '' || !Number.isFinite(qty) || qty < 0) {
       showFormError('أدخل رصيدًا صحيحًا (صفر أو أكثر).', 'fst_qty');
       return;
     }
