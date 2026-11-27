@@ -5,6 +5,9 @@
 // Formats number with commas: 10000 -> 10,000
 const f = n => Math.round(n || 0).toLocaleString('en-US');
 
+// Formats per-bird unit price with up to 2 decimal places (20 -> 20, 19.50 -> 19.5)
+const fp = n => (+(n || 0).toFixed(2)).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
 // Formats date into readable Arabic date (ensures Egypt Africa/Cairo timezone)
 const fd = d => {
   if (!d) return '';
@@ -94,10 +97,24 @@ function calc(c) {
   const deadList = c.dead || [];
   const expList = c.exp || [];
   const sharedCostByFlock = {};
-  flocks.forEach(fl => { sharedCostByFlock[fl.id] = 0; });
+  const sharedByCatByFlock = {};
+  const expByCat = {};
+  flocks.forEach(fl => {
+    sharedCostByFlock[fl.id] = 0;
+    sharedByCatByFlock[fl.id] = {};
+  });
+
+  const addFlockExpShare = (flockId, cat, shareAmt) => {
+    sharedCostByFlock[flockId] += shareAmt;
+    sharedByCatByFlock[flockId][cat] = (sharedByCatByFlock[flockId][cat] || 0) + shareAmt;
+  };
 
   expList.forEach(expItem => {
     const expAmt = +expItem.amt || 0;
+    const cat = expItem.cat || 'مصاريف أخرى';
+    if (expAmt !== 0) {
+      expByCat[cat] = (expByCat[cat] || 0) + expAmt;
+    }
     if (expAmt === 0 || flocks.length === 0) return;
 
     const eSeq = +expItem.seq || 0;
@@ -135,19 +152,19 @@ function calc(c) {
 
     if (totalLiveWeight > 0) {
       flocks.forEach(fl => {
-        sharedCostByFlock[fl.id] += expAmt * (liveWeights[fl.id] / totalLiveWeight);
+        addFlockExpShare(fl.id, cat, expAmt * (liveWeights[fl.id] / totalLiveWeight));
       });
     } else if (totalBatchWeight > 0) {
       flocks.forEach(fl => {
-        sharedCostByFlock[fl.id] += expAmt * (batchWeights[fl.id] / totalBatchWeight);
+        addFlockExpShare(fl.id, cat, expAmt * (batchWeights[fl.id] / totalBatchWeight));
       });
     } else if (n > 0) {
       flocks.forEach(fl => {
-        sharedCostByFlock[fl.id] += expAmt * ((+fl.count || 0) / n);
+        addFlockExpShare(fl.id, cat, expAmt * ((+fl.count || 0) / n));
       });
     } else {
       flocks.forEach(fl => {
-        sharedCostByFlock[fl.id] += expAmt / flocks.length;
+        addFlockExpShare(fl.id, cat, expAmt / flocks.length);
       });
     }
   });
@@ -159,8 +176,19 @@ function calc(c) {
     const soldCnt = sales.reduce((s, x) => s + (+x.cnt || 0), 0);
     const revenue = sales.reduce((s, x) => s + (+x.amt || 0), 0);
     const deadCnt = deadList.filter(x => x.flockId === flock.id).reduce((s, x) => s + (+x.n || 0), 0);
+    const liveCnt = Math.max(0, count - deadCnt);
     const sharedCost = sharedCostByFlock[flock.id] || 0;
+    const sharedByCat = sharedByCatByFlock[flock.id] || {};
+    const feedCost = sharedByCat['علف'] || 0;
+    const otherOpsCost = sharedCost - feedCost;
     const totalCost = cost + sharedCost;
+
+    const buyPerChick = count > 0 ? cost / count : 0;
+    const buyPerLive = liveCnt > 0 ? cost / liveCnt : 0;
+    const feedPerLive = liveCnt > 0 ? feedCost / liveCnt : 0;
+    const otherOpsPerLive = liveCnt > 0 ? otherOpsCost / liveCnt : 0;
+    const opsPerLive = liveCnt > 0 ? sharedCost / liveCnt : 0;
+    const costPerLive = liveCnt > 0 ? totalCost / liveCnt : 0;
 
     return {
       id: flock.id,
@@ -170,11 +198,21 @@ function calc(c) {
       batches: flock.batches || [],
       sold: soldCnt,
       dead: deadCnt,
+      live: liveCnt,
       remaining: Math.max(0, count - soldCnt - deadCnt),
       revenue,
       avgPrice: soldCnt ? revenue / soldCnt : 0,
       sharedCost,
+      sharedByCat,
+      feedCost,
+      otherOpsCost,
       totalCost,
+      buyPerChick,
+      buyPerLive,
+      feedPerLive,
+      otherOpsPerLive,
+      opsPerLive,
+      costPerLive,
       profit: revenue - totalCost,
       mort: count ? (deadCnt / count) * 100 : 0,
       share: n ? (count / n) * 100 : 0
@@ -206,10 +244,21 @@ function calc(c) {
     }
   });
 
+  const feedCostTotal = expByCat['علف'] || 0;
+  const otherOpsCostTotal = otherExp - feedCostTotal;
+  const buyPerChick = n > 0 ? chickCost / n : 0;
+  const buyPerLive = live > 0 ? chickCost / live : 0;
+  const feedPerLive = live > 0 ? feedCostTotal / live : 0;
+  const otherOpsPerLive = live > 0 ? otherOpsCostTotal / live : 0;
+  const opsPerLive = live > 0 ? otherExp / live : 0;
+
   return {
     e,
     chickCost,
     otherExp,
+    expByCat,
+    feedCostTotal,
+    otherOpsCostTotal,
     chickCount: n,
     i,
     totalSales,
@@ -225,6 +274,11 @@ function calc(c) {
     debtThemTotal,
     debtThemRemaining,
     mort: n ? (dead / n) * 100 : 0,
+    buyPerChick,
+    buyPerLive,
+    feedPerLive,
+    otherOpsPerLive,
+    opsPerLive,
     cpb: live > 0 ? e / live : 0,
     avg: sold ? i / sold : 0,
     ppb: sold ? p / sold : 0
