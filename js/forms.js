@@ -2142,6 +2142,7 @@ function newCycle() {
 function cycleHasTrackedFeed(cycle) {
   return !!cycle && (
     (+cycle.feedOpeningKg || 0) > 0
+    || (+cycle.feedOpeningValue || 0) > 0
     || (cycle.feed || []).some(item => item.type === 'purchased')
     || (cycle.feedStocktakes || []).some(item => (+item.openingKg || 0) > 0)
   );
@@ -2372,7 +2373,6 @@ function closeC() {
     return;
   }
 
-  const hasFeedPurchases = (cycle.feed || []).some(x => x.type === 'purchased');
   const hasFeedToCount = cycleHasTrackedFeed(cycle) || (cycle.feedStocktakes || []).length > 0;
   const lastPurchaseTodaySeq = (cycle.feed || []).filter(x => x.d === today()).reduce((max, p) => {
     const e = (cycle.exp || []).find(item => item.id === p.expRefId || item.feedRefId === p.id);
@@ -2401,7 +2401,10 @@ function closeC() {
       const previousEnd = cycle.end;
       const previousClosingStocktakeId = cycle.feedClosingStocktakeId;
       const finalStocktake = hasFeedToCount
-        ? (cycle.feedStocktakes || []).find(x => x.d === today() && (+x.seq || 0) >= requiredStocktakeSeq)
+        ? (cycle.feedStocktakes || [])
+            .filter(x => x.d === today() && (+x.seq || 0) >= requiredStocktakeSeq)
+            .sort((a, b) => (+a.seq || 0) - (+b.seq || 0))
+            .slice(-1)[0]
         : null;
       cycle.end = today();
       if (finalStocktake) cycle.feedClosingStocktakeId = finalStocktake.id;
