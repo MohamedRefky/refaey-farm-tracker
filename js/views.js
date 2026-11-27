@@ -411,7 +411,7 @@ function detail(a) {
 
 // Helpers: Per-Chick Unit Cost Breakdown (Cycle Hero + Per-Flock Expanded)
 function formatFlockChickPartsLine(fs) {
-  if (!fs || fs.live <= 0) return '<span class="color-rose">لا توجد طيور سليمة</span>';
+  if (!fs || fs.live <= 0) return '<span class="color-rose">لا توجد طيور حية</span>';
   const catIcons = { 'دواء': '💊', 'غاز': '🔥', 'مصاريف أخرى': '📦' };
   const buyPart = fs.dead > 0
     ? `شراء: ${fp(fs.buyPerChick)} ج (بعد النافق: <b>${fp(fs.buyPerLive)} ج</b>)`
@@ -440,7 +440,7 @@ function renderPerChickHeroBox(k) {
       <div class="per-chick-summary-box">
         <div class="per-chick-summary-top">
           <span>💵 تكلفة الكتكوت الواحد</span>
-          <span class="color-rose">لا توجد طيور سليمة (الكل نافق)</span>
+          <span class="color-rose">لا توجد طيور حية (الكل نافق)</span>
         </div>
       </div>
     `;
@@ -462,7 +462,7 @@ function renderPerChickHeroBox(k) {
               <div class="per-chick-multi-head">
                 <div class="per-chick-multi-name">
                   <b>🐣 ${esc(fs.name)}</b>
-                  <small>${f(fs.live)} سليم${fs.dead > 0 ? ` • <span class="color-rose">نافق ${f(fs.dead)}</span>` : ''}</small>
+                  <small>${f(fs.live)} حي${fs.dead > 0 ? ` • <span class="color-rose">نافق ${f(fs.dead)}</span>` : ''}</small>
                 </div>
                 <div class="per-chick-total-badge">
                   <b>${fs.live > 0 ? fp(fs.costPerLive) + ' ج' : '—'}</b>
@@ -490,7 +490,7 @@ function renderPerChickHeroBox(k) {
       <div class="per-chick-summary-top">
         <div class="per-chick-summary-label">
           <span>💵 تكلفة الكتكوت الواحد حتى الآن</span>
-          <small>محسوبة على ${f(k.live)} طائر سليم</small>
+          <small>محسوبة على الـ ${f(k.live)} كتكوت الحي الآن</small>
         </div>
         <div class="per-chick-total-badge">
           <b>${fp(k.cpb)} ج</b>
@@ -518,7 +518,7 @@ function renderPerChickHeroBox(k) {
 
       ${k.dead > 0 ? `
         <div class="per-chick-mort-note">
-          💡 نصيب الكتكوت من الشراء والمصاريف زاد بسبب النافق (${f(k.dead)} طائر) لأن التكلفة اتقسمت على ${f(k.live)} سليم.
+          💡 نصيب الكتكوت من الشراء والمصاريف زاد بسبب النافق (${f(k.dead)} طائر) لأن التكلفة اتقسمت على الـ ${f(k.live)} كتكوت الحي الآن.
         </div>
       ` : ''}
     </div>
@@ -531,7 +531,7 @@ function renderFlockPerChickBox(fs) {
       <div class="flock-perchick-box" onclick="event.stopPropagation()">
         <div class="flock-perchick-head">
           <span>💵 تكلفة الكتكوت الواحد (${esc(fs.name)}):</span>
-          <b class="color-rose">لا توجد طيور سليمة</b>
+          <b class="color-rose">لا توجد طيور حية</b>
         </div>
       </div>
     `;
@@ -544,7 +544,7 @@ function renderFlockPerChickBox(fs) {
   return `
     <div class="flock-perchick-box" onclick="event.stopPropagation()">
       <div class="flock-perchick-head">
-        <span>💵 تكلفة الكتكوت الواحد (${esc(fs.name)}) على ${f(fs.live)} سليم</span>
+        <span>💵 تكلفة الكتكوت الواحد (${esc(fs.name)}) على الـ ${f(fs.live)} كتكوت الحي الآن</span>
         <b class="flock-perchick-total">${fp(fs.costPerLive)} ج</b>
       </div>
       <div class="flock-perchick-rows">
@@ -574,7 +574,7 @@ function renderFlockPerChickBox(fs) {
         `}
         ${fs.dead > 0 ? `
           <div class="per-chick-mort-note" style="margin-top:4px;">
-            💡 نصيب الكتكوت زاد بسبب النافق (${f(fs.dead)} طائر) لأن التكلفة اتقسمت على ${f(fs.live)} سليم بدل ${f(fs.count)}.
+            💡 نصيب الكتكوت زاد بسبب النافق (${f(fs.dead)} طائر) لأن التكلفة اتقسمت على الـ ${f(fs.live)} كتكوت الحي الآن بدل ${f(fs.count)}.
           </div>
         ` : ''}
       </div>
