@@ -141,7 +141,10 @@ function renderExpensesTab(c, k) {
   if (activeFilter === 'كتاكيت') {
     summaryHtml = `<span>🐣 شراء الكتاكيت: <b class="color-rose">${f(k.chickCost)} ج</b></span><span>•</span><span>${f(k.chickCount)} طائر (متوسط <b>${k.chickCount > 0 ? fp(k.buyPerChick) : 0} ج</b>/كتكوت)</span>`;
   } else if (activeFilter === 'علف') {
-    summaryHtml = `<span>مشتَرى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>${k.feedInventory && k.feedInventory.enabled ? 'تكلفة العلف المقدرة حتى الآن' : 'تكلفة المشتريات'}: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
+    const feedCostLabel = k.feedInventory && k.feedInventory.enabled
+      ? 'تكلفة العلف المقدرة حتى الآن'
+      : ((c.feed || []).some(x => x.type === 'purchased') ? 'تكلفة تقديرية حتى أول جرد' : 'تكلفة المشتريات');
+    summaryHtml = `<span>مشتَرى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>${feedCostLabel}: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
   } else if (activeFilter !== 'all') {
     summaryHtml = `<span>${catIcons[activeFilter] || ''} ${activeFilter}: <b class="color-rose">${f(filteredExpSum)} ج</b></span><span>•</span><span>${filteredEntries.length} بنود</span>`;
   }
@@ -221,7 +224,9 @@ function renderExpensesTab(c, k) {
           ? (isPendingFeedPurchase
             ? '<br><small>شراء بعد آخر جرد • محمّل مؤقتًا على تكلفة الدورة ويتحدث عند الجرد القادم</small>'
             : '<br><small>شراء للمخزون • تكلفة المستهلك تُقدّر بالجرد</small>')
-          : '';
+          : (linkedFeed && !(c.feedStocktakes || []).length
+            ? '<br><small>تكلفته مؤقتة ضمن الدورة حتى تسجيل أول جرد</small>'
+            : '');
 
         return `
           <div class="record-item record-clean">
@@ -255,6 +260,7 @@ function renderFeedInventoryCard(c, k) {
   const inv = k.feedInventory || { enabled: false, periods: [] };
   const checks = (c.feedStocktakes || []).slice().sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
   const hasFeedPurchases = (c.feed || []).some(x => x.type === 'purchased');
+  const hasOpeningFeed = (+c.feedOpeningKg || 0) > 0 || (+c.feedOpeningValue || 0) > 0;
   return `
     <div class="card feed-inventory-card">
       <div class="feed-inventory-head">
@@ -285,7 +291,7 @@ function renderFeedInventoryCard(c, k) {
           }).join('')}
         </div>
       ` : `
-        <div class="feed-inventory-empty">${hasFeedPurchases ? 'ابدأ بأول جرد لتقدير المستهلك والمتبقي. المشتريات السابقة ستدخل في الحساب من تاريخ الدورة.' : 'سجّل مشتريات العلف أولًا، ثم اعمل جردًا عند البيع أو إغلاق الدفعة.'}</div>
+        <div class="feed-inventory-empty">${hasFeedPurchases || hasOpeningFeed ? 'ابدأ بأول جرد لتقدير المستهلك والمتبقي. حتى تسجله، تظهر مشتريات العلف مؤقتًا ضمن تكلفة الدورة ثم يعاد الحساب حسب الرصيد.' : 'سجّل شراء العلف أو رصيد البداية أولًا، ثم اعمل جردًا عند البيع أو إغلاق الدفعة.'}</div>
       `}
     </div>
   `;
