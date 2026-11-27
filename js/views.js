@@ -414,7 +414,7 @@ function detail(a) {
 }
 
 // Helpers: Per-Chick Unit Cost Breakdown (Cycle Hero + Per-Flock Expanded)
-function formatFlockChickPartsLine(fs) {
+function formatFlockChickPartsLine(fs, compact = false) {
   if (!fs || fs.live <= 0) return '<span class="color-rose">لا توجد طيور حية</span>';
   const catIcons = { 'دواء': '💊', 'غاز': '🔥', 'مصاريف أخرى': '📦' };
   const buyPart = fs.dead > 0
@@ -422,6 +422,14 @@ function formatFlockChickPartsLine(fs) {
     : `شراء: <b>${fp(fs.buyPerChick)} ج</b>`;
 
   if (fs.sold > 0 && fs.remaining > 0) {
+    if (compact) {
+      return `
+        <div class="per-chick-partial-split">
+          <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): ${fp(fs.remainingCostPerBird)} ج / كتكوت</b></div>
+          <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): ${fp(fs.soldCostPerBird)} ج / كتكوت</b></div>
+        </div>
+      `;
+    }
     return `
       <div class="per-chick-partial-split">
         <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): ${fp(fs.remainingCostPerBird)} ج / كتكوت</b> <small>(${buyPart} • علف: <b>${fp(fs.remainingFeedPerBird)} ج</b>${fs.remainingOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.remainingOtherOpsPerBird)} ج</b>` : ''})</small></div>
@@ -484,7 +492,7 @@ function renderPerChickHeroBox(k) {
                 </div>
               </div>
               <div class="per-chick-multi-parts">
-                ${formatFlockChickPartsLine(fs)}
+                ${formatFlockChickPartsLine(fs, true)}
                 ${fs.dead > 0 && fs.live > 0 ? `<div style="margin-top:3px; color:var(--text-dim); font-size:10.5px;">💡 نصيب الكتكوت من الشراء والمصاريف زاد بسبب النافق (${f(fs.dead)} طائر)</div>` : ''}
               </div>
             </div>
@@ -508,7 +516,7 @@ function renderPerChickHeroBox(k) {
             <span>/ متبقي</span>
           </div>
         </div>
-        ${formatFlockChickPartsLine(singleFs)}
+        ${formatFlockChickPartsLine(singleFs, true)}
         ${k.dead > 0 ? `
           <div class="per-chick-mort-note">
             💡 نصيب الكتكوت من الشراء والمصاريف زاد بسبب النافق (${f(k.dead)} طائر) لأن التكلفة اتقسمت على الـ ${f(k.live)} كتكوت الحي الآن.
