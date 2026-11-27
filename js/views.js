@@ -81,7 +81,7 @@ function list(a) {
                   <div class="cycle-flocks-pills">
                     ${k.flockStats.map(fs => {
                       const unitCost = fs.remaining > 0 && fs.sold > 0 ? fs.remainingCostPerBird : fs.costPerLive;
-                      return `<span class="cycle-flock-pill">🐣 ${esc(fs.name)} (${f(fs.count)}) • <b class="cycle-flock-cost">${f(fs.totalCost)} ج</b>${fs.live > 0 ? ` <small>(${fp(unitCost)} ج/كتكوت)</small>` : ''}</span>`;
+                      return `<span class="cycle-flock-pill">🐣 ${esc(fs.name)} (${f(fs.count)})${fs.live > 0 ? ` • تكلفة الكتكوت الواحد: <b class="cycle-flock-cost">${fp(unitCost)} ج</b>` : ''}</span>`;
                     }).join('')}
                   </div>
                 ` : ''}
