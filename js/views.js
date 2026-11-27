@@ -700,21 +700,25 @@ function summaryPage(a, c, k) {
     </div>
 
     <div class="card">
-      <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px; color: var(--text-title);">
+      <h3 style="font-size: 15px; font-weight: 800; margin-bottom: 10px; color: var(--text-title);">
         💵 تكلفة الكتكوت الواحد لكل نوع
       </h3>
       <div class="summary-perchick-list">
-        ${(k.flockStats || []).map(fs => `
-          <div class="summary-perchick-row">
-            <div class="summary-perchick-title">
-              <b>🐣 ${esc(fs.name)}${fs.dead > 0 ? ` <small class="color-rose" style="font-weight:700;">(نافق ${f(fs.dead)})</small>` : ''}</b>
-              <span class="summary-perchick-badge">${fs.live > 0 ? (fs.remaining > 0 && fs.sold > 0 ? 'تكلفة المتبقي عليك: ' + fp(fs.remainingCostPerBird) : 'تكلفة الكتكوت عليك حتى الآن: ' + fp(fs.costPerLive)) + ' ج' : '—'}</span>
+        ${(k.flockStats || []).map(fs => {
+          const isPartial = fs.remaining > 0 && fs.sold > 0;
+          const badgePrice = isPartial ? fs.remainingCostPerBird : fs.costPerLive;
+          return `
+            <div class="summary-perchick-row">
+              <div class="summary-perchick-title">
+                <b>🐣 ${esc(fs.name)} <small style="color:var(--text-dim); font-weight:600;">(${f(fs.live)} حي${fs.dead > 0 ? ` • <span class="color-rose">نافق ${f(fs.dead)}</span>` : ''})</small></b>
+                <span class="summary-perchick-badge">${fs.live > 0 ? fp(badgePrice) + ' ج' : '—'}</span>
+              </div>
+              <div class="summary-perchick-meta">
+                ${formatFlockChickPartsLine(fs, true)}
+              </div>
             </div>
-            <div class="summary-perchick-meta">
-              ${formatFlockChickPartsLine(fs)}
-            </div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
     </div>
 

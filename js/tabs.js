@@ -473,9 +473,15 @@ function renderAnalyticsTab(c, k) {
   if (k.chickCost > 0) {
     by['ثمن الكتاكيت'] = k.chickCost;
   }
-  (c.exp || []).forEach(e => {
-    by[e.cat] = (by[e.cat] || 0) + e.amt;
-  });
+  if (k.expByCat) {
+    Object.entries(k.expByCat).forEach(([cat, val]) => {
+      if (val > 0) by[cat] = (by[cat] || 0) + val;
+    });
+  } else {
+    (c.exp || []).forEach(e => {
+      by[e.cat] = (by[e.cat] || 0) + (+e.amt || 0);
+    });
+  }
   const col = ['var(--emerald)', 'var(--sky)', 'var(--amber)', 'var(--rose)', '#8b5cf6', '#6366f1', 'var(--text-muted)'];
   const it = Object.entries(by)
     .sort((x, y) => y[1] - x[1])
