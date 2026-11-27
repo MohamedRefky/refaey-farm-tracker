@@ -1066,9 +1066,13 @@ function openFeedStocktakeModal(editIndex = null) {
 
     const checkSeq = current ? (+current.seq || 0) : nextCycleSeq(cycle);
     const priorKg = latest ? (+latest.kg || 0) : openingKg;
-    const arrivals = (cycle.feed || []).filter(p => p.type === 'purchased'
-      && (String(p.d || cycle.start || '') < date || (String(p.d || cycle.start || '') === date && (!p.seq || +p.seq <= checkSeq)))
-      && (!latest || String(p.d || '') > latest.d || (String(p.d || '') === latest.d && (+p.seq || 0) > (+latest.seq || 0))));
+    const arrivals = (cycle.feed || []).filter(p => {
+      const linkedExp = (cycle.exp || []).find(x => x.id === p.expRefId || x.feedRefId === p.id);
+      const purchaseSeq = +p.seq || +(linkedExp && linkedExp.seq) || 0;
+      return p.type === 'purchased'
+        && (String(p.d || cycle.start || '') < date || (String(p.d || cycle.start || '') === date && (!purchaseSeq || purchaseSeq <= checkSeq)))
+        && (!latest || String(p.d || '') > latest.d || (String(p.d || '') === latest.d && purchaseSeq > (+latest.seq || 0)));
+    });
     const availableKg = priorKg + arrivals.reduce((s, p) => s + (+p.kg || 0), 0);
     if (remainingKg > availableKg + 0.01) {
       showFormError(`الرصيد المتبقي (${fp(remainingKg)} كجم) أكبر من الكمية المتاحة المقدرة (${fp(availableKg)} كجم). راجع تاريخ وكمية الشراء أو الجرد.`, 'fst_qty');
@@ -2166,7 +2170,11 @@ function closeC() {
   }
 
   const hasFeedPurchases = (cycle.feed || []).some(x => x.type === 'purchased');
-  const hasTodayStocktake = (cycle.feedStocktakes || []).some(x => x.d === today());
+  const lastPurchaseTodaySeq = (cycle.feed || []).filter(x => x.d === today()).reduce((max, p) => {
+    const e = (cycle.exp || []).find(item => item.id === p.expRefId || item.feedRefId === p.id);
+    return Math.max(max, +p.seq || +(e && e.seq) || 0);
+  }, 0);
+  const hasTodayStocktake = (cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= lastPurchaseTodaySeq);
   if (hasFeedPurchases && !hasTodayStocktake) {
     S.tab = 'exp';
     render();

@@ -76,7 +76,8 @@ function calculateFeedInventory(c) {
       if (included.has(p.id)) return false;
       const purchaseDate = String(p.d || c.start || '');
       const checkDate = String(check.d || '');
-      return purchaseDate < checkDate || (purchaseDate === checkDate && (!check.seq || !p.seq || (+p.seq || 0) <= (+check.seq || 0)));
+      const purchaseSeq = +p.seq || +((expForPurchase(p) || {}).seq) || 0;
+      return purchaseDate < checkDate || (purchaseDate === checkDate && (!check.seq || !purchaseSeq || purchaseSeq <= (+check.seq || 0)));
     });
     arriving.forEach(p => included.add(p.id));
     const purchasedKg = arriving.reduce((s, p) => s + (+p.kg || 0), 0);
