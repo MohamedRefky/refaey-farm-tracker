@@ -596,7 +596,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
       render();
       if (kind === 'inc' && !isEdit && o.d === today()
         && (cycle.feed || []).some(x => x.type === 'purchased')
-        && !(cycle.feedStocktakes || []).some(x => x.d === today())) {
+        && !(cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= (+o.seq || 0))) {
         showToast('سجّل جرد العلف الآن لتقدير تكلفة البيع حتى اليوم.', 3600);
         openFeedStocktakeModal();
       }
@@ -2185,7 +2185,9 @@ function closeC() {
     const e = (cycle.exp || []).find(item => item.id === p.expRefId || item.feedRefId === p.id);
     return Math.max(max, +p.seq || +(e && e.seq) || 0);
   }, 0);
-  const hasTodayStocktake = (cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= lastPurchaseTodaySeq);
+  const lastSaleTodaySeq = (cycle.inc || []).filter(x => x.d === today()).reduce((max, x) => Math.max(max, +x.seq || 0), 0);
+  const requiredStocktakeSeq = Math.max(lastPurchaseTodaySeq, lastSaleTodaySeq);
+  const hasTodayStocktake = (cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= requiredStocktakeSeq);
   if (hasFeedPurchases && !hasTodayStocktake) {
     S.tab = 'exp';
     render();
