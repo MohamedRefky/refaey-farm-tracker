@@ -8,6 +8,7 @@ let S = {
   v: 'list',          // 'list' for all cycles or cycle ID
   summary: false,     // dedicated full-page cycle summary view
   editCycle: false,   // dedicated full-page cycle edit view
+  newCycle: false,    // dedicated full-page cycle creation view
   restock: false,     // dedicated full-page add/restock chicks view
   restockFlockId: null, // optional preselected flock id when restocking
   tab: 'exp',         // 'exp', 'inc', 'dead', 'debt'

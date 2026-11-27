@@ -21,6 +21,7 @@ function statBox(label, val, hint, icon, colorCls = '', onclickAttr = '') {
 // 1. MASTER VIEW (All Cycles Overview)
 // ==========================================================================
 function list(a) {
+  if (S.newCycle) return newCyclePage(a);
   const tot = C.reduce((s, c) => s + calc(c).p, 0);
   const activeCount = C.filter(c => !c.end).length;
   const totalBirds = C.reduce((s, c) => s + (c.n || 0), 0);
@@ -122,6 +123,7 @@ function list(a) {
 }
 
 function openCycle(id) {
+  S.newCycle = false;
   S.v = id;
   S.summary = false;
   S.editCycle = false;

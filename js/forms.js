@@ -989,14 +989,16 @@ function openFeedStocktakeModal(editIndex = null) {
     .sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
   const latest = others[others.length - 1];
   const firstCheck = !others.length;
+  const hasCycleOpening = Object.prototype.hasOwnProperty.call(cycle, 'feedOpeningKg');
   const { m: modal, fm: formEl } = ensureModalElements();
   if (!modal || !formEl) return;
 
   const unit = current && current.unit ? current.unit : 'شكارة (50 كجم)';
   const remQty = current ? (+current.kg || 0) / getUnitKgFactor(unit) : '';
-  const openingUnit = current && current.openingUnit ? current.openingUnit : 'شكارة (50 كجم)';
-  const openingQty = current && current.openingKg ? (+current.openingKg || 0) / getUnitKgFactor(openingUnit) : '';
-  const hasOpeningFeed = !!(current && (+current.openingKg || 0) > 0);
+  const openingUnit = current && current.openingUnit ? current.openingUnit : (cycle.feedOpeningUnit || 'شكارة (50 كجم)');
+  const openingKgInitial = current ? (+current.openingKg || 0) : (+cycle.feedOpeningKg || 0);
+  const openingQty = openingKgInitial ? openingKgInitial / getUnitKgFactor(openingUnit) : '';
+  const hasOpeningFeed = openingKgInitial > 0;
 
   formEl.innerHTML = `
     <div class="form-header">
@@ -1016,7 +1018,7 @@ function openFeedStocktakeModal(editIndex = null) {
         <option value="كيلوجرام (كجم)" ${unit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
       </select>
     </div>
-    ${firstCheck ? `
+    ${firstCheck && !hasCycleOpening ? `
       <label style="margin-top:12px;">هل كان عندك علف من قبل بداية الدورة؟</label>
       <input type="hidden" id="fst_has_opening" value="${hasOpeningFeed ? 'yes' : 'no'}">
       <div class="restock-mode-tabs opening-feed-choices">
@@ -1069,12 +1071,12 @@ function openFeedStocktakeModal(editIndex = null) {
       return;
     }
 
-    let openingKg = current ? (+current.openingKg || 0) : 0;
-    let openingValue = current ? (+current.openingValue || 0) : 0;
-    let openingUnitValue = current && current.openingUnit ? current.openingUnit : 'شكارة (50 كجم)';
+    let openingKg = current ? (+current.openingKg || 0) : (+cycle.feedOpeningKg || 0);
+    let openingValue = current ? (+current.openingValue || 0) : (+cycle.feedOpeningValue || 0);
+    let openingUnitValue = current && current.openingUnit ? current.openingUnit : (cycle.feedOpeningUnit || 'شكارة (50 كجم)');
     if (firstCheck) {
-      const hasOpening = document.getElementById('fst_has_opening').value === 'yes';
-      if (hasOpening) {
+      const legacyOpeningChoice = document.getElementById('fst_has_opening');
+      if (legacyOpeningChoice && legacyOpeningChoice.value === 'yes') {
         const openQty = +(document.getElementById('fst_open_qty').value || 0);
         const openUnit = document.getElementById('fst_open_unit').value;
         openingKg = openQty * getUnitKgFactor(openUnit);
@@ -1088,7 +1090,7 @@ function openFeedStocktakeModal(editIndex = null) {
           showFormError('اكتب قيمة تقديرية للعلف القديم حتى تدخل تكلفته في الحساب.', 'fst_open_value');
           return;
         }
-      } else {
+      } else if (legacyOpeningChoice) {
         openingKg = 0;
         openingValue = 0;
         openingUnitValue = 'شكارة (50 كجم)';
@@ -2127,89 +2129,147 @@ function deleteCycle(id) {
 }
 
 function newCycle() {
-  const { m: modal, fm: formEl } = ensureModalElements();
-  if (!modal || !formEl) return;
+  S.newCycle = true;
+  S.v = 'list';
+  S.summary = false;
+  S.editCycle = false;
+  S.restock = false;
+  S.restockFlockId = null;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-  formEl.innerHTML = `
-    <div class="form-header">
-      <div class="form-title">بدء دورة تسمين جديدة 🐣</div>
-      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
-    </div>
+function closeNewCyclePage() {
+  S.newCycle = false;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-    <div id="form_error_container"></div>
+function toggleNewCycleOpeningFeed(value) {
+  const hidden = document.getElementById('new_has_old_feed');
+  const fields = document.getElementById('new_old_feed_fields');
+  if (!hidden || !fields) return;
+  hidden.value = value;
+  fields.style.display = value === 'yes' ? 'block' : 'none';
+  document.querySelectorAll('.new-opening-feed-choice').forEach(btn => {
+    const active = btn.dataset.val === value;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
 
-    <label>اسم الدورة (مثال: دورة نوفمبر، دفعة رقم 3) *</label>
-    <input id="nn" value="دورة جديدة" placeholder="اسم الدورة">
+function newCyclePage(a) {
+  if (!a) return;
+  a.innerHTML = `
+    <div class="new-cycle-page">
+      <div class="detail-top-nav new-cycle-nav">
+        <button class="back-btn" type="button" onclick="closeNewCyclePage()"><span>→</span><span>رجوع للدورات</span></button>
+        <span class="badge badge-active">دورة جديدة</span>
+      </div>
 
-    <label>تاريخ استلام الكتاكيت (البداية)</label>
-    <input type="date" id="ns" value="${today()}">
+      <form id="new_cycle_form" class="new-cycle-form" autocomplete="off">
+        <div class="new-cycle-title">
+          <span class="new-cycle-icon">🐣</span>
+          <div><h2>بدء دورة تسمين جديدة</h2><p>سجّل بيانات البداية، ويمكنك إضافة باقي المصاريف لاحقًا.</p></div>
+        </div>
+        <div id="form_error_container"></div>
 
-    <div class="form-hint-banner" style="margin-top: 14px; margin-bottom: 6px;">
-      <span>🐣</span>
-      <span>سجل كل نوع كتاكيت اشتريته وعدده وتكلفته. باقي المصاريف (علف، غاز، دواء...) هتتسجل للدورة كلها بعدين.</span>
-    </div>
+        <section class="new-cycle-section">
+          <div class="new-cycle-section-heading"><span>١</span><div><h3>بيانات الدورة</h3><small>الاسم وتاريخ استلام الكتاكيت</small></div></div>
+          <label for="nn">اسم الدورة *</label>
+          <input id="nn" value="دورة جديدة" placeholder="مثال: دورة نوفمبر، دفعة رقم 3" required>
+          <label for="ns">تاريخ استلام الكتاكيت</label>
+          <input type="date" id="ns" value="${today()}">
+        </section>
 
-    <div class="flock-rows-list" id="new_flocks_list">
-      ${buildFlockRowHtml(0, {}, false, 0)}
-    </div>
+        <section class="new-cycle-section">
+          <div class="new-cycle-section-heading"><span>٢</span><div><h3>رصيد العلف عند البداية</h3><small>لو الدورة بدأت من غير علف قديم، اختار «لا»</small></div></div>
+          <input type="hidden" id="new_has_old_feed" value="no">
+          <div class="restock-mode-tabs new-opening-feed-choices">
+            <button type="button" class="restock-mode-btn new-opening-feed-choice active" data-val="no" aria-pressed="true" onclick="toggleNewCycleOpeningFeed('no')">لا، مفيش علف قديم</button>
+            <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="yes" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('yes')">أيوة، فيه رصيد مُرحّل</button>
+          </div>
+          <div id="new_old_feed_fields" style="display:none;">
+            <div class="form-hint-banner" style="margin-top:8px;">اكتب هنا العلف الموجود قبل الدورة فقط، ولم تسجل شراءه داخلها. المشتريات الجديدة تُسجل لاحقًا من زر «شراء علف».</div>
+            <div class="new-cycle-fields-grid">
+              <div><label for="new_old_feed_qty">الكمية الموجودة</label><input id="new_old_feed_qty" type="number" inputmode="decimal" min="0" step="0.25" placeholder="عدد الشكاير"></div>
+              <div><label for="new_old_feed_unit">وحدة الشكارة</label><select id="new_old_feed_unit"><option value="شكارة (50 كجم)">شكارة 50 كجم</option><option value="شكارة (100 كجم)">شكارة 100 كجم</option><option value="كيلوجرام (كجم)">كيلوجرام</option></select></div>
+            </div>
+            <label for="new_old_feed_value">قيمة الرصيد التقديرية (جنيه)</label>
+            <input id="new_old_feed_value" type="number" inputmode="decimal" min="0" step="any" placeholder="قيمة العلف الموجود">
+          </div>
+        </section>
 
-    <button type="button" class="btn btn-outline btn-full" onclick="addFlockRow('new_flocks_list')" style="border-style: dashed; border-color: var(--emerald); color: var(--emerald); margin-bottom: 10px;">
-      + إضافة نوع كتكوت آخر
-    </button>
+        <section class="new-cycle-section">
+          <div class="new-cycle-section-heading"><span>٣</span><div><h3>الكتاكيت</h3><small>أدخل كل نوع وعدده وتكلفة شرائه</small></div></div>
+          <div class="flock-rows-list" id="new_flocks_list">${buildFlockRowHtml(0, {}, false, 0)}</div>
+          <button type="button" class="btn btn-outline btn-full new-cycle-add-flock" onclick="addFlockRow('new_flocks_list')">+ إضافة نوع كتكوت آخر</button>
+          <div class="flock-total-bar" id="flocks_modal_summary"></div>
+        </section>
 
-    <div class="flock-total-bar" id="flocks_modal_summary"></div>
-
-    <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">إنشاء الدورة</button>
-      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
+        <div class="new-cycle-actions">
+          <button class="btn btn-primary" type="submit">إنشاء الدورة</button>
+          <button class="btn btn-outline" type="button" onclick="closeNewCyclePage()">إلغاء</button>
+        </div>
+      </form>
     </div>
   `;
 
   refreshFlockRowLabels('new_flocks_list');
   updateFlocksModalSummary();
-
-  formEl.onsubmit = ev => {
+  const form = document.getElementById('new_cycle_form');
+  if (!form) return;
+  form.onsubmit = ev => {
     ev.preventDefault();
     clearFormErrors();
-
     const nn = document.getElementById('nn').value.trim();
     const ns = document.getElementById('ns').value;
-
     if (!nn) {
       showFormError('يرجى إدخال اسم الدورة.', 'nn');
       return;
     }
-
     const cycleStart = ns || today();
     const flocks = collectAndValidateFlockRows(null, cycleStart);
     if (!flocks) return;
 
+    let feedOpeningKg = 0;
+    let feedOpeningValue = 0;
+    let feedOpeningUnit = 'شكارة (50 كجم)';
+    if (document.getElementById('new_has_old_feed').value === 'yes') {
+      const qty = +(document.getElementById('new_old_feed_qty').value || 0);
+      const unit = document.getElementById('new_old_feed_unit').value;
+      const value = +(document.getElementById('new_old_feed_value').value || 0);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        showFormError('أدخل كمية العلف المُرحّل الموجودة عند بداية الدورة.', 'new_old_feed_qty');
+        return;
+      }
+      if (!Number.isFinite(value) || value <= 0) {
+        showFormError('أدخل قيمة تقديرية للعلف المُرحّل.', 'new_old_feed_value');
+        return;
+      }
+      feedOpeningKg = qty * getUnitKgFactor(unit);
+      feedOpeningValue = value;
+      feedOpeningUnit = unit;
+    }
+
     const newObj = {
-      id: nid++,
-      name: nn,
-      start: cycleStart,
-      end: null,
-      n: 0,
-      nextSeq: flocks.length,
-      flocks,
-      exp: [],
-      inc: [],
-      dead: [],
-      feed: [],
-      debt: []
+      id: nid++, name: nn, start: cycleStart, end: null, n: 0,
+      nextSeq: flocks.length, flocks, exp: [], inc: [], dead: [], feed: [], debt: [],
+      feedOpeningKg, feedOpeningValue, feedOpeningUnit
     };
     syncCycleCount(newObj);
-
     C.push(newObj);
     if (saveAndNotify('تم إنشاء الدورة الجديدة بنجاح 🐥')) {
-      closeM();
+      S.newCycle = false;
       S.v = newObj.id;
       S.tab = 'exp';
       render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      C.pop();
+      nid--;
     }
   };
-
-  modal.classList.add('on');
 }
 
 function closeC() {
