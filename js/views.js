@@ -271,6 +271,10 @@ function detail(a) {
           <span>⚡ تسجيل حركة</span>
         </div>
         <div class="quick-actions-bar other-quick-actions">
+          <button class="quick-action-btn" onclick="openFeedStocktakeModal()">
+            <span class="quick-action-icon">📦</span>
+            <span>جرد علف</span>
+          </button>
           <button class="quick-action-btn" onclick="quickAdd('inc')">
             <span class="quick-action-icon">📈</span>
             <span>+ بيع</span>
