@@ -63,8 +63,8 @@ function calculateFeedInventory(c) {
   checks.sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
   const expForPurchase = purchase => (c.exp || []).find(e => e.id === purchase.expRefId || e.feedRefId === purchase.id);
   const included = new Set();
-  let stockKg = Math.max(0, +checks[0].openingKg || 0);
-  let stockValue = Math.max(0, +checks[0].openingValue || 0);
+  let stockKg = Math.max(0, +(checks[0].openingKg !== undefined ? checks[0].openingKg : c.feedOpeningKg) || 0);
+  let stockValue = Math.max(0, +(checks[0].openingValue !== undefined ? checks[0].openingValue : c.feedOpeningValue) || 0);
   let previousDate = c.start || checks[0].d;
   let consumedKg = 0;
   let consumedCost = 0;
@@ -188,10 +188,11 @@ function calc(c) {
     .map(p => (c.exp || []).find(x => x.id === p.expRefId || x.feedRefId === p.id))
     .filter(Boolean)
     .map(e => e.id));
+  const openingFeedAmt = !feedInventory.enabled ? Math.max(0, +c.feedOpeningValue || 0) : 0;
   const rawOtherExp = sum(c.exp, 'amt');
   const otherExp = feedInventory.enabled
     ? rawOtherExp - (c.exp || []).filter(e => e.cat === 'علف' && linkedFeedExpIds.has(e.id)).reduce((s, e) => s + (+e.amt || 0), 0) + feedInventory.consumedCost + feedInventory.pendingPurchaseCost
-    : rawOtherExp;
+    : rawOtherExp + openingFeedAmt;
   const e = chickCost + otherExp;          // إجمالي تكلفة الدورة
   const n = chickCount || (+c.n || 0);     // إجمالي الكتاكيت
 
@@ -209,7 +210,9 @@ function calc(c) {
 
   // 3. Per-type metrics: Bird-Days allocation across the cycle timeline
   const deadList = c.dead || [];
-  const expList = c.exp || [];
+  const expList = openingFeedAmt > 0
+    ? [{ id: '__opening_feed__', d: c.start, cat: 'علف', amt: openingFeedAmt, seq: 0 }, ...(c.exp || [])]
+    : (c.exp || []);
   const sharedCostByFlock = {};
   const sharedByCatByFlock = {};
   const expByCat = {};
