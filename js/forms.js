@@ -1018,10 +1018,11 @@ function openFeedStocktakeModal(editIndex = null) {
     </div>
     ${firstCheck ? `
       <label style="margin-top:12px;">هل كان عندك علف من قبل بداية الدورة؟</label>
-      <select id="fst_has_opening" onchange="toggleOpeningFeedFields()">
-        <option value="no" ${hasOpeningFeed ? '' : 'selected'}>لا، بدأت من غير علف قديم</option>
-        <option value="yes" ${hasOpeningFeed ? 'selected' : ''}>أيوة، عندي علف مُرحّل من قبل الدورة</option>
-      </select>
+      <input type="hidden" id="fst_has_opening" value="${hasOpeningFeed ? 'yes' : 'no'}">
+      <div class="restock-mode-tabs opening-feed-choices">
+        <button type="button" class="restock-mode-btn opening-feed-choice ${hasOpeningFeed ? '' : 'active'}" data-val="no" aria-pressed="${hasOpeningFeed ? 'false' : 'true'}" onclick="toggleOpeningFeedFields('no')">لا، مفيش علف قديم</button>
+        <button type="button" class="restock-mode-btn opening-feed-choice ${hasOpeningFeed ? 'active' : ''}" data-val="yes" aria-pressed="${hasOpeningFeed ? 'true' : 'false'}" onclick="toggleOpeningFeedFields('yes')">أيوة، فيه علف قديم</button>
+      </div>
       <div id="fst_opening_fields" style="display:${hasOpeningFeed ? 'block' : 'none'};">
         <div class="form-hint-banner" style="margin-top:10px;">استخدم الجزء ده فقط للعلف اللي كان موجودًا قبل الدورة ولم تسجّل شراءه فيها. المشتريات اللي سجلتها أثناء الدورة لا تدخلها هنا.</div>
         <label>كم شكارة كانت موجودة؟</label>
@@ -1158,10 +1159,17 @@ function deleteFeedStocktake(index) {
   });
 }
 
-function toggleOpeningFeedFields() {
+function toggleOpeningFeedFields(value) {
   const selector = document.getElementById('fst_has_opening');
   const fields = document.getElementById('fst_opening_fields');
-  if (selector && fields) fields.style.display = selector.value === 'yes' ? 'block' : 'none';
+  if (!selector || !fields) return;
+  selector.value = value;
+  fields.style.display = value === 'yes' ? 'block' : 'none';
+  document.querySelectorAll('.opening-feed-choice').forEach(btn => {
+    const active = btn.dataset.val === value;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
 }
 
 // Generic delete for expenses, mortality, or feed
