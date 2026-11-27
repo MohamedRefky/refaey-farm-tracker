@@ -2861,6 +2861,20 @@ select option {
   color: var(--text-title);
 }
 
+.per-chick-partial-split {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.per-chick-partial-split small {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
 .per-chick-cell {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);

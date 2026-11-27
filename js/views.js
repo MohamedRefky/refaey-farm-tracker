@@ -325,7 +325,7 @@ function detail(a) {
 
               <div class="flock-slim-sub">
                 ${hasSales
-                  ? `بيع: <b class="color-emerald">${f(fs.revenue)} ج</b> • تكلفة: <b>${f(fs.totalCost)} ج</b>${fs.live > 0 ? ` • الكتكوت: <b class="color-amber">${fp(fs.costPerLive)} ج</b>` : ''}`
+                  ? `بيع: <b class="color-emerald">${f(fs.revenue)} ج</b> • تكلفة: <b>${f(fs.totalCost)} ج</b>${fs.remaining > 0 && fs.sold > 0 ? ` • المتبقي: <b class="color-amber">${fp(fs.remainingCostPerBird)} ج</b>` : (fs.live > 0 ? ` • الكتكوت: <b class="color-amber">${fp(fs.costPerLive)} ج</b>` : '')}`
                   : `تكلفة حتى الآن: <b>${f(fs.totalCost)} ج</b>${fs.live > 0 ? ` • الكتكوت: <b class="color-amber">${fp(fs.costPerLive)} ج</b>` : ''} • نافق: <b class="${fs.mort > 5 ? 'color-rose' : ''}">${f(fs.dead)}</b>`
                 }
               </div>
@@ -416,6 +416,16 @@ function formatFlockChickPartsLine(fs) {
   const buyPart = fs.dead > 0
     ? `شراء: ${fp(fs.buyPerChick)} ج (بعد النافق: <b>${fp(fs.buyPerLive)} ج</b>)`
     : `شراء: <b>${fp(fs.buyPerChick)} ج</b>`;
+
+  if (fs.sold > 0 && fs.remaining > 0) {
+    return `
+      <div class="per-chick-partial-split">
+        <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): ${fp(fs.remainingCostPerBird)} ج / كتكوت</b> <small>(${buyPart} • علف: <b>${fp(fs.remainingFeedPerBird)} ج</b>${fs.remainingOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.remainingOtherOpsPerBird)} ج</b>` : ''})</small></div>
+        <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): ${fp(fs.soldCostPerBird)} ج / كتكوت</b> <small>(${buyPart} • علف: <b>${fp(fs.soldFeedPerBird)} ج</b>${fs.soldOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.soldOtherOpsPerBird)} ج</b>` : ''})</small></div>
+      </div>
+    `;
+  }
+
   const parts = [
     buyPart,
     `علف: <b>${fp(fs.feedPerLive)} ج</b>`
@@ -465,8 +475,8 @@ function renderPerChickHeroBox(k) {
                   <small>${f(fs.live)} حي${fs.dead > 0 ? ` • <span class="color-rose">نافق ${f(fs.dead)}</span>` : ''}</small>
                 </div>
                 <div class="per-chick-total-badge">
-                  <b>${fs.live > 0 ? fp(fs.costPerLive) + ' ج' : '—'}</b>
-                  <span>/ كتكوت</span>
+                  <b>${fs.live > 0 ? fp(fs.remaining > 0 && fs.sold > 0 ? fs.remainingCostPerBird : fs.costPerLive) + ' ج' : '—'}</b>
+                  <span>${fs.remaining > 0 && fs.sold > 0 ? '/ متبقي' : '/ كتكوت'}</span>
                 </div>
               </div>
               <div class="per-chick-multi-parts">
@@ -476,6 +486,30 @@ function renderPerChickHeroBox(k) {
             </div>
           `).join('')}
         </div>
+      </div>
+    `;
+  }
+
+  const singleFs = (k.flockStats && k.flockStats[0]) || null;
+  if (singleFs && singleFs.sold > 0 && singleFs.remaining > 0) {
+    return `
+      <div class="per-chick-summary-box">
+        <div class="per-chick-summary-top" style="margin-bottom: 8px;">
+          <div class="per-chick-summary-label">
+            <span>💵 تكلفة الكتكوت الواحد (قبل وبعد البيع الجزئي)</span>
+            <small>المتبقي قعد أيام أكتر فبيزيد نصيبه من المصاريف</small>
+          </div>
+          <div class="per-chick-total-badge">
+            <b>${fp(singleFs.remainingCostPerBird)} ج</b>
+            <span>/ متبقي</span>
+          </div>
+        </div>
+        ${formatFlockChickPartsLine(singleFs)}
+        ${k.dead > 0 ? `
+          <div class="per-chick-mort-note">
+            💡 نصيب الكتكوت من الشراء والمصاريف زاد بسبب النافق (${f(k.dead)} طائر) لأن التكلفة اتقسمت على الـ ${f(k.live)} كتكوت الحي الآن.
+          </div>
+        ` : ''}
       </div>
     `;
   }
@@ -532,6 +566,38 @@ function renderFlockPerChickBox(fs) {
         <div class="flock-perchick-head">
           <span>💵 تكلفة الكتكوت الواحد (${esc(fs.name)}):</span>
           <b class="color-rose">لا توجد طيور حية</b>
+        </div>
+      </div>
+    `;
+  }
+
+  if (fs.sold > 0 && fs.remaining > 0) {
+    return `
+      <div class="flock-perchick-box" onclick="event.stopPropagation()">
+        <div class="flock-perchick-head">
+          <span>💵 تكلفة الكتكوت (${esc(fs.name)}) — قبل وبعد البيع الجزئي</span>
+          <b class="flock-perchick-total">${fp(fs.remainingCostPerBird)} ج / متبقي</b>
+        </div>
+        <div class="flock-perchick-rows">
+          <div class="flock-perchick-row">
+            <span>🟢 <b>الكتكوت المتبقي الآن (${f(fs.remaining)} حي):</b></span>
+            <span><b>${fp(fs.remainingCostPerBird)} ج</b></span>
+          </div>
+          <div class="flock-perchick-row" style="padding-inline-start: 10px;">
+            <span>شراء: ${fs.dead > 0 ? `${fp(fs.buyPerChick)} ج ← ${fp(fs.buyPerLive)} ج` : `${fp(fs.buyPerChick)} ج`} • علف: ${fp(fs.remainingFeedPerBird)} ج • مصاريف أخرى: ${fp(fs.remainingOtherOpsPerBird)} ج</span>
+          </div>
+          <div class="flock-perchick-row" style="margin-top:4px; padding-top:4px; border-top:1px dashed var(--border-subtle);">
+            <span>✅ <b>الكتكوت اللي اتباع (${f(fs.sold)} طائر):</b></span>
+            <span><b>${fp(fs.soldCostPerBird)} ج</b></span>
+          </div>
+          <div class="flock-perchick-row" style="padding-inline-start: 10px;">
+            <span>شراء: ${fs.dead > 0 ? `${fp(fs.buyPerChick)} ج ← ${fp(fs.buyPerLive)} ج` : `${fp(fs.buyPerChick)} ج`} • علف: ${fp(fs.soldFeedPerBird)} ج • مصاريف أخرى: ${fp(fs.soldOtherOpsPerBird)} ج</span>
+          </div>
+          ${fs.dead > 0 ? `
+            <div class="per-chick-mort-note" style="margin-top:4px;">
+              💡 نصيب الكتكوت زاد بسبب النافق (${f(fs.dead)} طائر) لأن التكلفة اتقسمت على الـ ${f(fs.live)} كتكوت الحي بدل ${f(fs.count)}.
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
