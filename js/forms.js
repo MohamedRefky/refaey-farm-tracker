@@ -1467,7 +1467,7 @@ function restockPage(a, c) {
         <input type="date" id="rs_d" value="${today()}">
 
         ${hasOldExp ? `
-          <label style="margin-top: 14px;">المصاريف اللي اتصرفت قبل دلوقتي (${f(k.otherExp)} ج) تتحسب على الكتاكيت الجديدة دي كمان؟ *</label>
+          <label style="margin-top: 14px;">المصاريف اللي اتصرفت قبل كدا (${f(k.otherExp)} ج) تتحسب على الكتاكيت الجديدة دي كمان؟ *</label>
           <input type="hidden" id="rs_include_old" value="">
           <div id="rs_choice_status" class="restock-choice-status pending">
             <span>⏳ لسه مختارتش — اضغط على واحد من الاختيارين تحت عشان تقدر تحفظ</span>
