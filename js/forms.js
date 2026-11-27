@@ -595,7 +595,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
       closeM();
       render();
       if (kind === 'inc' && !isEdit && o.d === today()
-        && (cycle.feed || []).some(x => x.type === 'purchased')
+        && cycleHasTrackedFeed(cycle)
         && !(cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= (+o.seq || 0))) {
         showToast('سجّل جرد العلف الآن لتقدير تكلفة البيع حتى اليوم.', 3600);
         openFeedStocktakeModal();
@@ -2139,6 +2139,36 @@ function newCycle() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function cycleHasTrackedFeed(cycle) {
+  return !!cycle && (
+    (+cycle.feedOpeningKg || 0) > 0
+    || (cycle.feed || []).some(item => item.type === 'purchased')
+    || (cycle.feedStocktakes || []).some(item => (+item.openingKg || 0) > 0)
+  );
+}
+
+function getPendingFeedCarryover() {
+  if (typeof calculateFeedInventory !== 'function') return null;
+  const candidates = C.filter(c => c.end && c.feedClosingStocktakeId && !c.feedCarryoverDecision)
+    .sort((a, b) => String(b.end).localeCompare(String(a.end)) || (+b.id || 0) - (+a.id || 0));
+
+  for (const cycle of candidates) {
+    const check = (cycle.feedStocktakes || []).find(x => x.id === cycle.feedClosingStocktakeId);
+    if (!check) continue;
+    const inventory = calculateFeedInventory(cycle);
+    const period = inventory.periods.find(x => x.id === cycle.feedClosingStocktakeId);
+    if (!period || period.endKg <= 0.01) continue;
+    return {
+      sourceCycleId: cycle.id,
+      sourceCycleName: cycle.name || 'الدورة السابقة',
+      kg: period.endKg,
+      value: period.endValue,
+      unit: check.unit || 'شكارة (50 كجم)'
+    };
+  }
+  return null;
+}
+
 function closeNewCyclePage() {
   S.newCycle = false;
   render();
@@ -2151,6 +2181,18 @@ function toggleNewCycleOpeningFeed(value) {
   if (!hidden || !fields) return;
   hidden.value = value;
   fields.style.display = value === 'yes' ? 'block' : 'none';
+  if (value === 'yes') {
+    const carryover = getPendingFeedCarryover();
+    if (carryover) {
+      const unit = document.getElementById('new_old_feed_unit');
+      const qty = document.getElementById('new_old_feed_qty');
+      const amount = document.getElementById('new_old_feed_value');
+      const factor = getUnitKgFactor(carryover.unit);
+      if (unit) unit.value = carryover.unit;
+      if (qty && !qty.value) qty.value = (carryover.kg / factor).toFixed(2).replace(/\.00$/, '');
+      if (amount && !amount.value) amount.value = (+carryover.value || 0).toFixed(2);
+    }
+  }
   const choices = document.querySelector('.new-opening-feed-choices');
   if (choices) choices.classList.remove('choice-error');
   const choiceHint = document.getElementById('new_feed_choice_error');
@@ -2165,6 +2207,10 @@ function toggleNewCycleOpeningFeed(value) {
 
 function newCyclePage(a) {
   if (!a) return;
+  const pendingCarryover = getPendingFeedCarryover();
+  const carryoverQty = pendingCarryover
+    ? pendingCarryover.kg / getUnitKgFactor(pendingCarryover.unit)
+    : 0;
   a.innerHTML = `
     <div class="new-cycle-page">
       <div class="detail-top-nav new-cycle-nav">
@@ -2188,15 +2234,17 @@ function newCyclePage(a) {
         </section>
 
         <section class="new-cycle-section">
-          <div class="new-cycle-section-heading"><span>٢</span><div><h3>رصيد العلف عند البداية *</h3><small>اختار إجابة واحدة: فيه رصيد قديم أو مفيش</small></div></div>
+          <div class="new-cycle-section-heading"><span>٢</span><div><h3>رصيد العلف عند البداية *</h3><small>${pendingCarryover ? 'فيه رصيد متبقٍ من دورة سابقة؛ اختار إذا كنت هترحّله' : 'اختار إجابة واحدة: فيه رصيد قديم أو مفيش'}</small></div></div>
+          <input type="hidden" id="new_feed_carryover_source" value="${pendingCarryover ? pendingCarryover.sourceCycleId : ''}">
+          ${pendingCarryover ? `<div class="form-hint-banner amber">📦 متبقي من «${esc(pendingCarryover.sourceCycleName)}»: <b>${fp(carryoverQty)} ${esc(pendingCarryover.unit)}</b> (${fp(pendingCarryover.kg)} كجم)، بقيمة تقديرية <b>${f(pendingCarryover.value)} جنيه</b>. لو هتستخدمه، رحّله عشان يتحسب كمخزون بداية، ويتحمّل على تكلفة الدورة بقدر المستهلك فقط.</div>` : ''}
           <input type="hidden" id="new_has_old_feed" value="">
           <div class="restock-mode-tabs new-opening-feed-choices">
-            <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="no" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('no')">لا، مفيش علف قديم</button>
-            <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="yes" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('yes')">أيوة، فيه رصيد مُرحّل</button>
+            <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="no" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('no')">${pendingCarryover ? 'لا، مش هرحّله للدورة دي' : 'لا، مفيش علف قديم'}</button>
+            <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="yes" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('yes')">${pendingCarryover ? 'أيوة، رحّل الرصيد' : 'أيوة، فيه رصيد مُرحّل'}</button>
           </div>
           <div id="new_feed_choice_error" class="field-hint-error" role="alert" style="display:none;">اختار واحد من الاختيارين: هل فيه علف قديم ولا مفيش؟</div>
           <div id="new_old_feed_fields" style="display:none;">
-            <div class="form-hint-banner" style="margin-top:8px;">اكتب هنا العلف الموجود قبل الدورة فقط، ولم تسجل شراءه داخلها. المشتريات الجديدة تُسجل لاحقًا من زر «شراء علف».</div>
+            <div class="form-hint-banner" style="margin-top:8px;">${pendingCarryover ? 'راجع الكمية والقيمة المرحّلتين من الدورة السابقة وعدّلهما لو استخدمت جزءًا منهما قبل بداية الدورة.' : 'اكتب هنا العلف الموجود قبل الدورة فقط، ولم تسجل شراءه داخلها. المشتريات الجديدة تُسجل لاحقًا من زر «شراء علف».'}</div>
             <div class="new-cycle-fields-grid">
               <div><label for="new_old_feed_qty">الكمية الموجودة *</label><input id="new_old_feed_qty" type="number" inputmode="decimal" min="0" step="0.25" placeholder="عدد الشكاير"></div>
               <div><label for="new_old_feed_unit">وحدة الشكارة</label><select id="new_old_feed_unit"><option value="شكارة (50 كجم)">شكارة 50 كجم</option><option value="شكارة (100 كجم)">شكارة 100 كجم</option><option value="كيلوجرام (كجم)">كيلوجرام</option></select></div>
@@ -2267,8 +2315,9 @@ function newCyclePage(a) {
         showFormError('أدخل كمية العلف المُرحّل الموجودة عند بداية الدورة.', 'new_old_feed_qty');
         return;
       }
-      if (!valueRaw || !Number.isFinite(value) || value <= 0) {
-        showFormError('أدخل قيمة تقديرية للعلف المُرحّل.', 'new_old_feed_value');
+      const hasAutoCarryover = !!document.getElementById('new_feed_carryover_source')?.value;
+      if (!valueRaw || !Number.isFinite(value) || value < 0 || (value === 0 && !hasAutoCarryover)) {
+        showFormError('أدخل قيمة تقديرية صحيحة للعلف المُرحّل.', 'new_old_feed_value');
         return;
       }
       feedOpeningKg = qty * getUnitKgFactor(unit);
@@ -2285,6 +2334,14 @@ function newCyclePage(a) {
       nextSeq: flocks.length, flocks, exp: [], inc: [], dead: [], feed: [], debt: [],
       feedOpeningKg, feedOpeningValue, feedOpeningUnit
     };
+    const carryoverSourceId = +document.getElementById('new_feed_carryover_source').value || 0;
+    const carryoverSource = carryoverSourceId ? C.find(c => c.id === carryoverSourceId) : null;
+    const oldCarryoverDecision = carryoverSource ? carryoverSource.feedCarryoverDecision : null;
+    const oldCarryoverCycleId = carryoverSource ? carryoverSource.feedCarryoverCycleId : null;
+    if (carryoverSource) {
+      carryoverSource.feedCarryoverDecision = feedChoice === 'yes' ? 'transferred' : 'declined';
+      carryoverSource.feedCarryoverCycleId = newObj.id;
+    }
     syncCycleCount(newObj);
     C.push(newObj);
     if (saveAndNotify('تم إنشاء الدورة الجديدة بنجاح 🐥')) {
@@ -2295,6 +2352,12 @@ function newCyclePage(a) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       C.pop();
+      if (carryoverSource) {
+        if (oldCarryoverDecision === null) delete carryoverSource.feedCarryoverDecision;
+        else carryoverSource.feedCarryoverDecision = oldCarryoverDecision;
+        if (oldCarryoverCycleId === null) delete carryoverSource.feedCarryoverCycleId;
+        else carryoverSource.feedCarryoverCycleId = oldCarryoverCycleId;
+      }
       nid--;
     }
   };
@@ -2310,6 +2373,7 @@ function closeC() {
   }
 
   const hasFeedPurchases = (cycle.feed || []).some(x => x.type === 'purchased');
+  const hasFeedToCount = cycleHasTrackedFeed(cycle) || (cycle.feedStocktakes || []).length > 0;
   const lastPurchaseTodaySeq = (cycle.feed || []).filter(x => x.d === today()).reduce((max, p) => {
     const e = (cycle.exp || []).find(item => item.id === p.expRefId || item.feedRefId === p.id);
     return Math.max(max, +p.seq || +(e && e.seq) || 0);
@@ -2317,7 +2381,7 @@ function closeC() {
   const lastSaleTodaySeq = (cycle.inc || []).filter(x => x.d === today()).reduce((max, x) => Math.max(max, +x.seq || 0), 0);
   const requiredStocktakeSeq = Math.max(lastPurchaseTodaySeq, lastSaleTodaySeq);
   const hasTodayStocktake = (cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= requiredStocktakeSeq);
-  if (hasFeedPurchases && !hasTodayStocktake) {
+  if (hasFeedToCount && !hasTodayStocktake) {
     S.tab = 'exp';
     render();
     showToast('قبل إغلاق الدورة، سجّل جرد العلف النهائي (حتى لو الرصيد صفر).', 3600);
@@ -2334,9 +2398,19 @@ function closeC() {
     itemMeta: `عمر الدورة حتى اليوم: ${Math.max(1, Math.floor((new Date(today()) - new Date(cycle.start))/(1000*60*60*24))+1)} يوم`,
     confirmBtnText: 'نعم، إغلاق وقفل الدورة',
     onConfirm: () => {
+      const previousEnd = cycle.end;
+      const previousClosingStocktakeId = cycle.feedClosingStocktakeId;
+      const finalStocktake = hasFeedToCount
+        ? (cycle.feedStocktakes || []).find(x => x.d === today() && (+x.seq || 0) >= requiredStocktakeSeq)
+        : null;
       cycle.end = today();
+      if (finalStocktake) cycle.feedClosingStocktakeId = finalStocktake.id;
       if (saveAndNotify('تم إغلاق الدورة بنجاح ✓')) {
         render();
+      } else {
+        cycle.end = previousEnd;
+        if (previousClosingStocktakeId === undefined) delete cycle.feedClosingStocktakeId;
+        else cycle.feedClosingStocktakeId = previousClosingStocktakeId;
       }
     }
   });
