@@ -336,14 +336,18 @@ function normalizeData(cycles) {
     // Normalize feed (purchased / incoming feed only)
     c.feed = (c.feed || [])
       .filter(e => e.type !== 'consumed')
-      .map((e, i) => ({
-        ...e,
-        id: e.id || Date.now() + i,
-        type: 'purchased',
-        kg: +e.kg || 0,
-        q: e.q !== undefined ? +e.q : (+e.kg || 0) / (bagKg || 50),
-        unit: e.unit || 'شكارة'
-      }));
+      .map((e, i) => {
+        const linkedExp = (c.exp || []).find(x => x.id === e.expRefId || x.feedRefId === e.id);
+        return {
+          ...e,
+          id: e.id || Date.now() + i,
+          type: 'purchased',
+          kg: +e.kg || 0,
+          q: e.q !== undefined ? +e.q : (+e.kg || 0) / (bagKg || 50),
+          unit: e.unit || 'شكارة',
+          seq: +e.seq || +(linkedExp && linkedExp.seq) || 0
+        };
+      });
 
     // Feed stocktakes are snapshots of remaining stock, not purchases.
     c.feedStocktakes = (c.feedStocktakes || []).map((x, i) => ({
