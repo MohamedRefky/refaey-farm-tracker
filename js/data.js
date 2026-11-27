@@ -351,10 +351,14 @@ function normalizeData(cycles) {
 
     // Feed stocktakes are snapshots of remaining stock, not purchases.
     c.feedStocktakes = (c.feedStocktakes || []).map((x, i) => {
-      const hasOwnOpening = (+x.openingKg || 0) > 0 || (+x.openingValue || 0) > 0;
-      const useCycleOpening = !hasOwnOpening && (x.openingKg === undefined || (+c.feedOpeningKg || 0) > 0 || (+c.feedOpeningValue || 0) > 0);
-      const openingKg = useCycleOpening ? (+c.feedOpeningKg || 0) : (+x.openingKg || 0);
-      const openingValue = useCycleOpening ? (+c.feedOpeningValue || 0) : (+x.openingValue || 0);
+      const rawOpenKg = +x.openingKg || 0;
+      const rawOpenVal = +x.openingValue || 0;
+      const openingKg = rawOpenKg > 0
+        ? rawOpenKg
+        : (x.openingKg === undefined || (+c.feedOpeningKg || 0) > 0 ? (+c.feedOpeningKg || 0) : 0);
+      const openingValue = rawOpenVal > 0
+        ? rawOpenVal
+        : (x.openingValue === undefined || (+c.feedOpeningValue || 0) > 0 ? (+c.feedOpeningValue || 0) : 0);
       return {
         ...x,
         id: x.id || Date.now() + i,

@@ -63,8 +63,10 @@ function calculateFeedInventory(c) {
   checks.sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
   const expForPurchase = purchase => (c.exp || []).find(e => e.id === purchase.expRefId || e.feedRefId === purchase.id);
   const included = new Set();
-  let stockKg = Math.max(0, +(checks[0].openingKg !== undefined ? checks[0].openingKg : c.feedOpeningKg) || 0);
-  let stockValue = Math.max(0, +(checks[0].openingValue !== undefined ? checks[0].openingValue : c.feedOpeningValue) || 0);
+  const rawCheckOpenKg = +checks[0].openingKg || 0;
+  const rawCheckOpenVal = +checks[0].openingValue || 0;
+  let stockKg = Math.max(0, rawCheckOpenKg > 0 ? rawCheckOpenKg : (+c.feedOpeningKg || 0));
+  let stockValue = Math.max(0, rawCheckOpenVal > 0 ? rawCheckOpenVal : (+c.feedOpeningValue || 0));
   let previousDate = c.start || checks[0].d;
   let consumedKg = 0;
   let consumedCost = 0;
