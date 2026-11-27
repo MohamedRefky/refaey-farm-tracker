@@ -215,6 +215,9 @@ function renderExpensesTab(c, k) {
           ? `${linkedFeed.txt || (linkedFeed.q ? `${linkedFeed.q} ${linkedFeed.unit || 'شكارة'}` : 'علف')}`
           : (e.note ? `${e.cat} - ${e.note}` : e.cat);
         const subInfo = linkedFeed ? ` • <b>${f(linkedFeed.kg)} كجم</b>` : '';
+        const feedStockNote = linkedFeed && k.feedInventory && k.feedInventory.enabled
+          ? '<br><small>شراء للمخزون • تكلفة المستهلك تُحسب عند الجرد</small>'
+          : '';
 
         return `
           <div class="record-item record-clean">
@@ -224,7 +227,7 @@ function renderExpensesTab(c, k) {
                   <span>${icon}</span>
                   <span>${esc(label)}</span>
                 </div>
-                <div class="record-date">${fds(e.d)}${subInfo}</div>
+                <div class="record-date">${fds(e.d)}${subInfo}${feedStockNote}</div>
               </div>
               <span class="record-value color-rose">${f(e.amt)} ج</span>
             </div>
