@@ -2165,6 +2165,16 @@ function closeC() {
     return;
   }
 
+  const hasFeedPurchases = (cycle.feed || []).some(x => x.type === 'purchased');
+  const hasTodayStocktake = (cycle.feedStocktakes || []).some(x => x.d === today());
+  if (hasFeedPurchases && !hasTodayStocktake) {
+    S.tab = 'exp';
+    render();
+    showToast('قبل إغلاق الدورة، سجّل جرد العلف النهائي (حتى لو الرصيد صفر).', 3600);
+    openFeedStocktakeModal();
+    return;
+  }
+
   showConfirmModal({
     icon: '🔒',
     title: 'تأكيد إغلاق الدورة رسمياً',
