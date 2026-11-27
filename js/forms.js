@@ -594,6 +594,12 @@ function openForm(kind, editIndex = null, prefillData = null) {
     if (saveAndNotify(toastMsg)) {
       closeM();
       render();
+      if (kind === 'inc' && !isEdit && o.d === today()
+        && (cycle.feed || []).some(x => x.type === 'purchased')
+        && !(cycle.feedStocktakes || []).some(x => x.d === today())) {
+        showToast('سجّل جرد العلف الآن لتقدير تكلفة البيع حتى اليوم.', 3600);
+        openFeedStocktakeModal();
+      }
     }
   };
 
