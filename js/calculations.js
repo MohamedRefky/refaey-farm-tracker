@@ -312,12 +312,12 @@ function calc(c) {
     const flRem = Math.max(0, flCount - flSold - flDead);
 
     const fifoBatches = batches
-      .map(b => ({ rem: +b.count || 0, day: toDayNum(b.d || c.start) ?? cycleStartDay }))
-      .sort((a, b) => a.day - b.day);
+      .map(b => ({ rem: +b.count || 0, day: toDayNum(b.d || c.start) ?? cycleStartDay, seq: +b.seq || 0 }))
+      .sort((a, b) => (a.day - b.day) || (a.seq - b.seq));
     const fifoExits = [
-      ...flSales.map(x => ({ type: 'sale', cnt: +x.cnt || 0, day: toDayNum(x.d || c.start) ?? cycleStartDay })),
-      ...flDeads.map(x => ({ type: 'dead', cnt: +x.n || 0, day: toDayNum(x.d || c.start) ?? cycleStartDay }))
-    ].sort((a, b) => a.day - b.day);
+      ...flSales.map(x => ({ type: 'sale', cnt: +x.cnt || 0, day: toDayNum(x.d || c.start) ?? cycleStartDay, seq: +x.seq || 0 })),
+      ...flDeads.map(x => ({ type: 'dead', cnt: +x.n || 0, day: toDayNum(x.d || c.start) ?? cycleStartDay, seq: +x.seq || 0 }))
+    ].sort((a, b) => (a.day - b.day) || (a.seq - b.seq));
 
     fifoExits.forEach(ex => {
       let need = ex.cnt;
