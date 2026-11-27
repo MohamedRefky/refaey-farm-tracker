@@ -1062,6 +1062,10 @@ function openFeedStocktakeModal(editIndex = null) {
         showFormError('راجع كمية وقيمة الرصيد الافتتاحي.', 'fst_open_qty');
         return;
       }
+      if (openQty > 0 && openingValue <= 0) {
+        showFormError('اكتب قيمة تقديرية للرصيد الافتتاحي حتى تدخل تكلفته في الحساب.', 'fst_open_value');
+        return;
+      }
     }
 
     const checkSeq = current ? (+current.seq || 0) : nextCycleSeq(cycle);
