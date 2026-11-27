@@ -141,7 +141,7 @@ function renderExpensesTab(c, k) {
   if (activeFilter === 'كتاكيت') {
     summaryHtml = `<span>🐣 شراء الكتاكيت: <b class="color-rose">${f(k.chickCost)} ج</b></span><span>•</span><span>${f(k.chickCount)} طائر (متوسط <b>${k.chickCount > 0 ? fp(k.buyPerChick) : 0} ج</b>/كتكوت)</span>`;
   } else if (activeFilter === 'علف') {
-    summaryHtml = `<span>مشتَرى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>${k.feedInventory && k.feedInventory.enabled ? 'تكلفة المستهلك تقديريًا' : 'تكلفة المشتريات'}: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
+    summaryHtml = `<span>مشتَرى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>${k.feedInventory && k.feedInventory.enabled ? 'تكلفة العلف المقدرة حتى الآن' : 'تكلفة المشتريات'}: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
   } else if (activeFilter !== 'all') {
     summaryHtml = `<span>${catIcons[activeFilter] || ''} ${activeFilter}: <b class="color-rose">${f(filteredExpSum)} ج</b></span><span>•</span><span>${filteredEntries.length} بنود</span>`;
   }
@@ -215,8 +215,12 @@ function renderExpensesTab(c, k) {
           ? `${linkedFeed.txt || (linkedFeed.q ? `${linkedFeed.q} ${linkedFeed.unit || 'شكارة'}` : 'علف')}`
           : (e.note ? `${e.cat} - ${e.note}` : e.cat);
         const subInfo = linkedFeed ? ` • <b>${f(linkedFeed.kg)} كجم</b>` : '';
+        const isPendingFeedPurchase = linkedFeed && k.feedInventory && k.feedInventory.enabled
+          && (k.feedInventory.pendingPurchaseIds || []).includes(linkedFeed.id);
         const feedStockNote = linkedFeed && k.feedInventory && k.feedInventory.enabled
-          ? '<br><small>شراء للمخزون • تكلفة المستهلك تُحسب عند الجرد</small>'
+          ? (isPendingFeedPurchase
+            ? '<br><small>شراء بعد آخر جرد • محمّل مؤقتًا على تكلفة الدورة ويتحدث عند الجرد القادم</small>'
+            : '<br><small>شراء للمخزون • تكلفة المستهلك تُقدّر بالجرد</small>')
           : '';
 
         return `
@@ -264,10 +268,13 @@ function renderFeedInventoryCard(c, k) {
       ${inv.enabled ? `
         <div class="feed-inventory-stats">
           <span>المستهلك المقدر: <b>${fp(inv.consumedKg)} كجم</b></span>
-          <span>تكلفته: <b>${f(inv.consumedCost)} ج</b></span>
-          <span>المتبقي: <b>${fp(inv.stockKg)} كجم</b></span>
-          <span>قيمة المتبقي التقديرية: <b>${f(inv.stockValue)} ج</b></span>
+          <span>تكلفته حسب الجرد: <b>${f(inv.consumedCost)} ج</b></span>
+          ${inv.pendingPurchaseKg > 0 ? `<span>مشتريات بعد آخر جرد (مؤقتة): <b>${f(inv.pendingPurchaseCost)} ج</b></span>` : ''}
+          <span>${inv.pendingPurchaseKg > 0 ? 'الرصيد النظري من آخر جرد والمشتريات اللاحقة' : 'الرصيد المتبقي بآخر جرد'}: <b>${fp(inv.stockKg)} كجم</b></span>
+          <span>قيمة الرصيد التقديرية: <b>${f(inv.stockValue)} ج</b></span>
+          ${inv.pendingPurchaseKg > 0 ? `<span>تكلفة العلف الحالية المقدرة: <b>${f(inv.consumedCost + inv.pendingPurchaseCost)} ج</b></span>` : ''}
         </div>
+        ${inv.pendingPurchaseKg > 0 ? '<div class="feed-inventory-note">مشتريات العلف بعد آخر جرد تدخل مؤقتًا في تكلفة الدورة، وسيُعاد تقديرها تلقائيًا بعد الجرد القادم حتى لا يُحسب المتبقي كمستهلك.</div>' : ''}
         ${inv.hasShortage ? '<div class="feed-inventory-warning">فيه جرد مسجل أكبر من الرصيد المتاح حسب المشتريات. راجع تواريخ الشراء أو أضف الرصيد الافتتاحي؛ لم تُحسب تكلفة استهلاك للفترة المتعارضة.</div>' : ''}
         <div class="feed-stocktake-list">
           ${checks.map(check => {
