@@ -124,6 +124,14 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Prevent mouse-wheel scrolling from accidentally changing numbers inside focused <input type="number">
+document.addEventListener('wheel', () => {
+  const active = document.activeElement;
+  if (active && active.tagName === 'INPUT' && active.type === 'number') {
+    active.blur();
+  }
+}, { passive: true });
+
 // Sync data automatically across open browser tabs & handle network reconnects
 window.addEventListener('storage', e => {
   if (e.key === STORAGE_KEY && e.newValue) {
