@@ -2151,9 +2151,12 @@ function toggleNewCycleOpeningFeed(value) {
   if (!hidden || !fields) return;
   hidden.value = value;
   fields.style.display = value === 'yes' ? 'block' : 'none';
+  const choices = document.querySelector('.new-opening-feed-choices');
+  if (choices) choices.classList.remove('choice-error');
   document.querySelectorAll('.new-opening-feed-choice').forEach(btn => {
     const active = btn.dataset.val === value;
     btn.classList.toggle('active', active);
+    btn.classList.remove('input-error');
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
 }
@@ -2167,7 +2170,7 @@ function newCyclePage(a) {
         <span class="badge badge-active">دورة جديدة</span>
       </div>
 
-      <form id="new_cycle_form" class="new-cycle-form" autocomplete="off">
+      <form id="new_cycle_form" class="new-cycle-form" autocomplete="off" novalidate>
         <div class="new-cycle-title">
           <span class="new-cycle-icon">🐣</span>
           <div><h2>بدء دورة تسمين جديدة</h2><p>سجّل بيانات البداية، ويمكنك إضافة باقي المصاريف لاحقًا.</p></div>
@@ -2178,24 +2181,24 @@ function newCyclePage(a) {
           <div class="new-cycle-section-heading"><span>١</span><div><h3>بيانات الدورة</h3><small>الاسم وتاريخ استلام الكتاكيت</small></div></div>
           <label for="nn">اسم الدورة *</label>
           <input id="nn" placeholder="مثال: دورة نوفمبر أو دفعة رقم ٣" required>
-          <label for="ns">تاريخ استلام الكتاكيت</label>
+          <label for="ns">تاريخ استلام الكتاكيت *</label>
           <input type="date" id="ns" value="${today()}">
         </section>
 
         <section class="new-cycle-section">
           <div class="new-cycle-section-heading"><span>٢</span><div><h3>رصيد العلف عند البداية</h3><small>لو الدورة بدأت من غير علف قديم، اختار «لا»</small></div></div>
-          <input type="hidden" id="new_has_old_feed" value="no">
+          <input type="hidden" id="new_has_old_feed" value="">
           <div class="restock-mode-tabs new-opening-feed-choices">
-            <button type="button" class="restock-mode-btn new-opening-feed-choice active" data-val="no" aria-pressed="true" onclick="toggleNewCycleOpeningFeed('no')">لا، مفيش علف قديم</button>
+            <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="no" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('no')">لا، مفيش علف قديم</button>
             <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="yes" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('yes')">أيوة، فيه رصيد مُرحّل</button>
           </div>
           <div id="new_old_feed_fields" style="display:none;">
             <div class="form-hint-banner" style="margin-top:8px;">اكتب هنا العلف الموجود قبل الدورة فقط، ولم تسجل شراءه داخلها. المشتريات الجديدة تُسجل لاحقًا من زر «شراء علف».</div>
             <div class="new-cycle-fields-grid">
-              <div><label for="new_old_feed_qty">الكمية الموجودة</label><input id="new_old_feed_qty" type="number" inputmode="decimal" min="0" step="0.25" placeholder="عدد الشكاير"></div>
+              <div><label for="new_old_feed_qty">الكمية الموجودة *</label><input id="new_old_feed_qty" type="number" inputmode="decimal" min="0" step="0.25" placeholder="عدد الشكاير"></div>
               <div><label for="new_old_feed_unit">وحدة الشكارة</label><select id="new_old_feed_unit"><option value="شكارة (50 كجم)">شكارة 50 كجم</option><option value="شكارة (100 كجم)">شكارة 100 كجم</option><option value="كيلوجرام (كجم)">كيلوجرام</option></select></div>
             </div>
-            <label for="new_old_feed_value">قيمة الرصيد التقديرية (جنيه)</label>
+            <label for="new_old_feed_value">قيمة الرصيد التقديرية (جنيه) *</label>
             <input id="new_old_feed_value" type="number" inputmode="decimal" min="0" step="any" placeholder="قيمة العلف الموجود">
           </div>
         </section>
@@ -2219,6 +2222,8 @@ function newCyclePage(a) {
   updateFlocksModalSummary();
   const form = document.getElementById('new_cycle_form');
   if (!form) return;
+  form.addEventListener('input', ev => ev.target.classList.remove('input-error'));
+  form.addEventListener('change', ev => ev.target.classList.remove('input-error'));
   form.onsubmit = ev => {
     ev.preventDefault();
     clearFormErrors();
@@ -2228,22 +2233,37 @@ function newCyclePage(a) {
       showFormError('يرجى إدخال اسم الدورة.', 'nn');
       return;
     }
-    const cycleStart = ns || today();
-    const flocks = collectAndValidateFlockRows(null, cycleStart);
-    if (!flocks) return;
+    if (!ns) {
+      showFormError('يرجى اختيار تاريخ استلام الكتاكيت.', 'ns');
+      return;
+    }
+
+    const feedChoice = document.getElementById('new_has_old_feed').value;
+    if (!['yes', 'no'].includes(feedChoice)) {
+      const choices = document.querySelector('.new-opening-feed-choices');
+      if (choices) {
+        choices.classList.add('choice-error');
+        choices.querySelectorAll('.new-opening-feed-choice').forEach(btn => btn.classList.add('input-error'));
+        choices.querySelector('.new-opening-feed-choice')?.focus();
+      }
+      showFormError('اختار هل فيه علف مُرحّل من قبل الدورة أم لا.', null);
+      return;
+    }
 
     let feedOpeningKg = 0;
     let feedOpeningValue = 0;
     let feedOpeningUnit = 'شكارة (50 كجم)';
-    if (document.getElementById('new_has_old_feed').value === 'yes') {
-      const qty = +(document.getElementById('new_old_feed_qty').value || 0);
+    if (feedChoice === 'yes') {
+      const qtyRaw = document.getElementById('new_old_feed_qty').value.trim();
+      const qty = +qtyRaw;
       const unit = document.getElementById('new_old_feed_unit').value;
-      const value = +(document.getElementById('new_old_feed_value').value || 0);
-      if (!Number.isFinite(qty) || qty <= 0) {
+      const valueRaw = document.getElementById('new_old_feed_value').value.trim();
+      const value = +valueRaw;
+      if (!qtyRaw || !Number.isFinite(qty) || qty <= 0) {
         showFormError('أدخل كمية العلف المُرحّل الموجودة عند بداية الدورة.', 'new_old_feed_qty');
         return;
       }
-      if (!Number.isFinite(value) || value <= 0) {
+      if (!valueRaw || !Number.isFinite(value) || value <= 0) {
         showFormError('أدخل قيمة تقديرية للعلف المُرحّل.', 'new_old_feed_value');
         return;
       }
@@ -2251,6 +2271,10 @@ function newCyclePage(a) {
       feedOpeningValue = value;
       feedOpeningUnit = unit;
     }
+
+    const cycleStart = ns;
+    const flocks = collectAndValidateFlockRows(null, cycleStart);
+    if (!flocks) return;
 
     const newObj = {
       id: nid++, name: nn, start: cycleStart, end: null, n: 0,
