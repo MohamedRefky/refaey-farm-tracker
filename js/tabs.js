@@ -261,35 +261,81 @@ function renderFeedInventoryCard(c, k) {
   const checks = (c.feedStocktakes || []).slice().sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
   const hasFeedPurchases = (c.feed || []).some(x => x.type === 'purchased');
   const hasOpeningFeed = (+c.feedOpeningKg || 0) > 0 || (+c.feedOpeningValue || 0) > 0;
+  const hasPending = inv.pendingPurchaseKg > 0;
+
   return `
     <div class="card feed-inventory-card">
       <div class="feed-inventory-head">
         <div>
           <h3>📦 جرد العلف</h3>
-          <small>سجّل الشكاير المتبقية عند البيع أو إغلاق الدفعة؛ لا تحتاج لوزن الجردل.</small>
+          <small>سجّل الشكاير المتبقية عند البيع أو قفل الدفعة — الحساب تلقائي بدون وزن الجردل.</small>
         </div>
         <button class="btn btn-primary btn-sm" type="button" onclick="openFeedStocktakeModal()">+ تسجيل جرد</button>
       </div>
-      <div class="feed-inventory-note">⚠️ تكلفة العلف هنا تقديرية حسب وزن الشكارة المسجل والرصيد بالجرد. الكمية المستهلكة تتحسب من: رصيد البداية + المشتريات − المتبقي.</div>
+
       ${inv.enabled ? `
-        <div class="feed-inventory-stats">
-          <span>المستهلك المقدر: <b>${fp(inv.consumedKg)} كجم</b></span>
-          <span>تكلفته حسب الجرد: <b>${f(inv.consumedCost)} ج</b></span>
-          ${inv.pendingPurchaseKg > 0 ? `<span>مشتريات بعد آخر جرد (مؤقتة): <b>${f(inv.pendingPurchaseCost)} ج</b></span>` : ''}
-          <span>${inv.pendingPurchaseKg > 0 ? 'الرصيد النظري من آخر جرد والمشتريات اللاحقة' : 'الرصيد المتبقي بآخر جرد'}: <b>${fp(inv.stockKg)} كجم</b></span>
-          <span>قيمة الرصيد التقديرية: <b>${f(inv.stockValue)} ج</b></span>
-          ${inv.pendingPurchaseKg > 0 ? `<span>تكلفة العلف الحالية المقدرة: <b>${f(inv.consumedCost + inv.pendingPurchaseCost)} ج</b></span>` : ''}
+        <div class="feed-inv-grid">
+          <div class="feed-inv-stat">
+            <span class="feed-inv-stat-lbl">🍽️ المستهلك (حتى آخر جرد)</span>
+            <b class="feed-inv-stat-val">${fp(inv.consumedKg)} كجم</b>
+            <small class="feed-inv-stat-sub">تكلفته: <b>${f(inv.consumedCost)} ج</b></small>
+          </div>
+          <div class="feed-inv-stat">
+            <span class="feed-inv-stat-lbl">📦 المتبقي حالياً بالمخزن</span>
+            <b class="feed-inv-stat-val color-emerald">${fp(inv.stockKg)} كجم</b>
+            <small class="feed-inv-stat-sub">قيمته التقديرية: <b>${f(inv.stockValue)} ج</b></small>
+          </div>
+          ${hasPending ? `
+            <div class="feed-inv-stat">
+              <span class="feed-inv-stat-lbl">🛒 مشتريات بعد آخر جرد</span>
+              <b class="feed-inv-stat-val">${f(inv.pendingPurchaseCost)} ج</b>
+              <small class="feed-inv-stat-sub">${fp(inv.pendingPurchaseKg)} كجم (مؤقتة لحد الجرد الجاي)</small>
+            </div>
+            <div class="feed-inv-stat highlight">
+              <span class="feed-inv-stat-lbl">💰 تكلفة العلف المحسوبة الآن</span>
+              <b class="feed-inv-stat-val color-amber">${f(inv.consumedCost + inv.pendingPurchaseCost)} ج</b>
+              <small class="feed-inv-stat-sub">${f(inv.consumedCost)} ج جرد + ${f(inv.pendingPurchaseCost)} ج مؤقت</small>
+            </div>
+          ` : ''}
         </div>
-        ${inv.pendingPurchaseKg > 0 ? '<div class="feed-inventory-note">مشتريات العلف بعد آخر جرد تدخل مؤقتًا في تكلفة الدورة، وسيُعاد تقديرها تلقائيًا بعد الجرد القادم حتى لا يُحسب المتبقي كمستهلك.</div>' : ''}
-        ${inv.hasShortage ? '<div class="feed-inventory-warning">فيه جرد مسجل أكبر من الرصيد المتاح حسب المشتريات. راجع تواريخ الشراء أو أضف الرصيد الافتتاحي؛ لم تُحسب تكلفة استهلاك للفترة المتعارضة.</div>' : ''}
-        <div class="feed-stocktake-list">
-          ${checks.map(check => {
-            const idx = (c.feedStocktakes || []).indexOf(check);
-            const period = inv.periods.find(x => x.id === check.id);
-            const canEdit = check === checks[checks.length - 1];
-            return `<div class="feed-stocktake-row"><span><b>${fds(check.d)}</b> • متبقي ${fp(check.kg)} كجم${period ? ` • استهلاك الفترة ${fp(period.kg)} كجم / ${f(period.cost)} ج` : ''}</span><span>${canEdit ? `<button type="button" class="labeled-action-btn" onclick="openFeedStocktakeModal(${idx})">تعديل</button>` : ''}<button type="button" class="labeled-action-btn danger" onclick="deleteFeedStocktake(${idx})">حذف</button></span></div>`;
-          }).join('')}
-        </div>
+
+        ${hasPending ? `
+          <div class="feed-inventory-tip">
+            ℹ️ المشتريات الجديدة بعد آخر جرد بتتحسب مؤقتاً في الدورة لحد ما تسجّل الجرد الجاي عشان المتبقي ميتحسبش مستهلك.
+          </div>
+        ` : `
+          <div class="feed-inventory-tip">
+            💡 المعادلة: المستهلك = رصيد البداية + المشتريات − المتبقي بالجرد (التكلفة تقديرية حسب وزن الشكارة).
+          </div>
+        `}
+
+        ${inv.hasShortage ? '<div class="feed-inventory-warning">⚠️ فيه جرد مسجل أكبر من الرصيد المتاح حسب المشتريات. راجع تواريخ الشراء أو أضف الرصيد الافتتاحي؛ لم تُحسب تكلفة استهلاك للفترة المتعارضة.</div>' : ''}
+
+        ${checks.length ? `
+          <div class="feed-stocktake-list">
+            <div class="feed-stocktake-list-title">📋 سجل الجرد (${checks.length})</div>
+            ${checks.map(check => {
+              const idx = (c.feedStocktakes || []).indexOf(check);
+              const period = inv.periods.find(x => x.id === check.id);
+              const canEdit = check === checks[checks.length - 1];
+              return `
+                <div class="feed-stocktake-row">
+                  <div class="feed-stocktake-info">
+                    <div class="feed-stocktake-top">
+                      <b>📅 ${fds(check.d)}</b>
+                      <span class="feed-stocktake-pill">متبقي ${fp(check.kg)} كجم</span>
+                    </div>
+                    ${period ? `<div class="feed-stocktake-sub">استهلاك الفترة: <b>${fp(period.kg)} كجم</b> (${f(period.cost)} ج)</div>` : ''}
+                  </div>
+                  <div class="feed-stocktake-actions">
+                    ${canEdit ? `<button type="button" class="labeled-action-btn" onclick="openFeedStocktakeModal(${idx})">✏️ تعديل</button>` : ''}
+                    <button type="button" class="labeled-action-btn danger" onclick="deleteFeedStocktake(${idx})">🗑️ حذف</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : ''}
       ` : `
         <div class="feed-inventory-empty">${hasFeedPurchases || hasOpeningFeed ? 'ابدأ بأول جرد لتقدير المستهلك والمتبقي. حتى تسجله، تظهر مشتريات العلف مؤقتًا ضمن تكلفة الدورة ثم يعاد الحساب حسب الرصيد.' : 'سجّل شراء العلف أو رصيد البداية أولًا، ثم اعمل جردًا عند البيع أو إغلاق الدفعة.'}</div>
       `}
