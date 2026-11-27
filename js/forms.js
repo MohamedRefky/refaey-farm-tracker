@@ -1051,6 +1051,10 @@ function openFeedStocktakeModal(editIndex = null) {
       showFormError('تاريخ الجرد لا يمكن أن يسبق بداية الدورة.', 'fst_date');
       return;
     }
+    if (cycle.end && date > cycle.end) {
+      showFormError('تاريخ الجرد لا يمكن أن يتجاوز تاريخ إغلاق الدورة.', 'fst_date');
+      return;
+    }
     if (latest && date < latest.d) {
       showFormError('سجّل الجرد بترتيب التواريخ؛ لا يمكن أن يسبق آخر جرد مسجل.', 'fst_date');
       return;
