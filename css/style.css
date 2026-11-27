@@ -2782,14 +2782,16 @@ select option {
 
 .per-chick-total-badge {
   display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
   padding: 5px 11px;
   border-radius: var(--radius-pill);
   background: var(--amber-light);
   border: 1px solid var(--amber);
   color: var(--amber);
-  white-space: nowrap;
+  text-align: center;
 }
 
 .per-chick-total-badge b {

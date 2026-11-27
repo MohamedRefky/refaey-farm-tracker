@@ -454,6 +454,30 @@ function calc(c) {
             feedRemainingCostByFlock[fl.id] = (feedRemainingCostByFlock[fl.id] || 0) + flockFeedCost;
           }
         });
+      } else if (flocks.length) {
+        // Keep cycle and flock totals reconciled for a late/invalid consumption period
+        // after all birds exited; the allocation is historical and therefore approximate.
+        const fallbackTotal = cycleTotalBirdDays || n || flocks.length;
+        flocks.forEach(fl => {
+          const weight = cycleTotalBirdDays
+            ? (cycleBirdDaysByFlock[fl.id] || 0)
+            : (n ? (+fl.count || 0) : 1);
+          const flockFeedCost = period.cost * (weight / fallbackTotal);
+          addFlockExpShare(fl.id, 'علف', flockFeedCost);
+          const sales = incList.filter(x => x.flockId === fl.id);
+          const soldCount = sales.reduce((s, x) => s + (+x.cnt || 0), 0);
+          const deadCount = deadList.filter(x => x.flockId === fl.id).reduce((s, x) => s + (+x.n || 0), 0);
+          const remainingCount = Math.max(0, (+fl.count || 0) - soldCount - deadCount);
+          if (soldCount > 0 && remainingCount === 0) {
+            feedSoldCostByFlock[fl.id] = (feedSoldCostByFlock[fl.id] || 0) + flockFeedCost;
+          } else if (soldCount > 0 && remainingCount > 0) {
+            const soldShare = flockFeedCost * soldCount / (soldCount + remainingCount);
+            feedSoldCostByFlock[fl.id] = (feedSoldCostByFlock[fl.id] || 0) + soldShare;
+            feedRemainingCostByFlock[fl.id] = (feedRemainingCostByFlock[fl.id] || 0) + flockFeedCost - soldShare;
+          } else {
+            feedRemainingCostByFlock[fl.id] = (feedRemainingCostByFlock[fl.id] || 0) + flockFeedCost;
+          }
+        });
       }
     });
   }
