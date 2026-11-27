@@ -1125,6 +1125,14 @@ function deleteFeedStocktake(index) {
     itemMeta: `الرصيد: ${fp(check.kg)} كجم`,
     confirmBtnText: 'نعم، احذف الجرد',
     onConfirm: () => {
+      const sortedChecks = cycle.feedStocktakes.slice().sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
+      const checkPosition = sortedChecks.findIndex(x => x.id === check.id);
+      if (checkPosition === 0 && sortedChecks.length > 1) {
+        const nextCheck = sortedChecks[1];
+        nextCheck.openingKg = +check.openingKg || 0;
+        nextCheck.openingValue = +check.openingValue || 0;
+        nextCheck.openingUnit = check.openingUnit || 'شكارة (50 كجم)';
+      }
       cycle.feedStocktakes.splice(index, 1);
       if (saveAndNotify('تم حذف الجرد وإعادة حساب تقدير العلف')) render();
     }
