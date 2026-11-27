@@ -988,17 +988,12 @@ function openFeedStocktakeModal(editIndex = null) {
   const others = checks.filter((_, i) => !editing || i !== editIndex).slice()
     .sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
   const latest = others[others.length - 1];
-  const firstCheck = !others.length;
-  const hasCycleOpening = Object.prototype.hasOwnProperty.call(cycle, 'feedOpeningKg');
   const { m: modal, fm: formEl } = ensureModalElements();
   if (!modal || !formEl) return;
 
   const unit = current && current.unit ? current.unit : 'شكارة (50 كجم)';
   const remQty = current ? (+current.kg || 0) / getUnitKgFactor(unit) : '';
-  const openingUnit = current && current.openingUnit ? current.openingUnit : (cycle.feedOpeningUnit || 'شكارة (50 كجم)');
-  const openingKgInitial = current ? (+current.openingKg || 0) : (+cycle.feedOpeningKg || 0);
-  const openingQty = openingKgInitial ? openingKgInitial / getUnitKgFactor(openingUnit) : '';
-  const hasOpeningFeed = openingKgInitial > 0;
+  const openingUnitValue = current && current.openingUnit ? current.openingUnit : (cycle.feedOpeningUnit || 'شكارة (50 كجم)');
 
   formEl.innerHTML = `
     <div class="form-header">
@@ -1006,7 +1001,7 @@ function openFeedStocktakeModal(editIndex = null) {
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
     <div id="form_error_container"></div>
-    <div class="form-hint-banner amber"><span>ℹ️</span><span>اكتب الموجود في المخزن الآن بعد مشتريات الدورة. لا تكتب المستهلك؛ التطبيق يقدّره تلقائيًا من المشتريات والرصيد، والحساب تقريبي.</span></div>
+    <div class="form-hint-banner amber"><span>ℹ️</span><span>اكتب الرصيد الموجود الآن فقط. رصيد بداية الدورة يُسجَّل عند إنشاء الدورة؛ لا تكتبه مرة ثانية هنا. التطبيق يقدّر المستهلك من الرصيد والمشتريات، والحساب تقريبي.</span></div>
     <label>تاريخ الجرد *</label>
     <input id="fst_date" type="date" value="${current ? current.d : today()}">
     <label>كم شكارة فاضلة الآن؟ *</label>
@@ -1018,28 +1013,6 @@ function openFeedStocktakeModal(editIndex = null) {
         <option value="كيلوجرام (كجم)" ${unit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
       </select>
     </div>
-    ${firstCheck && !hasCycleOpening ? `
-      <label style="margin-top:12px;">هل كان عندك علف من قبل بداية الدورة؟</label>
-      <input type="hidden" id="fst_has_opening" value="${hasOpeningFeed ? 'yes' : 'no'}">
-      <div class="restock-mode-tabs opening-feed-choices">
-        <button type="button" class="restock-mode-btn opening-feed-choice ${hasOpeningFeed ? '' : 'active'}" data-val="no" aria-pressed="${hasOpeningFeed ? 'false' : 'true'}" onclick="toggleOpeningFeedFields('no')">لا، مفيش علف قديم</button>
-        <button type="button" class="restock-mode-btn opening-feed-choice ${hasOpeningFeed ? 'active' : ''}" data-val="yes" aria-pressed="${hasOpeningFeed ? 'true' : 'false'}" onclick="toggleOpeningFeedFields('yes')">أيوة، فيه علف قديم</button>
-      </div>
-      <div id="fst_opening_fields" style="display:${hasOpeningFeed ? 'block' : 'none'};">
-        <div class="form-hint-banner" style="margin-top:10px;">استخدم الجزء ده فقط للعلف اللي كان موجودًا قبل الدورة ولم تسجّل شراءه فيها. المشتريات اللي سجلتها أثناء الدورة لا تدخلها هنا.</div>
-        <label>كم شكارة كانت موجودة؟</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <input id="fst_open_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${openingQty}" placeholder="مثلاً 1">
-          <select id="fst_open_unit">
-            <option value="شكارة (50 كجم)" ${openingUnit.includes('50') ? 'selected' : ''}>شكارة 50 كجم</option>
-            <option value="شكارة (100 كجم)" ${openingUnit.includes('100') ? 'selected' : ''}>شكارة 100 كجم</option>
-            <option value="كيلوجرام (كجم)" ${openingUnit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
-          </select>
-        </div>
-        <label>قيمة العلف القديم التقديرية (جنيه)</label>
-        <input id="fst_open_value" type="number" inputmode="decimal" min="0" step="any" value="${current ? (+current.openingValue || 0) : ''}" placeholder="مثلاً 1500">
-      </div>
-    ` : ''}
     <div class="form-actions-row">
       <button class="btn btn-primary" style="flex:2;" type="submit">${editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك'}</button>
       <button class="btn btn-outline" style="flex:1;" type="button" onclick="closeM()">إلغاء</button>
@@ -1073,29 +1046,6 @@ function openFeedStocktakeModal(editIndex = null) {
 
     let openingKg = current ? (+current.openingKg || 0) : (+cycle.feedOpeningKg || 0);
     let openingValue = current ? (+current.openingValue || 0) : (+cycle.feedOpeningValue || 0);
-    let openingUnitValue = current && current.openingUnit ? current.openingUnit : (cycle.feedOpeningUnit || 'شكارة (50 كجم)');
-    if (firstCheck) {
-      const legacyOpeningChoice = document.getElementById('fst_has_opening');
-      if (legacyOpeningChoice && legacyOpeningChoice.value === 'yes') {
-        const openQty = +(document.getElementById('fst_open_qty').value || 0);
-        const openUnit = document.getElementById('fst_open_unit').value;
-        openingKg = openQty * getUnitKgFactor(openUnit);
-        openingValue = +(document.getElementById('fst_open_value').value || 0);
-        openingUnitValue = openUnit;
-        if (!Number.isFinite(openQty) || openQty <= 0 || !Number.isFinite(openingValue) || openingValue < 0) {
-          showFormError('أدخل كمية علف قديم صحيحة وقيمته التقديرية.', 'fst_open_qty');
-          return;
-        }
-        if (openingValue <= 0) {
-          showFormError('اكتب قيمة تقديرية للعلف القديم حتى تدخل تكلفته في الحساب.', 'fst_open_value');
-          return;
-        }
-      } else if (legacyOpeningChoice) {
-        openingKg = 0;
-        openingValue = 0;
-        openingUnitValue = 'شكارة (50 كجم)';
-      }
-    }
 
     const checkSeq = current ? (+current.seq || 0) : nextCycleSeq(cycle);
     const priorKg = latest ? (+latest.kg || 0) : openingKg;
@@ -1158,19 +1108,6 @@ function deleteFeedStocktake(index) {
       cycle.feedStocktakes.splice(index, 1);
       if (saveAndNotify('تم حذف الجرد وإعادة حساب تقدير العلف')) render();
     }
-  });
-}
-
-function toggleOpeningFeedFields(value) {
-  const selector = document.getElementById('fst_has_opening');
-  const fields = document.getElementById('fst_opening_fields');
-  if (!selector || !fields) return;
-  selector.value = value;
-  fields.style.display = value === 'yes' ? 'block' : 'none';
-  document.querySelectorAll('.opening-feed-choice').forEach(btn => {
-    const active = btn.dataset.val === value;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
 }
 
