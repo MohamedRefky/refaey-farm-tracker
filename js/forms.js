@@ -2186,7 +2186,7 @@ function newCyclePage(a) {
         </section>
 
         <section class="new-cycle-section">
-          <div class="new-cycle-section-heading"><span>٢</span><div><h3>رصيد العلف عند البداية</h3><small>لو الدورة بدأت من غير علف قديم، اختار «لا»</small></div></div>
+          <div class="new-cycle-section-heading"><span>٢</span><div><h3>رصيد العلف عند البداية *</h3><small>اختار إجابة واحدة: فيه رصيد قديم أو مفيش</small></div></div>
           <input type="hidden" id="new_has_old_feed" value="">
           <div class="restock-mode-tabs new-opening-feed-choices">
             <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="no" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('no')">لا، مفيش علف قديم</button>
