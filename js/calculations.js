@@ -111,7 +111,8 @@ function calculateFeedInventory(c) {
     previousDate = check.d || previousDate;
   });
 
-  // Purchases after the last stocktake remain inventory until the next count.
+  // Purchases after the last stocktake stay in the estimated stock balance; their full cost is
+  // provisional in the live cycle total until the next count reconciles what was consumed.
   const uncountedPurchases = purchases.filter(p => !included.has(p.id));
   let pendingPurchaseCost = 0;
   let pendingPurchaseKg = 0;
@@ -328,7 +329,8 @@ function calc(c) {
 
   // Distribute each expense across flocks using Bird-Days from expense date to cycleEndDay
   expList.forEach(expItem => {
-    // In stocktake mode, linked feed purchases are charged only as stock is consumed below.
+    // In stocktake mode, purchases already covered by a count are charged by measured stock change.
+    // Purchases after the latest count stay provisional and are distributed like other expenses.
     const isPendingFeedPurchase = feedInventory.enabled
       && expItem.cat === 'علف'
       && linkedFeedExpIds.has(expItem.id)
