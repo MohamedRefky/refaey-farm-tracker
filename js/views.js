@@ -413,8 +413,11 @@ function detail(a) {
 function formatFlockChickPartsLine(fs) {
   if (!fs || fs.live <= 0) return '<span class="color-rose">لا توجد طيور سليمة</span>';
   const catIcons = { 'دواء': '💊', 'غاز': '🔥', 'مصاريف أخرى': '📦' };
+  const buyPart = fs.dead > 0
+    ? `شراء: ${fp(fs.buyPerChick)} ج (بعد النافق: <b>${fp(fs.buyPerLive)} ج</b>)`
+    : `شراء: <b>${fp(fs.buyPerChick)} ج</b>`;
   const parts = [
-    `شراء: <b>${fp(fs.buyPerLive)} ج</b>`,
+    buyPart,
     `علف: <b>${fp(fs.feedPerLive)} ج</b>`
   ];
 
@@ -499,7 +502,7 @@ function renderPerChickHeroBox(k) {
         <div class="per-chick-cell">
           <span class="per-chick-cell-lbl">🐣 شراء الكتكوت</span>
           <b class="per-chick-cell-val">${fp(k.buyPerLive)} ج</b>
-          <small class="per-chick-cell-sub">من ${f(k.chickCost)} ج</small>
+          <small class="per-chick-cell-sub">${k.dead > 0 ? `اشتريته بـ ${fp(k.buyPerChick)} ج وزاد بعد النافق` : `من ${f(k.chickCost)} ج`}</small>
         </div>
         <div class="per-chick-cell">
           <span class="per-chick-cell-lbl">🌾 نصيب العلف</span>
@@ -547,7 +550,12 @@ function renderFlockPerChickBox(fs) {
       <div class="flock-perchick-rows">
         <div class="flock-perchick-row">
           <span>🐣 نصيب الكتكوت من الشراء</span>
-          <span><b>${fp(fs.buyPerLive)} ج</b> <small>(${f(fs.cost)} ج إجمالي)</small></span>
+          <span>
+            ${fs.dead > 0
+              ? `<small>اشتريت بـ ${fp(fs.buyPerChick)} ج ← بعد النافق:</small> <b>${fp(fs.buyPerLive)} ج</b>`
+              : `<b>${fp(fs.buyPerChick)} ج</b> <small>(${f(fs.cost)} ج إجمالي)</small>`
+            }
+          </span>
         </div>
         <div class="flock-perchick-row">
           <span>🌾 نصيب الكتكوت من العلف</span>
