@@ -2153,6 +2153,8 @@ function toggleNewCycleOpeningFeed(value) {
   fields.style.display = value === 'yes' ? 'block' : 'none';
   const choices = document.querySelector('.new-opening-feed-choices');
   if (choices) choices.classList.remove('choice-error');
+  const choiceHint = document.getElementById('new_feed_choice_error');
+  if (choiceHint) choiceHint.style.display = 'none';
   document.querySelectorAll('.new-opening-feed-choice').forEach(btn => {
     const active = btn.dataset.val === value;
     btn.classList.toggle('active', active);
@@ -2192,6 +2194,7 @@ function newCyclePage(a) {
             <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="no" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('no')">لا، مفيش علف قديم</button>
             <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="yes" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('yes')">أيوة، فيه رصيد مُرحّل</button>
           </div>
+          <div id="new_feed_choice_error" class="field-hint-error" role="alert" style="display:none;">اختار واحد من الاختيارين: هل فيه علف قديم ولا مفيش؟</div>
           <div id="new_old_feed_fields" style="display:none;">
             <div class="form-hint-banner" style="margin-top:8px;">اكتب هنا العلف الموجود قبل الدورة فقط، ولم تسجل شراءه داخلها. المشتريات الجديدة تُسجل لاحقًا من زر «شراء علف».</div>
             <div class="new-cycle-fields-grid">
@@ -2246,7 +2249,8 @@ function newCyclePage(a) {
         choices.querySelectorAll('.new-opening-feed-choice').forEach(btn => btn.classList.add('input-error'));
         choices.querySelector('.new-opening-feed-choice')?.focus();
       }
-      showFormError('اختار هل فيه علف مُرحّل من قبل الدورة أم لا.', null);
+      const choiceHint = document.getElementById('new_feed_choice_error');
+      if (choiceHint) choiceHint.style.display = 'block';
       return;
     }
 
