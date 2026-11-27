@@ -305,25 +305,42 @@ function calc(c) {
       totalBD += liveOnDay;
     }
 
-    // Exact bird-days for surviving birds (sold vs remaining) for partial-sale unit cost split
+    // Exact FIFO bird-days for surviving birds (sold vs remaining) across batches
     const flCount = +fl.count || 0;
     const flSold = flSales.reduce((s, x) => s + (+x.cnt || 0), 0);
     const flDead = flDeads.reduce((s, x) => s + (+x.n || 0), 0);
     const flRem = Math.max(0, flCount - flSold - flDead);
 
-    // Each sold event's birds lived from average batch arrival (or batch-by-batch FIFO) until sale day (min 1 day)
-    const arrivalWeightedSum = batches.reduce((s, b) => s + (+b.count || 0) * (toDayNum(b.d || c.start) ?? cycleStartDay), 0);
-    const avgStartDay = flCount > 0 ? Math.round(arrivalWeightedSum / flCount) : cycleStartDay;
+    const fifoBatches = batches
+      .map(b => ({ rem: +b.count || 0, day: toDayNum(b.d || c.start) ?? cycleStartDay }))
+      .sort((a, b) => a.day - b.day);
+    const fifoExits = [
+      ...flSales.map(x => ({ type: 'sale', cnt: +x.cnt || 0, day: toDayNum(x.d || c.start) ?? cycleStartDay })),
+      ...flDeads.map(x => ({ type: 'dead', cnt: +x.n || 0, day: toDayNum(x.d || c.start) ?? cycleStartDay }))
+    ].sort((a, b) => a.day - b.day);
 
-    flSales.forEach(x => {
-      const sDay = toDayNum(x.d || c.start) ?? cycleStartDay;
-      const daysLived = Math.max(1, sDay - avgStartDay);
-      exitedBDForSales += (+x.cnt || 0) * daysLived;
+    fifoExits.forEach(ex => {
+      let need = ex.cnt;
+      for (let bi = 0; bi < fifoBatches.length && need > 0; bi++) {
+        const b = fifoBatches[bi];
+        if (b.rem <= 0) continue;
+        const take = Math.min(b.rem, need);
+        b.rem -= take;
+        need -= take;
+        if (ex.type === 'sale') {
+          exitedBDForSales += take * Math.max(1, ex.day - b.day);
+        }
+      }
+      if (need > 0 && ex.type === 'sale') {
+        exitedBDForSales += need;
+      }
     });
-    if (flRem > 0) {
-      const remDays = Math.max(1, (cycleEndDay - avgStartDay) + 1);
-      remainingBD = flRem * remDays;
-    }
+
+    fifoBatches.forEach(b => {
+      if (b.rem > 0) {
+        remainingBD += b.rem * Math.max(1, (cycleEndDay - b.day) + 1);
+      }
+    });
 
     cycleBirdDaysByFlock[fl.id] = totalBD;
     soldBirdDaysByFlock[fl.id] = exitedBDForSales;
@@ -335,12 +352,13 @@ function calc(c) {
   // Distribute each expense across flocks using Bird-Days from expense date to cycleEndDay
   expList.forEach(expItem => {
     // In stocktake mode, purchases already covered by a count are charged by measured stock change.
-    // Purchases after the latest count stay provisional and are distributed like other expenses.
-    const isPendingFeedPurchase = feedInventory.enabled
+    // Purchases after the latest count (and any unlinked feed expenses) are distributed normally and tracked in pendingFeed*.
+    const isCoveredFeedPurchase = feedInventory.enabled
       && expItem.cat === 'علف'
       && linkedFeedExpIds.has(expItem.id)
-      && pendingFeedExpIds.has(expItem.id);
-    if (feedInventory.enabled && expItem.cat === 'علف' && linkedFeedExpIds.has(expItem.id) && !isPendingFeedPurchase) return;
+      && !pendingFeedExpIds.has(expItem.id);
+    if (isCoveredFeedPurchase) return;
+    const isPendingFeedPurchase = feedInventory.enabled && (expItem.cat || 'مصاريف أخرى') === 'علف';
     const expAmt = +expItem.amt || 0;
     const cat = expItem.cat || 'مصاريف أخرى';
     if (expAmt !== 0) {
@@ -392,6 +410,23 @@ function calc(c) {
       totalExpBirdDays += flBirdDays;
     });
 
+    const recordPendingFeedFallback = (fl, flockShare) => {
+      if (!isPendingFeedPurchase) return;
+      const sales = incList.filter(x => x.flockId === fl.id);
+      const soldCount = sales.reduce((s, sale) => s + (+sale.cnt || 0), 0);
+      const deadCount = deadList.filter(x => x.flockId === fl.id).reduce((s, death) => s + (+death.n || 0), 0);
+      const remainingCount = Math.max(0, (+fl.count || 0) - soldCount - deadCount);
+      if (soldCount > 0 && remainingCount > 0) {
+        const soldShare = flockShare * soldCount / (soldCount + remainingCount);
+        pendingFeedSoldCostByFlock[fl.id] += soldShare;
+        pendingFeedRemainingCostByFlock[fl.id] += flockShare - soldShare;
+      } else if (remainingCount > 0) {
+        pendingFeedRemainingCostByFlock[fl.id] += flockShare;
+      } else if (soldCount > 0) {
+        pendingFeedSoldCostByFlock[fl.id] += flockShare;
+      }
+    };
+
     if (totalExpBirdDays > 0) {
       flocks.forEach(fl => {
         const flockShare = expAmt * (expBirdDays[fl.id] / totalExpBirdDays);
@@ -400,22 +435,22 @@ function calc(c) {
           const batches = Array.isArray(fl.batches) && fl.batches.length
             ? fl.batches
             : [{ count: +fl.count || 0, d: c.start, seq: 0 }];
-          const flCount = +fl.count || 0;
-          const arrivalWeightedSum = batches.reduce((s, b) => s + (+b.count || 0) * (toDayNum(b.d || c.start) ?? cycleStartDay), 0);
-          const avgStartDay = flCount > 0 ? Math.round(arrivalWeightedSum / flCount) : cycleStartDay;
+          const firstArrivalDay = batches.reduce((m, b) => Math.min(m, toDayNum(b.d || c.start) ?? cycleStartDay), cycleEndDay);
           const sales = incList.filter(x => x.flockId === fl.id);
           const soldBirdDays = sales.reduce((s, sale) => {
             const saleDay = toDayNum(sale.d || c.start) ?? cycleStartDay;
             if (saleDay < eDay) return s;
-            const liveFrom = Math.max(eDay, avgStartDay);
+            const liveFrom = Math.max(eDay, firstArrivalDay);
             const saleAfterExpenseSameDay = saleDay === eDay && +sale.seq > 0 && eSeq > 0 && +sale.seq > eSeq;
             const liveTo = Math.min(cycleEndDay, saleDay - (saleAfterExpenseSameDay ? 0 : 1));
             return s + (+sale.cnt || 0) * Math.max(0, liveTo - liveFrom + 1);
           }, 0);
           const deadCount = deadList.filter(x => x.flockId === fl.id).reduce((s, death) => s + (+death.n || 0), 0);
           const soldCount = sales.reduce((s, sale) => s + (+sale.cnt || 0), 0);
-          const remainingCount = Math.max(0, flCount - soldCount - deadCount);
-          const remainingBirdDays = remainingCount * Math.max(0, cycleEndDay - Math.max(eDay, avgStartDay) + 1);
+          const remainingCount = Math.max(0, (+fl.count || 0) - soldCount - deadCount);
+          const remainingBirdDays = remainingBirdDaysByFlock[fl.id] > 0
+            ? Math.min(remainingBirdDaysByFlock[fl.id], remainingCount * Math.max(0, cycleEndDay - Math.max(eDay, firstArrivalDay) + 1))
+            : remainingCount * Math.max(0, cycleEndDay - Math.max(eDay, firstArrivalDay) + 1);
           const survivorBirdDays = soldBirdDays + remainingBirdDays;
           if (survivorBirdDays > 0) {
             const soldShare = flockShare * (soldBirdDays / survivorBirdDays);
@@ -441,42 +476,32 @@ function calc(c) {
         flocks.forEach(fl => {
           const flockShare = expAmt * (eligibleCycleBD[fl.id] / sumEligibleCycleBD);
           addFlockExpShare(fl.id, cat, flockShare);
-          if (isPendingFeedPurchase) {
-            const sales = incList.filter(x => x.flockId === fl.id);
-            const soldCount = sales.reduce((s, sale) => s + (+sale.cnt || 0), 0);
-            const deadCount = deadList.filter(x => x.flockId === fl.id).reduce((s, death) => s + (+death.n || 0), 0);
-            const remainingCount = Math.max(0, (+fl.count || 0) - soldCount - deadCount);
-            const soldShare = soldCount + remainingCount > 0 ? flockShare * soldCount / (soldCount + remainingCount) : flockShare;
-            pendingFeedSoldCostByFlock[fl.id] += soldShare;
-            pendingFeedRemainingCostByFlock[fl.id] += flockShare - soldShare;
-          }
+          recordPendingFeedFallback(fl, flockShare);
         });
       } else {
         flocks.forEach(fl => {
           const flockShare = expAmt * (cycleBirdDaysByFlock[fl.id] / cycleTotalBirdDays);
           addFlockExpShare(fl.id, cat, flockShare);
-          if (isPendingFeedPurchase) {
-            const sales = incList.filter(x => x.flockId === fl.id);
-            const soldCount = sales.reduce((s, sale) => s + (+sale.cnt || 0), 0);
-            const deadCount = deadList.filter(x => x.flockId === fl.id).reduce((s, death) => s + (+death.n || 0), 0);
-            const remainingCount = Math.max(0, (+fl.count || 0) - soldCount - deadCount);
-            const soldShare = soldCount + remainingCount > 0 ? flockShare * soldCount / (soldCount + remainingCount) : flockShare;
-            pendingFeedSoldCostByFlock[fl.id] += soldShare;
-            pendingFeedRemainingCostByFlock[fl.id] += flockShare - soldShare;
-          }
+          recordPendingFeedFallback(fl, flockShare);
         });
       }
     } else if (totalEligibleBatchWeight > 0) {
       flocks.forEach(fl => {
-        addFlockExpShare(fl.id, cat, expAmt * (eligibleBatchWeights[fl.id] / totalEligibleBatchWeight));
+        const flockShare = expAmt * (eligibleBatchWeights[fl.id] / totalEligibleBatchWeight);
+        addFlockExpShare(fl.id, cat, flockShare);
+        recordPendingFeedFallback(fl, flockShare);
       });
     } else if (n > 0) {
       flocks.forEach(fl => {
-        addFlockExpShare(fl.id, cat, expAmt * ((+fl.count || 0) / n));
+        const flockShare = expAmt * ((+fl.count || 0) / n);
+        addFlockExpShare(fl.id, cat, flockShare);
+        recordPendingFeedFallback(fl, flockShare);
       });
     } else {
       flocks.forEach(fl => {
-        addFlockExpShare(fl.id, cat, expAmt / flocks.length);
+        const flockShare = expAmt / flocks.length;
+        addFlockExpShare(fl.id, cat, flockShare);
+        recordPendingFeedFallback(fl, flockShare);
       });
     }
   });
@@ -516,20 +541,18 @@ function calc(c) {
           const batches = Array.isArray(fl.batches) && fl.batches.length
             ? fl.batches
             : [{ count: +fl.count || 0, d: c.start }];
-          const flCount = +fl.count || 0;
-          const arrivalWeightedSum = batches.reduce((s, b) => s + (+b.count || 0) * (toDayNum(b.d || c.start) ?? cycleStartDay), 0);
-          const avgStartDay = flCount > 0 ? Math.round(arrivalWeightedSum / flCount) : cycleStartDay;
+          const firstArrivalDay = batches.reduce((m, b) => Math.min(m, toDayNum(b.d || c.start) ?? cycleStartDay), cycleEndDay);
           const flSales = incList.filter(x => x.flockId === fl.id);
           const flDead = deadList.filter(x => x.flockId === fl.id).reduce((s, x) => s + (+x.n || 0), 0);
-          const remCnt = Math.max(0, flCount - flDead - flSales.reduce((s, x) => s + (+x.cnt || 0), 0));
+          const remCnt = Math.max(0, (+fl.count || 0) - flDead - flSales.reduce((s, x) => s + (+x.cnt || 0), 0));
           let soldBD = 0;
           flSales.forEach(sale => {
             const saleDay = toDayNum(sale.d || c.start) ?? cycleStartDay;
-            const liveFrom = Math.max(startDay, avgStartDay);
+            const liveFrom = Math.max(startDay, firstArrivalDay);
             const liveTo = Math.min(endDay, saleDay - 1);
             soldBD += (+sale.cnt || 0) * Math.max(0, liveTo - liveFrom + 1);
           });
-          const remainFrom = Math.max(startDay, avgStartDay);
+          const remainFrom = Math.max(startDay, firstArrivalDay);
           const remainingBD = remCnt * Math.max(0, endDay - remainFrom + 1);
           const survivorBD = soldBD + remainingBD;
           if (survivorBD > 0) {
