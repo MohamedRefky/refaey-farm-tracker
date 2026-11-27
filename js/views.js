@@ -487,8 +487,8 @@ function renderPerChickHeroBox(k) {
                   <small>${f(fs.live)} حي${fs.dead > 0 ? ` • <span class="color-rose">نافق ${f(fs.dead)}</span>` : ''}</small>
                 </div>
                 <div class="per-chick-total-badge">
+                  <span>${fs.remaining > 0 && fs.sold > 0 ? 'تكلفة المتبقي عليك الآن' : 'تكلفة الكتكوت عليك حتى الآن'}</span>
                   <b>${fs.live > 0 ? fp(fs.remaining > 0 && fs.sold > 0 ? fs.remainingCostPerBird : fs.costPerLive) + ' ج' : '—'}</b>
-                  <span>${fs.remaining > 0 && fs.sold > 0 ? '/ متبقي' : '/ كتكوت'}</span>
                 </div>
               </div>
               <div class="per-chick-multi-parts">
@@ -512,8 +512,8 @@ function renderPerChickHeroBox(k) {
             <small>المتبقي قعد أيام أكتر فبيزيد نصيبه من المصاريف</small>
           </div>
           <div class="per-chick-total-badge">
+            <span>تكلفة المتبقي عليك الآن</span>
             <b>${fp(singleFs.remainingCostPerBird)} ج</b>
-            <span>/ متبقي</span>
           </div>
         </div>
         ${formatFlockChickPartsLine(singleFs, true)}
@@ -539,8 +539,8 @@ function renderPerChickHeroBox(k) {
           <small>محسوبة على الـ ${f(k.live)} كتكوت الحي الآن</small>
         </div>
         <div class="per-chick-total-badge">
+          <span>تكلفة الكتكوت عليك حتى الآن</span>
           <b>${fp(k.cpb)} ج</b>
-          <span>/ كتكوت</span>
         </div>
       </div>
 
@@ -588,7 +588,7 @@ function renderFlockPerChickBox(fs) {
       <div class="flock-perchick-box" onclick="event.stopPropagation()">
         <div class="flock-perchick-head">
           <span>💵 تكلفة الكتكوت (${esc(fs.name)}) — قبل وبعد البيع الجزئي</span>
-          <b class="flock-perchick-total">${fp(fs.remainingCostPerBird)} ج / متبقي</b>
+          <b class="flock-perchick-total">المتبقي عليك: ${fp(fs.remainingCostPerBird)} ج</b>
         </div>
         <div class="flock-perchick-rows">
           <div class="flock-perchick-row">
@@ -740,7 +740,7 @@ function summaryPage(a, c, k) {
           <div class="summary-perchick-row">
             <div class="summary-perchick-title">
               <b>🐣 ${esc(fs.name)}${fs.dead > 0 ? ` <small class="color-rose" style="font-weight:700;">(نافق ${f(fs.dead)})</small>` : ''}</b>
-              <span class="summary-perchick-badge">${fs.live > 0 ? fp(fs.costPerLive) + ' ج / كتكوت' : '—'}</span>
+              <span class="summary-perchick-badge">${fs.live > 0 ? (fs.remaining > 0 && fs.sold > 0 ? 'تكلفة المتبقي عليك: ' + fp(fs.remainingCostPerBird) : 'تكلفة الكتكوت عليك حتى الآن: ' + fp(fs.costPerLive)) + ' ج' : '—'}</span>
             </div>
             <div class="summary-perchick-meta">
               ${formatFlockChickPartsLine(fs)}

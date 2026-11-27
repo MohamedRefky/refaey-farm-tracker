@@ -85,9 +85,11 @@ function calculateFeedInventory(c) {
     const availableKg = stockKg + purchasedKg;
     const availableValue = stockValue + purchasedValue;
     const avgCostPerKg = availableKg > 0 ? availableValue / availableKg : 0;
-    const endKg = Math.max(0, +check.kg || 0);
-    const shortage = endKg > availableKg + 0.01;
+    const requestedEndKg = Math.max(0, +check.kg || 0);
+    const shortage = requestedEndKg > availableKg + 0.01;
     if (shortage) hasShortage = true;
+    // Do not let an impossible snapshot create phantom inventory/value for later periods.
+    const endKg = Math.min(requestedEndKg, availableKg);
     const usedKg = shortage ? 0 : Math.max(0, availableKg - endKg);
     const usedCost = usedKg * avgCostPerKg;
     const endValue = endKg * avgCostPerKg;
