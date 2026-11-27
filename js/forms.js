@@ -2237,7 +2237,7 @@ function newCyclePage(a) {
         <section class="new-cycle-section">
           <div class="new-cycle-section-heading"><span>٢</span><div><h3>رصيد العلف عند البداية *</h3><small>${pendingCarryover ? 'فيه رصيد متبقٍ من دورة سابقة؛ اختار إذا كنت هترحّله' : 'اختار إجابة واحدة: فيه رصيد قديم أو مفيش'}</small></div></div>
           <input type="hidden" id="new_feed_carryover_source" value="${pendingCarryover ? pendingCarryover.sourceCycleId : ''}">
-          ${pendingCarryover ? `<div class="form-hint-banner amber">📦 متبقي من «${esc(pendingCarryover.sourceCycleName)}»: <b>${fp(carryoverQty)} ${esc(pendingCarryover.unit)}</b> (${fp(pendingCarryover.kg)} كجم)، بقيمة تقديرية <b>${f(pendingCarryover.value)} جنيه</b>. لو هتستخدمه، رحّله عشان يتحسب كمخزون بداية، ويتحمّل على تكلفة الدورة بقدر المستهلك فقط.</div>` : ''}
+          ${pendingCarryover ? `<div class="form-hint-banner amber">📦 متبقي من «${esc(pendingCarryover.sourceCycleName)}»: <b>${fp(carryoverQty)} ${esc(pendingCarryover.unit)}</b> (${fp(pendingCarryover.kg)} كجم)، بقيمة تقديرية <b>${fp(pendingCarryover.value)} جنيه</b>. لو هتستخدمه، رحّله عشان يتحسب كمخزون بداية، ويتحمّل على تكلفة الدورة بقدر المستهلك فقط.</div>` : ''}
           <input type="hidden" id="new_has_old_feed" value="">
           <div class="restock-mode-tabs new-opening-feed-choices">
             <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="no" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('no')">${pendingCarryover ? 'لا، مش هرحّله للدورة دي' : 'لا، مفيش علف قديم'}</button>
@@ -2302,6 +2302,12 @@ function newCyclePage(a) {
       if (choiceHint) choiceHint.style.display = 'block';
       return;
     }
+    const pendingSourceId = +document.getElementById('new_feed_carryover_source').value || 0;
+    const pendingSource = pendingSourceId ? C.find(c => c.id === pendingSourceId) : null;
+    if (feedChoice === 'yes' && pendingSource && ns < pendingSource.end) {
+      showFormError('تاريخ بداية الدورة الجديدة لا يمكن أن يسبق تاريخ نهاية الدورة التي سيُرحّل منها العلف.', 'ns');
+      return;
+    }
 
     let feedOpeningKg = 0;
     let feedOpeningValue = 0;
@@ -2335,8 +2341,8 @@ function newCyclePage(a) {
       nextSeq: flocks.length, flocks, exp: [], inc: [], dead: [], feed: [], debt: [],
       feedOpeningKg, feedOpeningValue, feedOpeningUnit
     };
-    const carryoverSourceId = +document.getElementById('new_feed_carryover_source').value || 0;
-    const carryoverSource = carryoverSourceId ? C.find(c => c.id === carryoverSourceId) : null;
+    const carryoverSourceId = pendingSourceId;
+    const carryoverSource = pendingSource;
     const oldCarryoverDecision = carryoverSource ? carryoverSource.feedCarryoverDecision : null;
     const oldCarryoverCycleId = carryoverSource ? carryoverSource.feedCarryoverCycleId : null;
     if (carryoverSource) {
