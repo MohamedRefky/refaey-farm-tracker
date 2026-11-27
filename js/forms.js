@@ -2150,18 +2150,23 @@ function cycleHasTrackedFeed(cycle) {
 
 function getPendingFeedCarryover() {
   if (typeof calculateFeedInventory !== 'function') return null;
-  const candidates = C.filter(c => c.end && c.feedClosingStocktakeId && !c.feedCarryoverDecision)
+  const candidates = C.filter(c => c.end && !c.feedCarryoverDecision && (
+      c.feedClosingStocktakeId || (c.feedStocktakes || []).some(x => x.d === c.end)
+    ))
     .sort((a, b) => String(b.end).localeCompare(String(a.end)) || (+b.id || 0) - (+a.id || 0));
 
   for (const cycle of candidates) {
-    const check = (cycle.feedStocktakes || []).find(x => x.id === cycle.feedClosingStocktakeId);
+    const check = cycle.feedClosingStocktakeId
+      ? (cycle.feedStocktakes || []).find(x => x.id === cycle.feedClosingStocktakeId)
+      : (cycle.feedStocktakes || []).filter(x => x.d === cycle.end).sort((a, b) => (+a.seq || 0) - (+b.seq || 0)).slice(-1)[0];
     if (!check) continue;
     const inventory = calculateFeedInventory(cycle);
-    const period = inventory.periods.find(x => x.id === cycle.feedClosingStocktakeId);
+    const period = inventory.periods.find(x => x.id === check.id);
     if (!period || period.endKg <= 0.01) continue;
     return {
       sourceCycleId: cycle.id,
       sourceCycleName: cycle.name || 'الدورة السابقة',
+      closingStocktakeId: check.id,
       kg: period.endKg,
       value: period.endValue,
       unit: check.unit || 'شكارة (50 كجم)'
@@ -2345,9 +2350,11 @@ function newCyclePage(a) {
     const carryoverSource = pendingSource;
     const oldCarryoverDecision = carryoverSource ? carryoverSource.feedCarryoverDecision : null;
     const oldCarryoverCycleId = carryoverSource ? carryoverSource.feedCarryoverCycleId : null;
+    const oldClosingStocktakeId = carryoverSource ? carryoverSource.feedClosingStocktakeId : null;
     if (carryoverSource) {
       carryoverSource.feedCarryoverDecision = feedChoice === 'yes' ? 'transferred' : 'declined';
       carryoverSource.feedCarryoverCycleId = newObj.id;
+      if (!carryoverSource.feedClosingStocktakeId) carryoverSource.feedClosingStocktakeId = pendingCarryover.closingStocktakeId;
     }
     syncCycleCount(newObj);
     C.push(newObj);
@@ -2364,6 +2371,8 @@ function newCyclePage(a) {
         else carryoverSource.feedCarryoverDecision = oldCarryoverDecision;
         if (oldCarryoverCycleId === null) delete carryoverSource.feedCarryoverCycleId;
         else carryoverSource.feedCarryoverCycleId = oldCarryoverCycleId;
+        if (oldClosingStocktakeId === null) delete carryoverSource.feedClosingStocktakeId;
+        else carryoverSource.feedClosingStocktakeId = oldClosingStocktakeId;
       }
       nid--;
     }
