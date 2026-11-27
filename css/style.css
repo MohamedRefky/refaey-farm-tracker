@@ -2325,6 +2325,7 @@ select option {
   border-radius: var(--radius-pill);
   background: var(--bg-subtle);
   border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
 }
 
 .cycle-flock-cost {
@@ -2335,9 +2336,6 @@ select option {
 .cycle-flock-pill small {
   color: var(--text-dim);
   font-weight: 600;
-}
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
 }
 
 /* Hero Flock Strip & Unified Action Hub & Compact Flock List */
@@ -3050,6 +3048,24 @@ select option {
   .hero-flock-strip {
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+  .hero-strip-item {
+    padding: 5px 6px;
+  }
+  .per-chick-summary-box {
+    margin-top: 10px;
+    padding: 9px 10px;
+  }
+  .per-chick-multi-card {
+    padding: 7px 9px;
+  }
+  .per-chick-total-badge {
+    padding: 3px 9px;
+  }
+  .per-chick-total-badge b {
+    font-size: 14px;
   }
   .action-hub-card {
     padding: 13px;
