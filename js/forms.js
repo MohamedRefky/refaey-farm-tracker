@@ -979,7 +979,7 @@ function delDebt(i) {
 
 // Record a feed-stock snapshot. Consumption and its estimated cost are derived from
 // opening stock + purchases - the remaining balance; no daily weighing is needed.
-function openFeedStocktakeModal(editIndex = null) {
+function openFeedStocktakeModal(editIndex = null, closing = false) {
   const cycle = cur();
   if (!cycle) return;
   const checks = cycle.feedStocktakes || (cycle.feedStocktakes = []);
@@ -1073,12 +1073,20 @@ function openFeedStocktakeModal(editIndex = null) {
       openingValue,
       openingUnit: openingUnitValue
     };
+    const previousClosingStocktakeId = cycle.feedClosingStocktakeId;
     if (editing) checks[editIndex] = record;
     else checks.push(record);
+    if (closing) cycle.feedClosingStocktakeId = record.id;
 
     if (saveAndNotify('تم حفظ الجرد وتحديث تقدير استهلاك العلف ✓')) {
       closeM();
       render();
+      if (closing) closeC();
+    } else if (closing) {
+      const recordIndex = checks.indexOf(record);
+      if (recordIndex !== -1) checks.splice(recordIndex, 1);
+      if (previousClosingStocktakeId === undefined) delete cycle.feedClosingStocktakeId;
+      else cycle.feedClosingStocktakeId = previousClosingStocktakeId;
     }
   };
   modal.classList.add('on');
@@ -2332,12 +2340,15 @@ function closeC() {
   }, 0);
   const lastSaleTodaySeq = (cycle.inc || []).filter(x => x.d === today()).reduce((max, x) => Math.max(max, +x.seq || 0), 0);
   const requiredStocktakeSeq = Math.max(lastPurchaseTodaySeq, lastSaleTodaySeq);
-  const hasTodayStocktake = (cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= requiredStocktakeSeq);
-  if (hasFeedToCount && !hasTodayStocktake) {
+  const closingStocktake = (cycle.feedStocktakes || []).find(x => x.id === cycle.feedClosingStocktakeId);
+  const hasValidClosingStocktake = !!closingStocktake
+    && closingStocktake.d === today()
+    && (+closingStocktake.seq || 0) >= requiredStocktakeSeq;
+  if (hasFeedToCount && !hasValidClosingStocktake) {
     S.tab = 'exp';
     render();
     showToast('قبل إغلاق الدورة، سجّل جرد العلف النهائي (حتى لو الرصيد صفر).', 3600);
-    openFeedStocktakeModal();
+    openFeedStocktakeModal(null, true);
     return;
   }
 
