@@ -426,14 +426,14 @@ function formatFlockChickPartsLine(fs, compact = false) {
       return `
         <div class="per-chick-partial-split">
           <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): تكلفة الكتكوت الواحد عليك حتى الآن ${fp(fs.remainingCostPerBird)} ج</b></div>
-          <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): تكلفة الكتكوت الواحد ${fp(fs.soldCostPerBird)} ج</b></div>
+          <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): تكلفة الكتكوت الواحد وقت بيعه ${fp(fs.soldCostPerBird)} ج</b></div>
         </div>
       `;
     }
     return `
       <div class="per-chick-partial-split">
         <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): تكلفة الكتكوت الواحد عليك حتى الآن ${fp(fs.remainingCostPerBird)} ج</b> <small>(${buyPart} • علف: <b>${fp(fs.remainingFeedPerBird)} ج</b>${fs.remainingOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.remainingOtherOpsPerBird)} ج</b>` : ''})</small></div>
-        <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): تكلفة الكتكوت الواحد ${fp(fs.soldCostPerBird)} ج</b> <small>(${buyPart} • علف: <b>${fp(fs.soldFeedPerBird)} ج</b>${fs.soldOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.soldOtherOpsPerBird)} ج</b>` : ''})</small></div>
+        <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): تكلفة الكتكوت الواحد وقت بيعه ${fp(fs.soldCostPerBird)} ج</b> <small>(${buyPart} • علف: <b>${fp(fs.soldFeedPerBird)} ج</b>${fs.soldOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.soldOtherOpsPerBird)} ج</b>` : ''})</small></div>
       </div>
     `;
   }
