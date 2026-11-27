@@ -77,9 +77,12 @@ function list(a) {
               <div>
                 <div class="cycle-name">${esc(c.name)}</div>
                 <div class="cycle-date">بدأت: ${fd(c.start)} ${isOngoing ? `• <b style="color:var(--emerald);">اليوم الـ ${Math.max(1, Math.floor((new Date(today()) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)}</b>` : (c.end ? `• استغرقت ${Math.max(1, Math.floor((new Date(c.end) - new Date(c.start)) / (1000 * 60 * 60 * 24)) + 1)} يوم` : '')}</div>
-                ${(c.flocks && c.flocks.length) ? `
+                ${(k.flockStats && k.flockStats.length) ? `
                   <div class="cycle-flocks-pills">
-                    ${c.flocks.map(fl => `<span class="cycle-flock-pill">🐣 ${esc(fl.name)} (${f(fl.count)})</span>`).join('')}
+                    ${k.flockStats.map(fs => {
+                      const unitCost = fs.remaining > 0 && fs.sold > 0 ? fs.remainingCostPerBird : fs.costPerLive;
+                      return `<span class="cycle-flock-pill">🐣 ${esc(fs.name)} (${f(fs.count)}) • <b class="cycle-flock-cost">${f(fs.totalCost)} ج</b>${fs.live > 0 ? ` <small>(${fp(unitCost)} ج/كتكوت)</small>` : ''}</span>`;
+                    }).join('')}
                   </div>
                 ` : ''}
               </div>
