@@ -345,6 +345,17 @@ function normalizeData(cycles) {
         unit: e.unit || 'شكارة'
       }));
 
+    // Feed stocktakes are snapshots of remaining stock, not purchases.
+    c.feedStocktakes = (c.feedStocktakes || []).map((x, i) => ({
+      ...x,
+      id: x.id || Date.now() + i,
+      d: x.d || c.start || today(),
+      kg: Math.max(0, +x.kg || 0),
+      openingKg: Math.max(0, +x.openingKg || 0),
+      openingValue: Math.max(0, +x.openingValue || 0),
+      seq: +x.seq || 0
+    }));
+
     // Normalize debts (receivables owed to us only)
     c.debt = (c.debt || []).map((d, i) => {
       const amt = +d.amt || 0;

@@ -53,6 +53,75 @@ const toDayNum = d => {
 // Safe array property summation
 const sum = (arr, key) => (arr || []).reduce((s, x) => s + (+x[key] || 0), 0);
 
+// Estimate feed consumed between stocktakes using opening stock + purchases - closing stock.
+// The stock is valued at a moving weighted-average price; this is an estimate, not a scale reading.
+function calculateFeedInventory(c) {
+  const checks = Array.isArray(c.feedStocktakes) ? c.feedStocktakes.slice() : [];
+  const purchases = (c.feed || []).filter(x => x.type === 'purchased');
+  if (!checks.length) return { enabled: false, periods: [], consumedKg: 0, consumedCost: 0, stockKg: 0, stockValue: 0, hasShortage: false };
+
+  checks.sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
+  const expForPurchase = purchase => (c.exp || []).find(e => e.id === purchase.expRefId || e.feedRefId === purchase.id);
+  const included = new Set();
+  let stockKg = Math.max(0, +checks[0].openingKg || 0);
+  let stockValue = Math.max(0, +checks[0].openingValue || 0);
+  let previousDate = c.start || checks[0].d;
+  let consumedKg = 0;
+  let consumedCost = 0;
+  let hasShortage = false;
+  const periods = [];
+
+  checks.forEach((check, idx) => {
+    const arriving = purchases.filter(p => {
+      if (included.has(p.id)) return false;
+      const purchaseDate = String(p.d || c.start || '');
+      const checkDate = String(check.d || '');
+      return purchaseDate < checkDate || (purchaseDate === checkDate && (!check.seq || !p.seq || (+p.seq || 0) <= (+check.seq || 0)));
+    });
+    arriving.forEach(p => included.add(p.id));
+    const purchasedKg = arriving.reduce((s, p) => s + (+p.kg || 0), 0);
+    const purchasedValue = arriving.reduce((s, p) => s + (+((expForPurchase(p) || {}).amt) || 0), 0);
+    const availableKg = stockKg + purchasedKg;
+    const availableValue = stockValue + purchasedValue;
+    const avgCostPerKg = availableKg > 0 ? availableValue / availableKg : 0;
+    const endKg = Math.max(0, +check.kg || 0);
+    const shortage = endKg > availableKg + 0.01;
+    if (shortage) hasShortage = true;
+    const usedKg = shortage ? 0 : Math.max(0, availableKg - endKg);
+    const usedCost = usedKg * avgCostPerKg;
+    const endValue = endKg * avgCostPerKg;
+    periods.push({
+      id: check.id,
+      from: previousDate,
+      to: check.d || previousDate,
+      kg: usedKg,
+      cost: usedCost,
+      endKg,
+      endValue,
+      shortage,
+      checkIndex: idx
+    });
+    consumedKg += usedKg;
+    consumedCost += usedCost;
+    stockKg = endKg;
+    stockValue = endValue;
+    previousDate = check.d || previousDate;
+  });
+
+  // Purchases after the last stocktake remain inventory until the next count.
+  const uncountedPurchases = purchases.filter(p => !included.has(p.id));
+  if (uncountedPurchases.length) {
+    const pendingKg = uncountedPurchases.reduce((s, p) => s + (+p.kg || 0), 0);
+    const pendingValue = uncountedPurchases.reduce((s, p) => s + (+((expForPurchase(p) || {}).amt) || 0), 0);
+    const totalKg = stockKg + pendingKg;
+    const weightedValue = stockValue + pendingValue;
+    stockKg = totalKg;
+    stockValue = weightedValue;
+  }
+
+  return { enabled: true, periods, consumedKg, consumedCost, stockKg, stockValue, hasShortage };
+}
+
 // Look up a flock type name safely
 function flockName(c, id) {
   const flock = ((c && c.flocks) || []).find(x => x.id === id);
@@ -89,7 +158,15 @@ function calc(c) {
   const flocks = c.flocks || [];
   const chickCount = flocks.reduce((s, x) => s + (+x.count || 0), 0);
   const chickCost = flocks.reduce((s, x) => s + (+x.cost || 0), 0);
-  const otherExp = sum(c.exp, 'amt');
+  const feedInventory = calculateFeedInventory(c);
+  const linkedFeedExpIds = new Set((c.feed || []).map(p => {
+    const e = (c.exp || []).find(x => x.id === p.expRefId || x.feedRefId === p.id);
+    return e && e.id;
+  }).filter(Boolean));
+  const rawOtherExp = sum(c.exp, 'amt');
+  const otherExp = feedInventory.enabled
+    ? rawOtherExp - (c.exp || []).filter(e => e.cat === 'علف' && linkedFeedExpIds.has(e.id)).reduce((s, e) => s + (+e.amt || 0), 0) + feedInventory.consumedCost
+    : rawOtherExp;
   const e = chickCost + otherExp;          // إجمالي تكلفة الدورة
   const n = chickCount || (+c.n || 0);     // إجمالي الكتاكيت
 
@@ -111,6 +188,8 @@ function calc(c) {
   const sharedCostByFlock = {};
   const sharedByCatByFlock = {};
   const expByCat = {};
+  const feedSoldCostByFlock = {};
+  const feedRemainingCostByFlock = {};
   flocks.forEach(fl => {
     sharedCostByFlock[fl.id] = 0;
     sharedByCatByFlock[fl.id] = {};
@@ -221,6 +300,8 @@ function calc(c) {
 
   // Distribute each expense across flocks using Bird-Days from expense date to cycleEndDay
   expList.forEach(expItem => {
+    // In stocktake mode, linked feed purchases are charged only as stock is consumed below.
+    if (feedInventory.enabled && expItem.cat === 'علف' && linkedFeedExpIds.has(expItem.id)) return;
     const expAmt = +expItem.amt || 0;
     const cat = expItem.cat || 'مصاريف أخرى';
     if (expAmt !== 0) {
@@ -305,6 +386,75 @@ function calc(c) {
     }
   });
 
+  // Allocate consumed feed cost only across bird-days in the period covered by each stocktake.
+  if (feedInventory.enabled) {
+    feedInventory.periods.forEach(period => {
+      if (period.cost <= 0) return;
+      expByCat['علف'] = (expByCat['علف'] || 0) + period.cost;
+      const fromDay = toDayNum(period.from) ?? cycleStartDay;
+      const toDay = toDayNum(period.to) ?? fromDay;
+      const startDay = Math.max(cycleStartDay, fromDay + (period.checkIndex > 0 ? 1 : 0));
+      const endDay = Math.min(cycleEndDay, Math.max(startDay, toDay));
+      const weights = {};
+      let totalBirdDays = 0;
+      flocks.forEach(fl => {
+        const batches = Array.isArray(fl.batches) && fl.batches.length
+          ? fl.batches
+          : [{ count: +fl.count || 0, d: c.start, seq: 0 }];
+        const sales = incList.filter(x => x.flockId === fl.id);
+        const deaths = deadList.filter(x => x.flockId === fl.id);
+        let bd = 0;
+        for (let d = startDay; d <= endDay; d++) {
+          const added = batches.reduce((s, b) => s + ((toDayNum(b.d || c.start) ?? cycleStartDay) <= d ? (+b.count || 0) : 0), 0);
+          const soldOut = sales.reduce((s, x) => s + (isExitedOnDay(x, d, null, 0) ? (+x.cnt || 0) : 0), 0);
+          const deadOut = deaths.reduce((s, x) => s + (isExitedOnDay(x, d, null, 0) ? (+x.n || 0) : 0), 0);
+          bd += Math.max(0, added - soldOut - deadOut);
+        }
+        weights[fl.id] = bd;
+        totalBirdDays += bd;
+      });
+      if (totalBirdDays > 0) {
+        flocks.forEach(fl => {
+          const flockFeedCost = period.cost * (weights[fl.id] / totalBirdDays);
+          addFlockExpShare(fl.id, 'علف', flockFeedCost);
+
+          const batches = Array.isArray(fl.batches) && fl.batches.length
+            ? fl.batches
+            : [{ count: +fl.count || 0, d: c.start }];
+          const flCount = +fl.count || 0;
+          const arrivalWeightedSum = batches.reduce((s, b) => s + (+b.count || 0) * (toDayNum(b.d || c.start) ?? cycleStartDay), 0);
+          const avgStartDay = flCount > 0 ? Math.round(arrivalWeightedSum / flCount) : cycleStartDay;
+          const flSales = incList.filter(x => x.flockId === fl.id);
+          const flDead = deadList.filter(x => x.flockId === fl.id).reduce((s, x) => s + (+x.n || 0), 0);
+          const remCnt = Math.max(0, flCount - flDead - flSales.reduce((s, x) => s + (+x.cnt || 0), 0));
+          let soldBD = 0;
+          flSales.forEach(sale => {
+            const saleDay = toDayNum(sale.d || c.start) ?? cycleStartDay;
+            const liveFrom = Math.max(startDay, avgStartDay);
+            const liveTo = Math.min(endDay, saleDay - 1);
+            soldBD += (+sale.cnt || 0) * Math.max(0, liveTo - liveFrom + 1);
+          });
+          const remainFrom = Math.max(startDay, avgStartDay);
+          const remainingBD = remCnt * Math.max(0, endDay - remainFrom + 1);
+          const survivorBD = soldBD + remainingBD;
+          if (survivorBD > 0) {
+            const soldShare = flockFeedCost * (soldBD / survivorBD);
+            feedSoldCostByFlock[fl.id] = (feedSoldCostByFlock[fl.id] || 0) + soldShare;
+            feedRemainingCostByFlock[fl.id] = (feedRemainingCostByFlock[fl.id] || 0) + (flockFeedCost - soldShare);
+          } else if (flSales.length && remCnt === 0) {
+            feedSoldCostByFlock[fl.id] = (feedSoldCostByFlock[fl.id] || 0) + flockFeedCost;
+          } else if (flSales.length && remCnt > 0) {
+            const soldShare = flockFeedCost * (flSales.reduce((s, x) => s + (+x.cnt || 0), 0) / (flSales.reduce((s, x) => s + (+x.cnt || 0), 0) + remCnt));
+            feedSoldCostByFlock[fl.id] = (feedSoldCostByFlock[fl.id] || 0) + soldShare;
+            feedRemainingCostByFlock[fl.id] = (feedRemainingCostByFlock[fl.id] || 0) + (flockFeedCost - soldShare);
+          } else {
+            feedRemainingCostByFlock[fl.id] = (feedRemainingCostByFlock[fl.id] || 0) + flockFeedCost;
+          }
+        });
+      }
+    });
+  }
+
   const flockStats = flocks.map(flock => {
     const count = +flock.count || 0;
     const cost = +flock.cost || 0;
@@ -349,6 +499,15 @@ function calc(c) {
       remainingFeedPerBird = (feedCost * remRatio) / remCnt;
       remainingOtherOpsPerBird = (otherOpsCost * remRatio) / remCnt;
       remainingCostPerBird = buyPerLive + (sharedCost * remRatio) / remCnt;
+    }
+
+    if (feedInventory.enabled) {
+      soldFeedPerBird = soldCnt > 0 ? (feedSoldCostByFlock[flock.id] || 0) / soldCnt : 0;
+      remainingFeedPerBird = remCnt > 0 ? (feedRemainingCostByFlock[flock.id] || 0) / remCnt : 0;
+      if (soldCnt > 0 && remCnt > 0) {
+        soldCostPerBird = buyPerLive + soldFeedPerBird + soldOtherOpsPerBird;
+        remainingCostPerBird = buyPerLive + remainingFeedPerBird + remainingOtherOpsPerBird;
+      }
     }
 
     return {
@@ -434,6 +593,7 @@ function calc(c) {
     dead,
     sold,
     feedPurchasedKg,
+    feedInventory,
     live,
     remaining,
     flockStats,

@@ -971,6 +971,151 @@ function delDebt(i) {
   });
 }
 
+// Record a feed-stock snapshot. Consumption and its estimated cost are derived from
+// opening stock + purchases - the remaining balance; no daily weighing is needed.
+function openFeedStocktakeModal(editIndex = null) {
+  const cycle = cur();
+  if (!cycle) return;
+  const checks = cycle.feedStocktakes || (cycle.feedStocktakes = []);
+  const editing = editIndex !== null && !!checks[editIndex];
+  const current = editing ? checks[editIndex] : null;
+  const others = checks.filter((_, i) => !editing || i !== editIndex).slice()
+    .sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
+  const latest = others[others.length - 1];
+  const firstCheck = !others.length;
+  const { m: modal, fm: formEl } = ensureModalElements();
+  if (!modal || !formEl) return;
+
+  const unit = current && current.unit ? current.unit : 'شكارة (50 كجم)';
+  const remQty = current ? (+current.kg || 0) / getUnitKgFactor(unit) : '';
+  const openingUnit = current && current.openingUnit ? current.openingUnit : 'شكارة (50 كجم)';
+  const openingQty = current && current.openingKg ? (+current.openingKg || 0) / getUnitKgFactor(openingUnit) : '';
+
+  formEl.innerHTML = `
+    <div class="form-header">
+      <div class="form-title">${editing ? 'تعديل جرد العلف' : 'جرد رصيد العلف'} 🌾</div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
+    </div>
+    <div id="form_error_container"></div>
+    <div class="form-hint-banner amber"><span>ℹ️</span><span>اكتب الرصيد المتبقي من الشكاير. التطبيق يقدّر المستهلك من المشتريات والجرد، والحساب تقريبي.</span></div>
+    <label>تاريخ الجرد *</label>
+    <input id="fst_date" type="date" value="${current ? current.d : today()}">
+    <label>الرصيد المتبقي الآن *</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <input id="fst_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${remQty}" placeholder="عدد الشكاير (مثلاً 1.5)">
+      <select id="fst_unit">
+        <option value="شكارة (50 كجم)" ${unit.includes('50') ? 'selected' : ''}>شكارة 50 كجم</option>
+        <option value="شكارة (100 كجم)" ${unit.includes('100') ? 'selected' : ''}>شكارة 100 كجم</option>
+        <option value="كيلوجرام (كجم)" ${unit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
+      </select>
+    </div>
+    ${firstCheck ? `
+      <div class="form-hint-banner" style="margin-top:12px;">لو فيه علف موجود قبل أول شراء مسجل في الدورة، دخّل رصيده وقيمته التقديرية. لو مفيش، سيبهم صفر.</div>
+      <label>رصيد افتتاحي قبل المشتريات المسجلة (شكارة)</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <input id="fst_open_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${openingQty}" placeholder="0">
+        <select id="fst_open_unit">
+          <option value="شكارة (50 كجم)" ${openingUnit.includes('50') ? 'selected' : ''}>شكارة 50 كجم</option>
+          <option value="شكارة (100 كجم)" ${openingUnit.includes('100') ? 'selected' : ''}>شكارة 100 كجم</option>
+          <option value="كيلوجرام (كجم)" ${openingUnit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
+        </select>
+      </div>
+      <label>القيمة التقديرية للرصيد الافتتاحي (جنيه)</label>
+      <input id="fst_open_value" type="number" inputmode="decimal" min="0" step="any" value="${current ? (+current.openingValue || 0) : ''}" placeholder="0">
+    ` : ''}
+    <div class="form-actions-row">
+      <button class="btn btn-primary" style="flex:2;" type="submit">${editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك'}</button>
+      <button class="btn btn-outline" style="flex:1;" type="button" onclick="closeM()">إلغاء</button>
+    </div>
+  `;
+
+  formEl.onsubmit = ev => {
+    ev.preventDefault();
+    clearFormErrors();
+    const date = document.getElementById('fst_date').value || today();
+    const qty = +(document.getElementById('fst_qty').value || 0);
+    const qtyUnit = document.getElementById('fst_unit').value;
+    const remainingKg = qty * getUnitKgFactor(qtyUnit);
+    if (!Number.isFinite(qty) || qty < 0) {
+      showFormError('أدخل رصيدًا صحيحًا (صفر أو أكثر).', 'fst_qty');
+      return;
+    }
+    if (!date || date < (cycle.start || date)) {
+      showFormError('تاريخ الجرد لا يمكن أن يسبق بداية الدورة.', 'fst_date');
+      return;
+    }
+    if (latest && date < latest.d) {
+      showFormError('سجّل الجرد بترتيب التواريخ؛ لا يمكن أن يسبق آخر جرد مسجل.', 'fst_date');
+      return;
+    }
+
+    let openingKg = current ? (+current.openingKg || 0) : 0;
+    let openingValue = current ? (+current.openingValue || 0) : 0;
+    let openingUnitValue = current && current.openingUnit ? current.openingUnit : 'شكارة (50 كجم)';
+    if (firstCheck) {
+      const openQty = +(document.getElementById('fst_open_qty').value || 0);
+      const openUnit = document.getElementById('fst_open_unit').value;
+      openingKg = openQty * getUnitKgFactor(openUnit);
+      openingValue = +(document.getElementById('fst_open_value').value || 0);
+      openingUnitValue = openUnit;
+      if (!Number.isFinite(openQty) || openQty < 0 || !Number.isFinite(openingValue) || openingValue < 0) {
+        showFormError('راجع كمية وقيمة الرصيد الافتتاحي.', 'fst_open_qty');
+        return;
+      }
+    }
+
+    const checkSeq = current ? (+current.seq || 0) : nextCycleSeq(cycle);
+    const priorKg = latest ? (+latest.kg || 0) : openingKg;
+    const arrivals = (cycle.feed || []).filter(p => p.type === 'purchased'
+      && (String(p.d || cycle.start || '') < date || (String(p.d || cycle.start || '') === date && (!p.seq || +p.seq <= checkSeq)))
+      && (!latest || String(p.d || '') > latest.d || (String(p.d || '') === latest.d && (+p.seq || 0) > (+latest.seq || 0))));
+    const availableKg = priorKg + arrivals.reduce((s, p) => s + (+p.kg || 0), 0);
+    if (remainingKg > availableKg + 0.01) {
+      showFormError(`الرصيد المتبقي (${fp(remainingKg)} كجم) أكبر من الكمية المتاحة المقدرة (${fp(availableKg)} كجم). راجع تاريخ وكمية الشراء أو الجرد.`, 'fst_qty');
+      return;
+    }
+
+    const record = {
+      ...(current || {}),
+      id: current ? current.id : Date.now() + Math.floor(Math.random() * 1000),
+      d: date,
+      kg: remainingKg,
+      unit: qtyUnit,
+      seq: checkSeq,
+      openingKg,
+      openingValue,
+      openingUnit: openingUnitValue
+    };
+    if (editing) checks[editIndex] = record;
+    else checks.push(record);
+
+    if (saveAndNotify('تم حفظ الجرد وتحديث تقدير استهلاك العلف ✓')) {
+      closeM();
+      render();
+    }
+  };
+  modal.classList.add('on');
+}
+
+function deleteFeedStocktake(index) {
+  const cycle = cur();
+  if (!cycle || !cycle.feedStocktakes || !cycle.feedStocktakes[index]) return;
+  const check = cycle.feedStocktakes[index];
+  showConfirmModal({
+    icon: '🌾',
+    title: 'حذف جرد العلف؟',
+    subtitle: 'سيُعاد تقدير العلف المستهلك والمخزون بعد حذف هذا الجرد.',
+    itemIcon: '📦',
+    itemTitle: `جرد ${fd(check.d)}`,
+    itemMeta: `الرصيد: ${fp(check.kg)} كجم`,
+    confirmBtnText: 'نعم، احذف الجرد',
+    onConfirm: () => {
+      cycle.feedStocktakes.splice(index, 1);
+      if (saveAndNotify('تم حذف الجرد وإعادة حساب تقدير العلف')) render();
+    }
+  });
+}
+
 // Generic delete for expenses, mortality, or feed
 function del(i) {
   const cycle = cur();

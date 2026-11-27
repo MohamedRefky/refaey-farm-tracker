@@ -132,15 +132,16 @@ function renderExpensesTab(c, k) {
     filteredEntries = expEntries.filter(item => item.exp.cat === activeFilter).reverse();
   }
 
-  const filteredExpSum = filteredEntries
+  let filteredExpSum = filteredEntries
     .filter(item => item.kind === 'exp')
     .reduce((s, item) => s + item.amt, 0);
+  if (activeFilter === 'علف' && k.feedInventory && k.feedInventory.enabled) filteredExpSum = k.feedCostTotal;
 
   let summaryHtml = `<span>إجمالي المصاريف: <b class="color-rose">${f(k.e)} ج</b></span><span>•</span><span>كتاكيت: <b>${f(k.chickCost)} ج</b> + تشغيل: <b>${f(k.otherExp)} ج</b></span>`;
   if (activeFilter === 'كتاكيت') {
     summaryHtml = `<span>🐣 شراء الكتاكيت: <b class="color-rose">${f(k.chickCost)} ج</b></span><span>•</span><span>${f(k.chickCount)} طائر (متوسط <b>${k.chickCount > 0 ? fp(k.buyPerChick) : 0} ج</b>/كتكوت)</span>`;
   } else if (activeFilter === 'علف') {
-    summaryHtml = `<span>إجمالي العلف: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>التكلفة: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
+    summaryHtml = `<span>مشتَرى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>${k.feedInventory && k.feedInventory.enabled ? 'تكلفة المستهلك تقديريًا' : 'تكلفة المشتريات'}: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
   } else if (activeFilter !== 'all') {
     summaryHtml = `<span>${catIcons[activeFilter] || ''} ${activeFilter}: <b class="color-rose">${f(filteredExpSum)} ج</b></span><span>•</span><span>${filteredEntries.length} بنود</span>`;
   }
@@ -170,6 +171,8 @@ function renderExpensesTab(c, k) {
     <div class="tab-inline-summary">
       ${summaryHtml}
     </div>
+
+    ${renderFeedInventoryCard(c, k)}
 
     <div class="card">
       ${filteredEntries.length ? filteredEntries.map(item => {
@@ -236,6 +239,43 @@ function renderExpensesTab(c, k) {
           <div class="empty-state-icon">💸</div>
           لا توجد مصاريف مسجلة في هذا التصنيف
         </div>
+      `}
+    </div>
+  `;
+}
+
+function renderFeedInventoryCard(c, k) {
+  const inv = k.feedInventory || { enabled: false, periods: [] };
+  const checks = (c.feedStocktakes || []).slice().sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
+  const hasFeedPurchases = (c.feed || []).some(x => x.type === 'purchased');
+  return `
+    <div class="card feed-inventory-card">
+      <div class="feed-inventory-head">
+        <div>
+          <h3>📦 جرد العلف</h3>
+          <small>سجّل الشكاير المتبقية عند البيع أو إغلاق الدفعة؛ لا تحتاج لوزن الجردل.</small>
+        </div>
+        <button class="btn btn-primary btn-sm" type="button" onclick="openFeedStocktakeModal()">+ تسجيل جرد</button>
+      </div>
+      <div class="feed-inventory-note">⚠️ تكلفة العلف هنا تقديرية حسب وزن الشكارة المسجل والرصيد بالجرد. الكمية المستهلكة تتحسب من: رصيد البداية + المشتريات − المتبقي.</div>
+      ${inv.enabled ? `
+        <div class="feed-inventory-stats">
+          <span>المستهلك المقدر: <b>${fp(inv.consumedKg)} كجم</b></span>
+          <span>تكلفته: <b>${f(inv.consumedCost)} ج</b></span>
+          <span>المتبقي: <b>${fp(inv.stockKg)} كجم</b></span>
+          <span>قيمة المتبقي التقديرية: <b>${f(inv.stockValue)} ج</b></span>
+        </div>
+        ${inv.hasShortage ? '<div class="feed-inventory-warning">فيه جرد مسجل أكبر من الرصيد المتاح حسب المشتريات. راجع تواريخ الشراء أو أضف الرصيد الافتتاحي؛ لم تُحسب تكلفة استهلاك للفترة المتعارضة.</div>' : ''}
+        <div class="feed-stocktake-list">
+          ${checks.map(check => {
+            const idx = (c.feedStocktakes || []).indexOf(check);
+            const period = inv.periods.find(x => x.id === check.id);
+            const canEdit = check === checks[checks.length - 1];
+            return `<div class="feed-stocktake-row"><span><b>${fds(check.d)}</b> • متبقي ${fp(check.kg)} كجم${period ? ` • استهلاك الفترة ${fp(period.kg)} كجم / ${f(period.cost)} ج` : ''}</span><span>${canEdit ? `<button type="button" class="labeled-action-btn" onclick="openFeedStocktakeModal(${idx})">تعديل</button>` : ''}<button type="button" class="labeled-action-btn danger" onclick="deleteFeedStocktake(${idx})">حذف</button></span></div>`;
+          }).join('')}
+        </div>
+      ` : `
+        <div class="feed-inventory-empty">${hasFeedPurchases ? 'ابدأ بأول جرد لتقدير المستهلك والمتبقي. المشتريات السابقة ستدخل في الحساب من تاريخ الدورة.' : 'سجّل مشتريات العلف أولًا، ثم اعمل جردًا عند البيع أو إغلاق الدفعة.'}</div>
       `}
     </div>
   `;
