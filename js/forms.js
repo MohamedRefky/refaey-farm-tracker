@@ -2177,7 +2177,7 @@ function newCyclePage(a) {
         <section class="new-cycle-section">
           <div class="new-cycle-section-heading"><span>١</span><div><h3>بيانات الدورة</h3><small>الاسم وتاريخ استلام الكتاكيت</small></div></div>
           <label for="nn">اسم الدورة *</label>
-          <input id="nn" value="دورة جديدة" placeholder="مثال: دورة نوفمبر، دفعة رقم 3" required>
+          <input id="nn" placeholder="مثال: دورة نوفمبر أو دفعة رقم ٣" required>
           <label for="ns">تاريخ استلام الكتاكيت</label>
           <input type="date" id="ns" value="${today()}">
         </section>
