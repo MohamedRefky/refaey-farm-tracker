@@ -425,15 +425,15 @@ function formatFlockChickPartsLine(fs, compact = false) {
     if (compact) {
       return `
         <div class="per-chick-partial-split">
-          <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): ${fp(fs.remainingCostPerBird)} ج / كتكوت</b></div>
-          <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): ${fp(fs.soldCostPerBird)} ج / كتكوت</b></div>
+          <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): تكلفة الكتكوت الواحد عليك حتى الآن ${fp(fs.remainingCostPerBird)} ج</b></div>
+          <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): تكلفة الكتكوت الواحد ${fp(fs.soldCostPerBird)} ج</b></div>
         </div>
       `;
     }
     return `
       <div class="per-chick-partial-split">
-        <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): ${fp(fs.remainingCostPerBird)} ج / كتكوت</b> <small>(${buyPart} • علف: <b>${fp(fs.remainingFeedPerBird)} ج</b>${fs.remainingOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.remainingOtherOpsPerBird)} ج</b>` : ''})</small></div>
-        <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): ${fp(fs.soldCostPerBird)} ج / كتكوت</b> <small>(${buyPart} • علف: <b>${fp(fs.soldFeedPerBird)} ج</b>${fs.soldOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.soldOtherOpsPerBird)} ج</b>` : ''})</small></div>
+        <div>🟢 <b>المتبقي (${f(fs.remaining)} حي): تكلفة الكتكوت الواحد عليك حتى الآن ${fp(fs.remainingCostPerBird)} ج</b> <small>(${buyPart} • علف: <b>${fp(fs.remainingFeedPerBird)} ج</b>${fs.remainingOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.remainingOtherOpsPerBird)} ج</b>` : ''})</small></div>
+        <div>✅ <b>اللي اتباع (${f(fs.sold)} طائر): تكلفة الكتكوت الواحد ${fp(fs.soldCostPerBird)} ج</b> <small>(${buyPart} • علف: <b>${fp(fs.soldFeedPerBird)} ج</b>${fs.soldOtherOpsPerBird > 0 ? ` • أخرى: <b>${fp(fs.soldOtherOpsPerBird)} ج</b>` : ''})</small></div>
       </div>
     `;
   }
@@ -487,7 +487,7 @@ function renderPerChickHeroBox(k) {
                   <small>${f(fs.live)} حي${fs.dead > 0 ? ` • <span class="color-rose">نافق ${f(fs.dead)}</span>` : ''}</small>
                 </div>
                 <div class="per-chick-total-badge">
-                  <span>${fs.remaining > 0 && fs.sold > 0 ? 'تكلفة المتبقي عليك الآن' : 'تكلفة الكتكوت عليك حتى الآن'}</span>
+                  <span>تكلفة الكتكوت</span>
                   <b>${fs.live > 0 ? fp(fs.remaining > 0 && fs.sold > 0 ? fs.remainingCostPerBird : fs.costPerLive) + ' ج' : '—'}</b>
                 </div>
               </div>
@@ -512,7 +512,7 @@ function renderPerChickHeroBox(k) {
             <small>المتبقي قعد أيام أكتر فبيزيد نصيبه من المصاريف</small>
           </div>
           <div class="per-chick-total-badge">
-            <span>تكلفة المتبقي عليك الآن</span>
+            <span>تكلفة الكتكوت</span>
             <b>${fp(singleFs.remainingCostPerBird)} ج</b>
           </div>
         </div>
@@ -539,7 +539,7 @@ function renderPerChickHeroBox(k) {
           <small>محسوبة على الـ ${f(k.live)} كتكوت الحي الآن</small>
         </div>
         <div class="per-chick-total-badge">
-          <span>تكلفة الكتكوت عليك حتى الآن</span>
+          <span>تكلفة الكتكوت</span>
           <b>${fp(k.cpb)} ج</b>
         </div>
       </div>
