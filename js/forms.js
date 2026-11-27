@@ -996,6 +996,7 @@ function openFeedStocktakeModal(editIndex = null) {
   const remQty = current ? (+current.kg || 0) / getUnitKgFactor(unit) : '';
   const openingUnit = current && current.openingUnit ? current.openingUnit : 'شكارة (50 كجم)';
   const openingQty = current && current.openingKg ? (+current.openingKg || 0) / getUnitKgFactor(openingUnit) : '';
+  const hasOpeningFeed = !!(current && (+current.openingKg || 0) > 0);
 
   formEl.innerHTML = `
     <div class="form-header">
@@ -1003,10 +1004,10 @@ function openFeedStocktakeModal(editIndex = null) {
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
     <div id="form_error_container"></div>
-    <div class="form-hint-banner amber"><span>ℹ️</span><span>اكتب الرصيد المتبقي من الشكاير. التطبيق يقدّر المستهلك من المشتريات والجرد، والحساب تقريبي.</span></div>
+    <div class="form-hint-banner amber"><span>ℹ️</span><span>اكتب الموجود في المخزن الآن بعد مشتريات الدورة. لا تكتب المستهلك؛ التطبيق يقدّره تلقائيًا من المشتريات والرصيد، والحساب تقريبي.</span></div>
     <label>تاريخ الجرد *</label>
     <input id="fst_date" type="date" value="${current ? current.d : today()}">
-    <label>الرصيد المتبقي الآن *</label>
+    <label>كم شكارة فاضلة الآن؟ *</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <input id="fst_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${remQty}" placeholder="عدد الشكاير (مثلاً 1.5)" required>
       <select id="fst_unit">
@@ -1016,18 +1017,25 @@ function openFeedStocktakeModal(editIndex = null) {
       </select>
     </div>
     ${firstCheck ? `
-      <div class="form-hint-banner" style="margin-top:12px;">لو فيه علف موجود قبل أول شراء مسجل في الدورة، دخّل رصيده وقيمته التقديرية. لو مفيش، سيبهم صفر.</div>
-      <label>رصيد افتتاحي قبل المشتريات المسجلة (شكارة)</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <input id="fst_open_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${openingQty}" placeholder="0">
-        <select id="fst_open_unit">
-          <option value="شكارة (50 كجم)" ${openingUnit.includes('50') ? 'selected' : ''}>شكارة 50 كجم</option>
-          <option value="شكارة (100 كجم)" ${openingUnit.includes('100') ? 'selected' : ''}>شكارة 100 كجم</option>
-          <option value="كيلوجرام (كجم)" ${openingUnit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
-        </select>
+      <label style="margin-top:12px;">هل كان عندك علف من قبل بداية الدورة؟</label>
+      <select id="fst_has_opening" onchange="toggleOpeningFeedFields()">
+        <option value="no" ${hasOpeningFeed ? '' : 'selected'}>لا، بدأت من غير علف قديم</option>
+        <option value="yes" ${hasOpeningFeed ? 'selected' : ''}>أيوة، عندي علف مُرحّل من قبل الدورة</option>
+      </select>
+      <div id="fst_opening_fields" style="display:${hasOpeningFeed ? 'block' : 'none'};">
+        <div class="form-hint-banner" style="margin-top:10px;">استخدم الجزء ده فقط للعلف اللي كان موجودًا قبل الدورة ولم تسجّل شراءه فيها. المشتريات اللي سجلتها أثناء الدورة لا تدخلها هنا.</div>
+        <label>كم شكارة كانت موجودة؟</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <input id="fst_open_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${openingQty}" placeholder="مثلاً 1">
+          <select id="fst_open_unit">
+            <option value="شكارة (50 كجم)" ${openingUnit.includes('50') ? 'selected' : ''}>شكارة 50 كجم</option>
+            <option value="شكارة (100 كجم)" ${openingUnit.includes('100') ? 'selected' : ''}>شكارة 100 كجم</option>
+            <option value="كيلوجرام (كجم)" ${openingUnit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
+          </select>
+        </div>
+        <label>قيمة العلف القديم التقديرية (جنيه)</label>
+        <input id="fst_open_value" type="number" inputmode="decimal" min="0" step="any" value="${current ? (+current.openingValue || 0) : ''}" placeholder="مثلاً 1500">
       </div>
-      <label>القيمة التقديرية للرصيد الافتتاحي (جنيه)</label>
-      <input id="fst_open_value" type="number" inputmode="decimal" min="0" step="any" value="${current ? (+current.openingValue || 0) : ''}" placeholder="0">
     ` : ''}
     <div class="form-actions-row">
       <button class="btn btn-primary" style="flex:2;" type="submit">${editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك'}</button>
@@ -1064,18 +1072,25 @@ function openFeedStocktakeModal(editIndex = null) {
     let openingValue = current ? (+current.openingValue || 0) : 0;
     let openingUnitValue = current && current.openingUnit ? current.openingUnit : 'شكارة (50 كجم)';
     if (firstCheck) {
-      const openQty = +(document.getElementById('fst_open_qty').value || 0);
-      const openUnit = document.getElementById('fst_open_unit').value;
-      openingKg = openQty * getUnitKgFactor(openUnit);
-      openingValue = +(document.getElementById('fst_open_value').value || 0);
-      openingUnitValue = openUnit;
-      if (!Number.isFinite(openQty) || openQty < 0 || !Number.isFinite(openingValue) || openingValue < 0) {
-        showFormError('راجع كمية وقيمة الرصيد الافتتاحي.', 'fst_open_qty');
-        return;
-      }
-      if (openQty > 0 && openingValue <= 0) {
-        showFormError('اكتب قيمة تقديرية للرصيد الافتتاحي حتى تدخل تكلفته في الحساب.', 'fst_open_value');
-        return;
+      const hasOpening = document.getElementById('fst_has_opening').value === 'yes';
+      if (hasOpening) {
+        const openQty = +(document.getElementById('fst_open_qty').value || 0);
+        const openUnit = document.getElementById('fst_open_unit').value;
+        openingKg = openQty * getUnitKgFactor(openUnit);
+        openingValue = +(document.getElementById('fst_open_value').value || 0);
+        openingUnitValue = openUnit;
+        if (!Number.isFinite(openQty) || openQty <= 0 || !Number.isFinite(openingValue) || openingValue < 0) {
+          showFormError('أدخل كمية علف قديم صحيحة وقيمته التقديرية.', 'fst_open_qty');
+          return;
+        }
+        if (openingValue <= 0) {
+          showFormError('اكتب قيمة تقديرية للعلف القديم حتى تدخل تكلفته في الحساب.', 'fst_open_value');
+          return;
+        }
+      } else {
+        openingKg = 0;
+        openingValue = 0;
+        openingUnitValue = 'شكارة (50 كجم)';
       }
     }
 
@@ -1141,6 +1156,12 @@ function deleteFeedStocktake(index) {
       if (saveAndNotify('تم حذف الجرد وإعادة حساب تقدير العلف')) render();
     }
   });
+}
+
+function toggleOpeningFeedFields() {
+  const selector = document.getElementById('fst_has_opening');
+  const fields = document.getElementById('fst_opening_fields');
+  if (selector && fields) fields.style.display = selector.value === 'yes' ? 'block' : 'none';
 }
 
 // Generic delete for expenses, mortality, or feed
