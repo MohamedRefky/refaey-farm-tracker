@@ -997,14 +997,16 @@ function openFeedStocktakeModal(editIndex = null, closing = false) {
 
   formEl.innerHTML = `
     <div class="form-header">
-      <div class="form-title">${editing ? 'تعديل جرد العلف' : 'جرد رصيد العلف'} 🌾</div>
+      <div class="form-title">${closing ? 'الجرد النهائي قبل إغلاق الدورة' : (editing ? 'تعديل جرد العلف' : 'جرد رصيد العلف')} 🌾</div>
       <button type="button" class="btn btn-sm btn-outline" onclick="closeM()">✕</button>
     </div>
     <div id="form_error_container"></div>
-    <div class="form-hint-banner amber"><span>ℹ️</span><span>اكتب الرصيد الموجود الآن فقط. رصيد بداية الدورة يُسجَّل عند إنشاء الدورة؛ لا تكتبه مرة ثانية هنا. التطبيق يقدّر المستهلك من الرصيد والمشتريات، والحساب تقريبي.</span></div>
+    <div class="form-hint-banner amber"><span>ℹ️</span><span>${closing
+      ? 'لو فيه علف فاضل من الدورة، سجّل الكمية المتبقية الآن. التطبيق هيخصم قيمة الفائض من تكلفة العلف المستهلكة ويحدّث تكلفة كل كتكوت. لو مفيش فائض، اكتب صفر. الحساب تقديري.'
+      : 'اكتب الرصيد الموجود في المخزن الآن فقط. رصيد بداية الدورة يُسجَّل عند إنشاء الدورة؛ لا تكتبه مرة ثانية هنا. التطبيق يقدّر المستهلك من الرصيد والمشتريات، والحساب تقريبي.'}</span></div>
     <label>تاريخ الجرد *</label>
     <input id="fst_date" type="date" value="${current ? current.d : today()}">
-    <label>كم شكارة فاضلة الآن؟ *</label>
+    <label>${closing ? 'كمية العلف المتبقية من الدورة؟ *' : 'كم شكارة فاضلة الآن؟ *'}</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <input id="fst_qty" type="number" inputmode="decimal" min="0" step="0.25" value="${remQty}" placeholder="عدد الشكاير (مثلاً 1.5)" required>
       <select id="fst_unit">
@@ -1014,7 +1016,7 @@ function openFeedStocktakeModal(editIndex = null, closing = false) {
       </select>
     </div>
     <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex:2;" type="submit">${editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك'}</button>
+      <button class="btn btn-primary" style="flex:2;" type="submit">${closing ? 'حفظ الجرد وتحديث تكلفة الكتاكيت' : (editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك')}</button>
       <button class="btn btn-outline" style="flex:1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
   `;
