@@ -75,14 +75,10 @@ function renderSalesTab(c, k) {
   `;
 }
 
-// 2. Expenses Tab (Unified with Feed + Category Filter Chips + Slim Rows)
+// 2. Expenses Tab (Unified with Feed + Chick Purchases + Category Filter Chips + Slim Rows)
 function renderExpensesTab(c, k) {
   const allExp = c.exp || [];
   const activeFilter = S.expFilter || 'all';
-  const filtered = activeFilter === 'all'
-    ? allExp
-    : allExp.filter(e => e.cat === activeFilter);
-  const filteredSum = filtered.reduce((s, e) => s + (+e.amt || 0), 0);
 
   const catIcons = {
     'علف': '🌾',
@@ -91,17 +87,71 @@ function renderExpensesTab(c, k) {
     'مصاريف أخرى': '📦'
   };
 
-  let summaryHtml = `<span>إجمالي المصاريف: <b class="color-rose">${f(k.otherExp)} ج</b></span><span>•</span><span>${allExp.length} بنود</span>`;
-  if (activeFilter === 'علف') {
-    summaryHtml = `<span>إجمالي العلف: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>التكلفة: <b class="color-rose">${f(filteredSum)} ج</b></span>`;
+  // Build chick purchase rows from flocks & their batches (never duplicates calc sums)
+  const chickEntries = [];
+  (c.flocks || []).forEach((fl, flIdx) => {
+    const batches = Array.isArray(fl.batches) && fl.batches.length > 0
+      ? fl.batches
+      : [{ id: fl.id, d: c.start, count: +fl.count || 0, cost: +fl.cost || 0, seq: flIdx + 1 }];
+    const multiBatch = batches.length > 1;
+    batches.forEach((b, bIdx) => {
+      chickEntries.push({
+        kind: 'chick',
+        seq: +b.seq || 0,
+        d: b.d || c.start || '',
+        flockId: fl.id,
+        flockName: fl.name || 'كتاكيت',
+        batchIdx: bIdx,
+        multiBatch,
+        count: +b.count || 0,
+        amt: +b.cost || 0
+      });
+    });
+  });
+
+  const expEntries = allExp.map((e, idx) => ({
+    kind: 'exp',
+    seq: +e.seq || 0,
+    d: e.d || '',
+    expIndex: idx,
+    exp: e,
+    amt: +e.amt || 0
+  }));
+
+  let filteredEntries = [];
+  if (activeFilter === 'كتاكيت') {
+    filteredEntries = chickEntries.slice().reverse();
+  } else if (activeFilter === 'all') {
+    filteredEntries = [...chickEntries, ...expEntries].sort((a, b) => {
+      if (b.seq !== a.seq) return b.seq - a.seq;
+      const dCmp = String(b.d || '').localeCompare(String(a.d || ''));
+      if (dCmp !== 0) return dCmp;
+      return (b.expIndex ?? b.batchIdx ?? 0) - (a.expIndex ?? a.batchIdx ?? 0);
+    });
+  } else {
+    filteredEntries = expEntries.filter(item => item.exp.cat === activeFilter).reverse();
+  }
+
+  const filteredExpSum = filteredEntries
+    .filter(item => item.kind === 'exp')
+    .reduce((s, item) => s + item.amt, 0);
+
+  let summaryHtml = `<span>إجمالي المصاريف: <b class="color-rose">${f(k.e)} ج</b></span><span>•</span><span>كتاكيت: <b>${f(k.chickCost)} ج</b> + تشغيل: <b>${f(k.otherExp)} ج</b></span>`;
+  if (activeFilter === 'كتاكيت') {
+    summaryHtml = `<span>🐣 شراء الكتاكيت: <b class="color-rose">${f(k.chickCost)} ج</b></span><span>•</span><span>${f(k.chickCount)} طائر (متوسط <b>${k.chickCount > 0 ? fp(k.buyPerChick) : 0} ج</b>/كتكوت)</span>`;
+  } else if (activeFilter === 'علف') {
+    summaryHtml = `<span>إجمالي العلف: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>التكلفة: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
   } else if (activeFilter !== 'all') {
-    summaryHtml = `<span>${catIcons[activeFilter] || ''} ${activeFilter}: <b class="color-rose">${f(filteredSum)} ج</b></span><span>•</span><span>${filtered.length} بنود</span>`;
+    summaryHtml = `<span>${catIcons[activeFilter] || ''} ${activeFilter}: <b class="color-rose">${f(filteredExpSum)} ج</b></span><span>•</span><span>${filteredEntries.length} بنود</span>`;
   }
 
   return `
     <div class="filter-chips" style="margin-top: 0;">
       <button class="filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="S.expFilter='all'; render()">
-        الكل (${allExp.length})
+        الكل (${allExp.length + chickEntries.length})
+      </button>
+      <button class="filter-chip ${activeFilter === 'كتاكيت' ? 'active' : ''}" onclick="S.expFilter='كتاكيت'; render()">
+        🐣 كتاكيت (${chickEntries.length})
       </button>
       <button class="filter-chip ${activeFilter === 'علف' ? 'active' : ''}" onclick="S.expFilter='علف'; render()">
         🌾 علف (${allExp.filter(e => e.cat === 'علف').length})
@@ -122,8 +172,38 @@ function renderExpensesTab(c, k) {
     </div>
 
     <div class="card">
-      ${filtered.length ? filtered.slice().reverse().map(e => {
-        const i = allExp.indexOf(e);
+      ${filteredEntries.length ? filteredEntries.map(item => {
+        if (item.kind === 'chick') {
+          const unitPrice = item.count > 0 ? item.amt / item.count : 0;
+          const title = item.multiBatch
+            ? `شراء كتاكيت: ${item.flockName} (دفعة ${item.batchIdx + 1})`
+            : `شراء كتاكيت: ${item.flockName}`;
+          const editCall = item.multiBatch
+            ? `openEditBatchModal(${item.flockId}, ${item.batchIdx})`
+            : `openFlockModal(${item.flockId})`;
+
+          return `
+            <div class="record-item record-clean">
+              <div class="record-clean-top">
+                <div class="record-main">
+                  <div class="record-title">
+                    <span>🐣</span>
+                    <span>${esc(title)}</span>
+                  </div>
+                  <div class="record-date">${fds(item.d)} • <b>${f(item.count)} طائر</b> • سعر الكتكوت: <b>${fp(unitPrice)} ج</b></div>
+                </div>
+                <span class="record-value color-rose">${f(item.amt)} ج</span>
+              </div>
+              <div class="record-labeled-actions">
+                <button class="labeled-action-btn" onclick="${editCall}">✏️ تعديل السعر / العدد</button>
+                ${item.multiBatch ? `<button class="labeled-action-btn danger" onclick="delBatch(${item.flockId}, ${item.batchIdx})">🗑️ حذف الدفعة</button>` : ''}
+              </div>
+            </div>
+          `;
+        }
+
+        const e = item.exp;
+        const i = item.expIndex;
         const icon = catIcons[e.cat] || '💸';
         const linkedFeed = e.cat === 'علف'
           ? (c.feed || []).find(fl => fl.id === e.feedRefId || fl.expRefId === e.id)
