@@ -1545,10 +1545,13 @@ function restockPage(a, c) {
 
   const initialMode = preselectedFlockId !== null
     ? 'existing'
-    : (flocks.length > 0 ? 'existing' : 'new');
-  const defaultExistingId = preselectedFlockId !== null
-    ? preselectedFlockId
-    : (flocks.length === 1 ? flocks[0].id : '');
+    : (flocks.length > 0 ? '' : 'new');
+  const defaultExistingId = preselectedFlockId !== null ? preselectedFlockId : '';
+  const needsModeChoice = initialMode === '';
+  const isSubmitBlocked = needsModeChoice || hasOldExp;
+  const initialSubmitLabel = needsModeChoice
+    ? '🔒 اختر نوع الإضافة أولاً'
+    : (hasOldExp ? '🔒 اختر أيوة أو لا أولاً' : 'إضافة وحفظ');
 
   a.innerHTML = `
     <div class="detail-top-nav">
@@ -1569,12 +1572,16 @@ function restockPage(a, c) {
         <div id="form_error_container"></div>
 
         ${flocks.length > 0 ? `
+          <label>نوع الإضافة *</label>
           <input type="hidden" id="rs_mode" value="${initialMode}">
+          <div id="rs_mode_status" class="restock-choice-status ${initialMode ? 'selected-yes' : 'pending'}">
+            <span>${initialMode === 'existing' ? '✓ اختيارك: زيادة على نوع موجود' : '⏳ لسه مختارتش — اختر زيادة على نوع موجود أو نوع جديد مختلف'}</span>
+          </div>
           <div class="restock-mode-tabs">
-            <button type="button" class="restock-mode-btn ${initialMode === 'existing' ? 'active' : ''}" data-mode="existing" onclick="switchRestockMode('existing')">
+            <button type="button" class="restock-mode-btn ${initialMode === 'existing' ? 'active' : ''}" data-mode="existing" aria-pressed="${initialMode === 'existing' ? 'true' : 'false'}" onclick="switchRestockMode('existing')">
               <span>➕ زيادة على نوع موجود</span>
             </button>
-            <button type="button" class="restock-mode-btn ${initialMode === 'new' ? 'active' : ''}" data-mode="new" onclick="switchRestockMode('new')">
+            <button type="button" class="restock-mode-btn ${initialMode === 'new' ? 'active' : ''}" data-mode="new" aria-pressed="${initialMode === 'new' ? 'true' : 'false'}" onclick="switchRestockMode('new')">
               <span>🐣 نوع جديد مختلف</span>
             </button>
           </div>
@@ -1641,8 +1648,8 @@ function restockPage(a, c) {
         ` : `<input type="hidden" id="rs_include_old" value="no">`}
 
         <div class="form-actions-row">
-          <button id="rs_submit_btn" class="btn btn-primary" style="flex: 2;" type="submit" ${hasOldExp ? 'disabled aria-disabled="true"' : ''}>
-            ${hasOldExp ? '🔒 اختر أيوة أو لا أولاً' : 'إضافة وحفظ'}
+          <button id="rs_submit_btn" class="btn btn-primary" style="flex: 2;" type="submit" ${isSubmitBlocked ? 'disabled aria-disabled="true"' : ''}>
+            ${initialSubmitLabel}
           </button>
           <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeRestockPage()">إلغاء</button>
         </div>
@@ -1657,6 +1664,10 @@ function restockPage(a, c) {
       clearFormErrors();
 
       const mode = document.getElementById('rs_mode').value;
+      if (mode !== 'existing' && mode !== 'new') {
+        showFormError('يرجى اختيار نوع الإضافة أولاً (زيادة على نوع موجود أو نوع جديد مختلف).', null);
+        return;
+      }
       const countStr = document.getElementById('rs_count').value.trim();
       const costStr = document.getElementById('rs_cost').value.trim();
       const dVal = document.getElementById('rs_d').value || today();
@@ -1736,16 +1747,51 @@ function restockPage(a, c) {
   }
 }
 
+function updateRestockSubmitState() {
+  const mode = document.getElementById('rs_mode')?.value || '';
+  const hasMode = mode === 'existing' || mode === 'new';
+  const hasChoiceList = Boolean(document.getElementById('rs_choice_list'));
+  const oldExpChoice = document.getElementById('rs_include_old')?.value || '';
+  const hasOldChoice = !hasChoiceList || oldExpChoice === 'yes' || oldExpChoice === 'no';
+
+  const submitBtn = document.getElementById('rs_submit_btn');
+  if (!submitBtn) return;
+
+  if (!hasMode) {
+    submitBtn.disabled = true;
+    submitBtn.setAttribute('aria-disabled', 'true');
+    submitBtn.textContent = '🔒 اختر نوع الإضافة أولاً';
+  } else if (!hasOldChoice) {
+    submitBtn.disabled = true;
+    submitBtn.setAttribute('aria-disabled', 'true');
+    submitBtn.textContent = '🔒 اختر أيوة أو لا أولاً';
+  } else {
+    submitBtn.disabled = false;
+    submitBtn.setAttribute('aria-disabled', 'false');
+    submitBtn.textContent = 'إضافة وحفظ ✓';
+  }
+}
+
 function switchRestockMode(mode) {
   const modeEl = document.getElementById('rs_mode');
   if (modeEl) modeEl.value = mode;
   document.querySelectorAll('.restock-mode-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
+    const isMatch = btn.dataset.mode === mode;
+    btn.classList.toggle('active', isMatch);
+    btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
   });
+  const modeStatusEl = document.getElementById('rs_mode_status');
+  if (modeStatusEl) {
+    modeStatusEl.className = 'restock-choice-status selected-yes';
+    modeStatusEl.innerHTML = mode === 'existing'
+      ? '<span>✓ اختيارك: زيادة على نوع موجود</span>'
+      : '<span>✓ اختيارك: نوع جديد مختلف</span>';
+  }
   const exSec = document.getElementById('rs_existing_section');
   const newSec = document.getElementById('rs_new_section');
   if (exSec) exSec.style.display = mode === 'existing' ? 'block' : 'none';
   if (newSec) newSec.style.display = mode === 'new' ? 'block' : 'none';
+  updateRestockSubmitState();
 }
 
 function selectRestockFlock(flockId) {
@@ -1777,12 +1823,7 @@ function selectRestockOldExp(val) {
       : '<span>✓ اختيارك: لا — المصاريف الجديدة اللي جاية بس</span>';
   }
 
-  const submitBtn = document.getElementById('rs_submit_btn');
-  if (submitBtn) {
-    submitBtn.disabled = false;
-    submitBtn.setAttribute('aria-disabled', 'false');
-    submitBtn.textContent = 'إضافة وحفظ ✓';
-  }
+  updateRestockSubmitState();
 }
 
 function openEditBatchModal(flockId, batchIdx) {
