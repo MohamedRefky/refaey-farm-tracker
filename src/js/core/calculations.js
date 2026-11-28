@@ -795,3 +795,65 @@ function profitChart() {
     x => x.t
   );
 }
+
+// Smart non-intrusive reminder for when a feed stocktake meaningfully improves cost accuracy
+function getFeedStocktakeReminder(c, k) {
+  if (!c || c.end) return null;
+  const metrics = k || calc(c);
+  if ((metrics.feedTotalKg || 0) <= 0) return null;
+
+  const checks = Array.isArray(c.feedStocktakes) ? c.feedStocktakes.slice() : [];
+  checks.sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
+  const latestCheck = checks.length ? checks[checks.length - 1] : null;
+  const latestCheckDay = latestCheck ? toDayNum(latestCheck.d || c.start) : null;
+  const latestCheckSeq = latestCheck ? (+latestCheck.seq || 0) : 0;
+
+  const sales = Array.isArray(c.inc) ? c.inc.slice() : [];
+  if (sales.length > 0) {
+    sales.sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || (+a.seq || 0) - (+b.seq || 0));
+    const latestSale = sales[sales.length - 1];
+    const latestSaleDay = toDayNum(latestSale.d || c.start);
+    const latestSaleSeq = +latestSale.seq || 0;
+
+    const coveredByCheck = latestCheckDay !== null && latestSaleDay !== null && (
+      latestCheckDay > latestSaleDay
+      || (latestCheckDay === latestSaleDay && (!latestSaleSeq || !latestCheckSeq || latestCheckSeq >= latestSaleSeq))
+    );
+
+    if (!coveredByCheck) {
+      return {
+        reason: 'after_sale',
+        key: `${c.id}_sale_${latestSale.id || latestSale.d}_${latestSaleSeq}`,
+        saleDate: latestSale.d || c.start,
+        hasRemainingBirds: (metrics.remaining || 0) > 0
+      };
+    }
+  }
+
+  const todayNum = toDayNum(typeof today === 'function' ? today() : null);
+  if (todayNum === null) return null;
+
+  const inv = metrics.feedInventory || { enabled: false, pendingPurchaseKg: 0 };
+  if (!inv.enabled) {
+    const startNum = toDayNum(c.start);
+    const daysSinceStart = startNum !== null ? Math.max(0, todayNum - startNum) : 0;
+    if (daysSinceStart >= 7) {
+      return {
+        reason: 'periodic',
+        key: `${c.id}_periodic_init_${daysSinceStart}`,
+        daysSince: daysSinceStart
+      };
+    }
+  } else if ((inv.pendingPurchaseKg || 0) > 0 && latestCheckDay !== null) {
+    const daysSinceCheck = Math.max(0, todayNum - latestCheckDay);
+    if (daysSinceCheck >= 7) {
+      return {
+        reason: 'periodic',
+        key: `${c.id}_periodic_${latestCheck.id || latestCheck.d}_${daysSinceCheck}`,
+        daysSince: daysSinceCheck
+      };
+    }
+  }
+
+  return null;
+}

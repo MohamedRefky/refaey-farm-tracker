@@ -304,16 +304,27 @@ function renderFeedInventoryCard(c, k) {
   const hasOpeningFeed = (+c.feedOpeningKg || 0) > 0 || (+c.feedOpeningValue || 0) > 0;
   const hasPending = inv.pendingPurchaseKg > 0;
   const lastCheckKg = checks.length ? (+checks[checks.length - 1].kg || 0) : 0;
+  const reminder = typeof getFeedStocktakeReminder === 'function' ? getFeedStocktakeReminder(c, k) : null;
 
   return `
     <div class="card feed-inventory-card">
       <div class="feed-inventory-head">
         <div>
           <h3>📦 جرد العلف</h3>
-          <small>سجّل اللي فاضل في المخزن وقت البيع أو آخر الدفعة، والدفتر هيحسب اللي اتاكل لوحده.</small>
+          <small>عدّ الشكاير الفاضلة في المخزن وقت البيع أو عند قفل الدورة، والدفتر هيحسب المستهلك لوحده.</small>
         </div>
         <button class="btn btn-primary btn-sm" type="button" onclick="openFeedStocktakeModal()">+ تسجيل جرد</button>
       </div>
+
+      ${reminder && reminder.reason === 'after_sale' ? `
+        <div class="feed-reminder-inline">
+          <span>💡 <b>وقت الجرد:</b> سجّلت بيع (${fds(reminder.saleDate)}) — لو باقي علف في المخزن، سجّل الجرد الآن لدقة تكلفة الطيور المباعة والمتبقية.</span>
+        </div>
+      ` : (reminder && reminder.reason === 'periodic' ? `
+        <div class="feed-reminder-inline">
+          <span>🌾 عدّى <b>${reminder.daysSince} يوم</b> وفيه علف غير مجرود — لو حابب تتابع تكلفة الكتكوت بدقة أو غيّرت نوع العلف، سجّل جرد سريع.</span>
+        </div>
+      ` : '')}
 
       ${inv.enabled ? `
         <div class="feed-inv-grid">
@@ -366,6 +377,15 @@ function renderFeedInventoryCard(c, k) {
       ` : `
         <div class="feed-inventory-empty">${hasFeedPurchases || hasOpeningFeed ? 'ابدأ بأول جرد عشان تعرف اتاكل قد إيه والباقي في المخزن قد إيه.' : 'سجّل شراء العلف أو رصيد البداية أولًا، ثم اعمل جردًا عند البيع أو قفل الدفعة.'}</div>
       `}
+
+      <div class="feed-best-times-box">
+        <div class="feed-best-times-title">📌 أفضل أوقات الجرد عشان حساباتك تطلع 100%:</div>
+        <ul>
+          <li><b>وقت أي بيعة:</b> خصوصاً البيع الجزئي أو بيع نوع قبل نوع، عشان الفائض ما يتحمّلش على المباع.</li>
+          <li><b>عند قفل الدورة:</b> الدفتر بيطلبه تلقائياً لخصم المتبقي وترحيله للدورة الجاية.</li>
+          <li><b>اختياري كل 7–10 أيام أو عند تغيير العلف:</b> (بادي ← نامي ← ناهي) لمتابعة تكلفة الكتكوت بدقة.</li>
+        </ul>
+      </div>
     </div>
   `;
 }

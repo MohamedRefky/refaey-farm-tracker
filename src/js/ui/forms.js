@@ -624,11 +624,16 @@ function openForm(kind, editIndex = null, prefillData = null) {
     if (saveAndNotify(toastMsg)) {
       closeM();
       render();
-      if (kind === 'inc' && !isEdit && o.d === today()
-        && cycleHasTrackedFeed(cycle)
-        && !(cycle.feedStocktakes || []).some(x => x.d === today() && (+x.seq || 0) >= (+o.seq || 0))) {
-        showToast('سجّل جرد العلف الآن لتقدير تكلفة البيع حتى اليوم.', 3600);
-        openFeedStocktakeModal();
+      if (kind === 'inc' && !isEdit && !cycle.end && cycleHasTrackedFeed(cycle)) {
+        const rem = typeof getFeedStocktakeReminder === 'function' ? getFeedStocktakeReminder(cycle) : null;
+        if (rem && rem.reason === 'after_sale') {
+          if (o.d === today()) {
+            showToast('سجّل جرد العلف الآن لتقدير تكلفة البيع بدقة.', 3600);
+            openFeedStocktakeModal();
+          } else {
+            showToast('تم حفظ البيع ✓ • 💡 لو باقي علف في المخزن سجّل جرد سريع للدقة', 3800);
+          }
+        }
       }
     }
   };

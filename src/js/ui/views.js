@@ -252,6 +252,8 @@ function detail(a) {
       ${renderPerChickHeroBox(k)}
     </div>
 
+    ${renderCycleFeedReminderBanner(c, k)}
+
     <!-- ⚡ UNIFIED QUICK ACTION HUB (بدون تكرار - كل الأزرار في مكان واحد واضح) -->
     <div class="card action-hub-card">
       <div class="action-hub-group">
@@ -631,6 +633,34 @@ function renderFlockPerChickBox(fs) {
             💡 نصيب الكتكوت زاد بسبب النافق (${f(fs.dead)} طائر) لأن التكلفة اتقسمت على الـ ${f(fs.live)} كتكوت الحي الآن بدل ${f(fs.count)}.
           </div>
         ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function dismissFeedStocktakeReminder(key) {
+  S.dismissedFeedReminders = S.dismissedFeedReminders || {};
+  S.dismissedFeedReminders[key] = true;
+  render();
+}
+
+function renderCycleFeedReminderBanner(c, k) {
+  if (typeof getFeedStocktakeReminder !== 'function') return '';
+  const reminder = getFeedStocktakeReminder(c, k);
+  if (!reminder || reminder.reason !== 'after_sale') return '';
+  if (S.dismissedFeedReminders && S.dismissedFeedReminders[reminder.key]) return '';
+
+  return `
+    <div class="feed-reminder-banner" role="status">
+      <div class="feed-reminder-body">
+        <div class="feed-reminder-title">💡 تذكير جرد العلف بعد البيع</div>
+        <div class="feed-reminder-desc">
+          سجّلت حركة بيع (${fds(reminder.saleDate)}) — لو لسه باقي شكاير علف في المخزن، عدّها وسجلها دلوقتي عشان تكلفة الكتاكيت المباعة والمتبقية تطلع دقيقة 100%.
+        </div>
+      </div>
+      <div class="feed-reminder-actions">
+        <button type="button" class="btn btn-primary btn-sm" onclick="openFeedStocktakeModal()">📦 تسجيل جرد الآن</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="dismissFeedStocktakeReminder('${esc(reminder.key)}')">لاحقاً</button>
       </div>
     </div>
   `;
