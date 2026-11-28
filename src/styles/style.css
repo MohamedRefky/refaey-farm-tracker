@@ -1250,7 +1250,9 @@ select option {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -2037,6 +2039,10 @@ body.keyboard-open #toast {
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 450px;
+  max-height: calc(var(--vv-height, 100vh) - 24px);
+  max-height: calc(var(--vv-height, 100dvh) - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 26px 22px;
   box-shadow: var(--shadow-modal), 0 0 35px rgba(244, 63, 94, 0.25);
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -3346,6 +3352,12 @@ body.keyboard-open #toast {
   line-height: 1.4;
 }
 
+.sync-status-banner.syncing {
+  background: var(--sky-light);
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  color: var(--sky);
+}
+
 .sync-status-banner.offline {
   background: var(--amber-light);
   border: 1px solid rgba(245, 158, 11, 0.4);
@@ -3356,6 +3368,31 @@ body.keyboard-open #toast {
   background: var(--rose-light);
   border: 1px solid rgba(244, 63, 94, 0.45);
   color: var(--rose);
+}
+
+@media (max-width: 640px) {
+  .record-icon-actions {
+    gap: 8px;
+  }
+  .icon-action-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    font-size: 14px;
+  }
+  .labeled-action-btn,
+  .feed-stocktake-row .labeled-action-btn {
+    min-height: 38px;
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .restock-mode-tabs {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Feed inventory snapshot panel */

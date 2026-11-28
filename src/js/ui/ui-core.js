@@ -213,6 +213,13 @@ function updateSyncStatusBanner() {
     return;
   }
 
+  if (typeof isCloudSyncing !== 'undefined' && isCloudSyncing) {
+    banner.style.display = 'flex';
+    banner.className = 'sync-status-banner syncing';
+    banner.textContent = '☁️ جاري حفظ ومزامنة التعديلات على السحابة...';
+    return;
+  }
+
   if (typeof hasPendingSync !== 'undefined' && hasPendingSync && typeof cloudSyncHandler === 'function') {
     banner.style.display = 'flex';
     banner.className = 'sync-status-banner offline';
@@ -258,10 +265,16 @@ function setupMobileKeyboardViewport() {
     if (!target || !target.matches || !target.matches('input, select, textarea')) return;
     setTimeout(() => {
       syncViewport();
-      if (typeof target.scrollIntoView === 'function') {
-        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      if (typeof target.getBoundingClientRect === 'function' && typeof target.scrollIntoView === 'function') {
+        const rect = target.getBoundingClientRect();
+        const vv = window.visualViewport;
+        const visTop = vv ? vv.offsetTop + 12 : 12;
+        const visBottom = vv ? vv.offsetTop + vv.height - 24 : (window.innerHeight || 0) - 24;
+        if (rect.bottom > visBottom || rect.top < visTop) {
+          target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
       }
-    }, 260);
+    }, 280);
   });
 
   document.addEventListener('focusout', () => {

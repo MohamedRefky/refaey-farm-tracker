@@ -26,6 +26,7 @@ const LEGACY_STORAGE_KEYS = [];
 let C = [];
 let storageWriteFailed = false;
 let hasPendingSync = false;
+let isCloudSyncing = false;
 let hasLocalSavedData = false;
 let cloudSyncHandler = null; // Future Firebase hook: setCloudSyncHandler(fn)
 
@@ -59,18 +60,33 @@ function clearPendingSync() {
   if (typeof updateSyncStatusBanner === 'function') updateSyncStatusBanner();
 }
 
+function setCloudSyncing(flag) {
+  isCloudSyncing = Boolean(flag);
+  if (typeof updateSyncStatusBanner === 'function') updateSyncStatusBanner();
+}
+
+function runCloudSync({ toastOnRecovered = false } = {}) {
+  if (typeof cloudSyncHandler !== 'function') return Promise.resolve();
+  setCloudSyncing(true);
+  return Promise.resolve(cloudSyncHandler(C))
+    .then(() => {
+      const hadPending = hasPendingSync;
+      isCloudSyncing = false;
+      clearPendingSync();
+      if (toastOnRecovered && hadPending && typeof showToast === 'function') {
+        showToast('✅ عاد الإنترنت وتمت مزامنة البيانات المحفوظة');
+      }
+    })
+    .catch(() => {
+      isCloudSyncing = false;
+      markPendingSync();
+    });
+}
+
 function flushPendingSync() {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   if (typeof cloudSyncHandler === 'function') {
-    Promise.resolve(cloudSyncHandler(C))
-      .then(() => {
-        const hadPending = hasPendingSync;
-        clearPendingSync();
-        if (hadPending && typeof showToast === 'function') {
-          showToast('✅ عاد الإنترنت وتمت مزامنة البيانات المحفوظة');
-        }
-      })
-      .catch(() => markPendingSync());
+    runCloudSync({ toastOnRecovered: true });
   } else if (hasPendingSync) {
     clearPendingSync();
     if (typeof showToast === 'function') {
@@ -372,9 +388,7 @@ function saveData(options = {}) {
       if (isOffline) {
         markPendingSync();
       } else if (typeof cloudSyncHandler === 'function') {
-        Promise.resolve(cloudSyncHandler(C))
-          .then(() => clearPendingSync())
-          .catch(() => markPendingSync());
+        runCloudSync();
       } else if (typeof updateSyncStatusBanner === 'function') {
         updateSyncStatusBanner();
       }

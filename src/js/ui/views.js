@@ -370,8 +370,8 @@ function detail(a) {
                             ` : ''}
                           </div>
                           <div class="record-icon-actions">
-                            <button type="button" class="icon-action-btn" onclick="openEditBatchModal(${fs.id}, ${bIdx})" title="تعديل هذه الدفعة" aria-label="تعديل الدفعة" style="width:26px;height:26px;font-size:11px;">✏️</button>
-                            <button type="button" class="icon-action-btn danger" onclick="delBatch(${fs.id}, ${bIdx})" title="حذف هذه الدفعة" aria-label="حذف الدفعة" style="width:26px;height:26px;font-size:11px;">🗑️</button>
+                            <button type="button" class="icon-action-btn" onclick="openEditBatchModal(${fs.id}, ${bIdx})" title="تعديل هذه الدفعة" aria-label="تعديل الدفعة">✏️</button>
+                            <button type="button" class="icon-action-btn danger" onclick="delBatch(${fs.id}, ${bIdx})" title="حذف هذه الدفعة" aria-label="حذف الدفعة">🗑️</button>
                           </div>
                         </div>
                       `).join('')}
