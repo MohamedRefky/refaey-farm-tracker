@@ -18,17 +18,18 @@ function closeM() {
   if (modal) modal.classList.remove('on');
 }
 
-// Helper: Show formatted validation alert in modal
+// Helper: Show formatted validation alert in modal/page (plus bottom alert when present)
 function showFormError(msg, fieldId) {
+  const alertHtml = `
+    <div class="form-error-alert">
+      <span style="font-size: 18px;">⚠️</span>
+      <span>${esc(msg)}</span>
+    </div>
+  `;
   const container = document.getElementById('form_error_container');
-  if (container) {
-    container.innerHTML = `
-      <div class="form-error-alert">
-        <span style="font-size: 18px;">⚠️</span>
-        <span>${esc(msg)}</span>
-      </div>
-    `;
-  }
+  if (container) container.innerHTML = alertHtml;
+  const bottomContainer = document.getElementById('rs_bottom_error_container');
+  if (bottomContainer) bottomContainer.innerHTML = alertHtml;
   if (fieldId) {
     const el = document.getElementById(fieldId);
     if (el) {
@@ -42,6 +43,8 @@ function showFormError(msg, fieldId) {
 function clearFormErrors() {
   const container = document.getElementById('form_error_container');
   if (container) container.innerHTML = '';
+  const bottomContainer = document.getElementById('rs_bottom_error_container');
+  if (bottomContainer) bottomContainer.innerHTML = '';
   document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
 }
 
@@ -1590,12 +1593,15 @@ function restockPage(a, c) {
         <div id="rs_existing_section" style="display: ${initialMode === 'existing' ? 'block' : 'none'};">
           <label>اختر النوع اللي هتزود عليه *</label>
           <input type="hidden" id="rs_flock_id" value="${defaultExistingId}">
-          <div class="flock-picker-grid">
+          <div id="rs_flock_status" class="restock-choice-status ${defaultExistingId ? 'selected-yes' : 'pending'}">
+            <span>${defaultExistingId ? `✓ النوع المختار: ${esc(flockName(c, +defaultExistingId))}` : '⏳ لسه مختارتش النوع — اضغط على اسم النوع اللي هتزود عليه تحت'}</span>
+          </div>
+          <div id="rs_flock_grid" class="flock-picker-grid">
             ${flocks.map(fl => {
               const avail = flockAvailability(c, fl.id, 'inc', null);
               const isActive = String(defaultExistingId) === String(fl.id);
               return `
-                <button type="button" class="flock-pick-btn rs-flock-btn ${isActive ? 'active' : ''}" data-flock-id="${fl.id}" onclick="selectRestockFlock(${fl.id})">
+                <button type="button" class="flock-pick-btn rs-flock-btn ${isActive ? 'active' : ''}" data-flock-id="${fl.id}" data-flock-name="${esc(fl.name)}" aria-pressed="${isActive ? 'true' : 'false'}" onclick="selectRestockFlock(${fl.id})">
                   <span class="flock-pick-name">🐣 ${esc(fl.name)}</span>
                   <span class="flock-pick-meta">متبقي حالياً: ${f(avail)} طائر</span>
                 </button>
@@ -1653,9 +1659,13 @@ function restockPage(a, c) {
           </button>
           <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeRestockPage()">إلغاء</button>
         </div>
+        <div id="rs_bottom_hint" style="margin-top: 10px;"></div>
+        <div id="rs_bottom_error_container" style="margin-top: 10px;"></div>
       </form>
     </div>
   `;
+
+  updateRestockSubmitState();
 
   const restockFormEl = document.getElementById('restock_form');
   if (restockFormEl) {
@@ -1679,7 +1689,9 @@ function restockPage(a, c) {
         const fId = +document.getElementById('rs_flock_id').value;
         targetFlock = (c.flocks || []).find(fl => fl.id === fId);
         if (!targetFlock) {
-          showFormError('يرجى اختيار نوع الفراخ اللي هتزود عليه أولاً.', null);
+          const gridEl = document.getElementById('rs_flock_grid');
+          if (gridEl) gridEl.classList.add('input-error');
+          showFormError('لم يتم الحفظ لأنك لم تختر نوع الفراخ اللي هتزود عليه! اطلع فوق واضغط على اسم النوع (مثلاً: ساسو).', null);
           return;
         }
       } else {
@@ -1750,29 +1762,49 @@ function restockPage(a, c) {
 function updateRestockSubmitState() {
   const mode = document.getElementById('rs_mode')?.value || '';
   const hasMode = mode === 'existing' || mode === 'new';
+  const flockIdVal = document.getElementById('rs_flock_id')?.value || '';
+  const needsFlockPick = mode === 'existing' && !flockIdVal;
   const hasChoiceList = Boolean(document.getElementById('rs_choice_list'));
   const oldExpChoice = document.getElementById('rs_include_old')?.value || '';
   const hasOldChoice = !hasChoiceList || oldExpChoice === 'yes' || oldExpChoice === 'no';
 
   const submitBtn = document.getElementById('rs_submit_btn');
-  if (!submitBtn) return;
+  if (submitBtn) {
+    if (!hasMode) {
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-disabled', 'true');
+      submitBtn.textContent = '🔒 اختر نوع الإضافة أولاً';
+    } else if (!hasOldChoice) {
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-disabled', 'true');
+      submitBtn.textContent = '🔒 اختر أيوة أو لا أولاً';
+    } else if (needsFlockPick) {
+      submitBtn.disabled = false;
+      submitBtn.setAttribute('aria-disabled', 'false');
+      submitBtn.textContent = '⚠️ اختر نوع الفراخ أولاً (من فوق)';
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.setAttribute('aria-disabled', 'false');
+      submitBtn.textContent = 'إضافة وحفظ ✓';
+    }
+  }
 
-  if (!hasMode) {
-    submitBtn.disabled = true;
-    submitBtn.setAttribute('aria-disabled', 'true');
-    submitBtn.textContent = '🔒 اختر نوع الإضافة أولاً';
-  } else if (!hasOldChoice) {
-    submitBtn.disabled = true;
-    submitBtn.setAttribute('aria-disabled', 'true');
-    submitBtn.textContent = '🔒 اختر أيوة أو لا أولاً';
-  } else {
-    submitBtn.disabled = false;
-    submitBtn.setAttribute('aria-disabled', 'false');
-    submitBtn.textContent = 'إضافة وحفظ ✓';
+  const bottomHint = document.getElementById('rs_bottom_hint');
+  if (bottomHint) {
+    if (needsFlockPick && hasOldChoice) {
+      bottomHint.innerHTML = `
+        <div class="restock-choice-status pending" style="margin: 0;">
+          <span>⚠️ تنبيه: لسه مختارتش نوع الفراخ اللي هتزود عليه — اطلع فوق واضغط على اسم النوع الأول.</span>
+        </div>
+      `;
+    } else {
+      bottomHint.innerHTML = '';
+    }
   }
 }
 
 function switchRestockMode(mode) {
+  clearFormErrors();
   const modeEl = document.getElementById('rs_mode');
   if (modeEl) modeEl.value = mode;
   document.querySelectorAll('.restock-mode-btn').forEach(btn => {
@@ -1795,11 +1827,22 @@ function switchRestockMode(mode) {
 }
 
 function selectRestockFlock(flockId) {
+  clearFormErrors();
   const input = document.getElementById('rs_flock_id');
   if (input) input.value = flockId;
+  let selectedName = '';
   document.querySelectorAll('.rs-flock-btn').forEach(btn => {
-    btn.classList.toggle('active', String(btn.dataset.flockId) === String(flockId));
+    const isMatch = String(btn.dataset.flockId) === String(flockId);
+    btn.classList.toggle('active', isMatch);
+    btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+    if (isMatch) selectedName = btn.dataset.flockName || '';
   });
+  const flockStatusEl = document.getElementById('rs_flock_status');
+  if (flockStatusEl) {
+    flockStatusEl.className = 'restock-choice-status selected-yes';
+    flockStatusEl.innerHTML = `<span>✓ النوع المختار: ${esc(selectedName || 'تم التحديد')}</span>`;
+  }
+  updateRestockSubmitState();
 }
 
 function selectRestockOldExp(val) {
