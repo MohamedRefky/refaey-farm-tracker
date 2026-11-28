@@ -692,8 +692,10 @@ function calc(c) {
     };
   });
 
-  // 4. Feed Metrics (إجمالي العلف المشترى للدورة)
+  // 4. Feed Metrics (إجمالي العلف المتاح والمشترى للدورة)
+  const feedOpeningKg = Math.max(0, +c.feedOpeningKg || 0);
   const feedPurchasedKg = (c.feed || []).reduce((s, x) => s + (+x.kg || 0), 0);
+  const feedTotalKg = feedOpeningKg + feedPurchasedKg;
 
   // 5. Debt Metrics (تفصيل الديون واتجاهاتها: لنا عند الغير وعلينا للغير)
   const debtList = c.debt || [];
@@ -738,7 +740,9 @@ function calc(c) {
     p,
     dead,
     sold,
+    feedOpeningKg,
     feedPurchasedKg,
+    feedTotalKg,
     feedInventory,
     live,
     remaining,

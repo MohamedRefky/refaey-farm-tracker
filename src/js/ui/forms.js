@@ -241,7 +241,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
     h += `
       <div class="form-hint-banner">
         <span>🏬</span>
-        <span>رصيد العلف المشترى بالدورة: <b>${f(k.feedPurchasedKg)} كجم</b> (${(k.feedPurchasedKg / bagKg).toFixed(1)} شكارة)</span>
+        <span>إجمالي العلف بالدورة: <b>${f(k.feedTotalKg)} كجم</b> (${(k.feedTotalKg / bagKg).toFixed(1)} شكارة)</span>
       </div>
     `;
   }

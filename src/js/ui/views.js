@@ -245,7 +245,7 @@ function detail(a) {
         </div>
         <div class="hero-strip-item">
           <span>🌾 علف</span>
-          <b>${f(k.feedPurchasedKg)} كجم</b>
+          <b>${f(k.feedTotalKg)} كجم</b>
         </div>
       </div>
 

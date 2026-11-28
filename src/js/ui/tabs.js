@@ -118,24 +118,40 @@ function renderExpensesTab(c, k) {
     amt: +e.amt || 0
   }));
 
+  const openingFeedKg = Math.max(0, +c.feedOpeningKg || 0);
+  const openingFeedAmt = Math.max(0, +c.feedOpeningValue || 0);
+  const hasOpeningFeedEntry = openingFeedKg > 0 || openingFeedAmt > 0;
+  const openingFeedEntries = hasOpeningFeedEntry
+    ? [{
+        kind: 'opening_feed',
+        seq: 0,
+        d: c.start || '',
+        kg: openingFeedKg,
+        amt: openingFeedAmt,
+        unit: c.feedOpeningUnit || 'شكارة (50 كجم)'
+      }]
+    : [];
+
   let filteredEntries = [];
   if (activeFilter === 'كتاكيت') {
     filteredEntries = chickEntries.slice().reverse();
   } else if (activeFilter === 'all') {
-    filteredEntries = [...chickEntries, ...expEntries].sort((a, b) => {
+    filteredEntries = [...chickEntries, ...expEntries, ...openingFeedEntries].sort((a, b) => {
       if (b.seq !== a.seq) return b.seq - a.seq;
       const dCmp = String(b.d || '').localeCompare(String(a.d || ''));
       if (dCmp !== 0) return dCmp;
       return (b.expIndex ?? b.batchIdx ?? 0) - (a.expIndex ?? a.batchIdx ?? 0);
     });
+  } else if (activeFilter === 'علف') {
+    filteredEntries = [...expEntries.filter(item => item.exp.cat === 'علف').reverse(), ...openingFeedEntries];
   } else {
     filteredEntries = expEntries.filter(item => item.exp.cat === activeFilter).reverse();
   }
 
   let filteredExpSum = filteredEntries
-    .filter(item => item.kind === 'exp')
+    .filter(item => item.kind === 'exp' || item.kind === 'opening_feed')
     .reduce((s, item) => s + item.amt, 0);
-  if (activeFilter === 'علف' && k.feedInventory && k.feedInventory.enabled) filteredExpSum = k.feedCostTotal;
+  if (activeFilter === 'علف') filteredExpSum = k.feedCostTotal;
 
   let summaryHtml = `<span>إجمالي المصاريف: <b class="color-rose">${f(k.e)} ج</b></span><span>•</span><span>كتاكيت: <b>${f(k.chickCost)} ج</b> + تشغيل: <b>${f(k.otherExp)} ج</b></span>`;
   if (activeFilter === 'كتاكيت') {
@@ -143,22 +159,27 @@ function renderExpensesTab(c, k) {
   } else if (activeFilter === 'علف') {
     const feedCostLabel = k.feedInventory && k.feedInventory.enabled
       ? 'تكلفة العلف المقدرة حتى الآن'
-      : ((c.feed || []).some(x => x.type === 'purchased') ? 'تكلفة تقديرية حتى أول جرد' : 'تكلفة المشتريات');
-    summaryHtml = `<span>مشتَرى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span><span>•</span><span>${feedCostLabel}: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
+      : ((c.feed || []).some(x => x.type === 'purchased') || hasOpeningFeedEntry ? 'تكلفة تقديرية حتى أول جرد' : 'تكلفة المشتريات');
+    const feedKgSummary = hasOpeningFeedEntry
+      ? `<span>رصيد بداية: <b>${fp(openingFeedKg)} كجم</b> + مشترى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span>`
+      : `<span>مشتَرى: <b class="color-emerald">${f(k.feedPurchasedKg)} كجم</b></span>`;
+    summaryHtml = `${feedKgSummary}<span>•</span><span>${feedCostLabel}: <b class="color-rose">${f(filteredExpSum)} ج</b></span>`;
   } else if (activeFilter !== 'all') {
     summaryHtml = `<span>${catIcons[activeFilter] || ''} ${activeFilter}: <b class="color-rose">${f(filteredExpSum)} ج</b></span><span>•</span><span>${filteredEntries.length} بنود</span>`;
   }
 
+  const feedChipCount = allExp.filter(e => e.cat === 'علف').length + openingFeedEntries.length;
+
   return `
     <div class="filter-chips" style="margin-top: 0;">
       <button class="filter-chip ${activeFilter === 'all' ? 'active' : ''}" onclick="S.expFilter='all'; render()">
-        الكل (${allExp.length + chickEntries.length})
+        الكل (${allExp.length + chickEntries.length + openingFeedEntries.length})
       </button>
       <button class="filter-chip ${activeFilter === 'كتاكيت' ? 'active' : ''}" onclick="S.expFilter='كتاكيت'; render()">
         🐣 كتاكيت (${chickEntries.length})
       </button>
       <button class="filter-chip ${activeFilter === 'علف' ? 'active' : ''}" onclick="S.expFilter='علف'; render()">
-        🌾 علف (${allExp.filter(e => e.cat === 'علف').length})
+        🌾 علف (${feedChipCount})
       </button>
       <button class="filter-chip ${activeFilter === 'دواء' ? 'active' : ''}" onclick="S.expFilter='دواء'; render()">
         💊 دواء
@@ -179,6 +200,26 @@ function renderExpensesTab(c, k) {
 
     <div class="card">
       ${filteredEntries.length ? filteredEntries.map(item => {
+        if (item.kind === 'opening_feed') {
+          const openStockNote = k.feedInventory && k.feedInventory.enabled
+            ? 'رصيد بداية مُرحّل • يُحسب المستهلك الفعلي منه عبر الجرد'
+            : 'رصيد بداية مُرحّل • مُضاف بالكامل على تكلفة الدورة لحين تسجيل أول جرد';
+          return `
+            <div class="record-item record-clean">
+              <div class="record-clean-top">
+                <div class="record-main">
+                  <div class="record-title">
+                    <span>📦</span>
+                    <span>رصيد علف مُرحّل من دورة سابقة</span>
+                  </div>
+                  <div class="record-date">${fds(item.d)} • <b>${fp(item.kg)} كجم</b><br><small>${openStockNote}</small></div>
+                </div>
+                <span class="record-value color-rose">${f(item.amt)} ج</span>
+              </div>
+            </div>
+          `;
+        }
+
         if (item.kind === 'chick') {
           const unitPrice = item.count > 0 ? item.amt / item.count : 0;
           const title = item.multiBatch
