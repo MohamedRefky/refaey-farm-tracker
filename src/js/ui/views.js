@@ -61,12 +61,18 @@ function list(a) {
     <div class="section-title">
       <span>دوراتي المسجلة</span>
       <span class="badge ${activeCount > 0 ? 'badge-active' : 'badge-closed'}">
-        ${activeCount > 0 ? activeCount + ' جارية الآن' : 'مكتملة'}
+        ${activeCount > 0 ? activeCount + ' جارية الآن' : (C.length === 0 ? 'لا توجد دورات' : 'مكتملة')}
       </span>
     </div>
 
     <!-- Cycle Cards -->
-    ${C.slice().reverse().map(c => {
+    ${C.length === 0 ? `
+      <div class="card" style="text-align: center; padding: 28px 18px;">
+        <div style="font-size: 36px; margin-bottom: 10px;">🐥</div>
+        <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">لا توجد دورات مسجلة بعد</div>
+        <div style="color: var(--txt2); font-size: 14px;">اضغط على <b>"بدء دورة تسمين جديدة"</b> بالأعلى لتسجيل أول دورة لك.</div>
+      </div>
+    ` : C.slice().reverse().map(c => {
       const k = calc(c);
       const isOngoing = !c.end;
       return `
@@ -115,13 +121,15 @@ function list(a) {
       `;
     }).join('')}
 
-    <!-- Performance Comparison Chart -->
-    <div class="section-title">
-      <span>مقارنة أرباح وخسائر الدورات</span>
-    </div>
-    <div class="card">
-      ${profitChart()}
-    </div>
+    ${C.length > 0 ? `
+      <!-- Performance Comparison Chart -->
+      <div class="section-title">
+        <span>مقارنة أرباح وخسائر الدورات</span>
+      </div>
+      <div class="card">
+        ${profitChart()}
+      </div>
+    ` : ''}
   `;
 }
 

@@ -16,85 +16,8 @@ function esc(str) {
 // Available expense categories (chick cost is tracked per flock type, not here)
 const cats = ['علف', 'دواء', 'غاز', 'مصاريف أخرى'];
 
-// Default sample data for demo/new users
-const initialCycles = [
-  {
-    id: 1,
-    name: 'دورة أغسطس',
-    start: '2026-08-01',
-    end: '2026-09-10',
-    n: 1000,
-    flocks: [
-      { id: 101, name: 'ساسو', count: 500, cost: 9000 },
-      { id: 102, name: 'كوب', count: 500, cost: 9000 }
-    ],
-    exp: [
-      { id: 10, d: '2026-08-05', cat: 'علف', amt: 22000, note: '30 شكارة (بادي 23%)', feedRefId: 11 },
-      { id: 3, d: '2026-08-20', cat: 'دواء', amt: 3500, note: 'تحصينات واستقبال' },
-      { id: 20, d: '2026-08-25', cat: 'علف', amt: 26000, note: '34 شكارة (نامي 21%)', feedRefId: 13 },
-      { id: 5, d: '2026-09-01', cat: 'مصاريف أخرى', amt: 4000, note: 'يوميات وعمالة' }
-    ],
-    inc: [
-      { id: 1, d: '2026-09-08', flockId: 101, cnt: 480, amt: 43200, buyer: 'تاجر الأحد' },
-      { id: 2, d: '2026-09-10', flockId: 102, cnt: 488, amt: 44500, buyer: 'محل الشرقية' }
-    ],
-    dead: [
-      { id: 1, d: '2026-08-12', flockId: 101, n: 18 },
-      { id: 2, d: '2026-08-28', flockId: 102, n: 12 }
-    ],
-    feed: [
-      { id: 11, d: '2026-08-05', type: 'purchased', kg: 1500, q: 30, unit: 'شكارة (50 كجم)', txt: '30 شكارة (50 كجم) (بادي 23%)', note: 'بادي 23%', expRefId: 10 },
-      { id: 13, d: '2026-08-25', type: 'purchased', kg: 1700, q: 34, unit: 'شكارة (50 كجم)', txt: '34 شكارة (50 كجم) (نامي 21%)', note: 'نامي 21%', expRefId: 20 }
-    ],
-    debt: [
-      {
-        id: 101,
-        d: '2026-09-10',
-        who: 'محل الشرقية',
-        dir: 'لنا',
-        amt: 4500,
-        paidAmt: 1500,
-        paid: false,
-        note: 'باقي حساب بيع دفعة سبتمبر',
-        payments: [{ d: '2026-09-12', amt: 1500, note: 'دفعة نقدية' }]
-      }
-    ]
-  },
-  {
-    id: 2,
-    name: 'دورة أكتوبر',
-    start: '2026-10-01',
-    end: null,
-    n: 1000,
-    flocks: [
-      { id: 201, name: 'أبيض', count: 500, cost: 9500 },
-      { id: 202, name: 'ساسو', count: 300, cost: 5700 },
-      { id: 203, name: 'بلدي', count: 200, cost: 3600 }
-    ],
-    exp: [
-      { id: 30, d: '2026-10-04', cat: 'علف', amt: 9000, note: 'علف بادي', feedRefId: 21 },
-      { id: 31, d: '2026-10-12', cat: 'دواء', amt: 1800, note: 'فيتامينات ومضاد سموم' }
-    ],
-    inc: [],
-    dead: [{ id: 21, d: '2026-10-10', flockId: 201, n: 9 }],
-    feed: [
-      { id: 21, d: '2026-10-04', type: 'purchased', kg: 600, q: 12, unit: 'شكارة (50 كجم)', txt: '12 شكارة (50 كجم) (بادي)', note: 'بادي', expRefId: 30 }
-    ],
-    debt: [
-      {
-        id: 201,
-        d: '2026-10-15',
-        who: 'أبو علي التاجر',
-        dir: 'لنا',
-        amt: 2000,
-        paidAmt: 0,
-        paid: false,
-        note: 'حساب سابق',
-        payments: []
-      }
-    ]
-  }
-];
+// Default cycles list (starts empty with no demo data)
+const initialCycles = [];
 
 // Persistent State Storage
 const STORAGE_KEY = 'refaey_farm_cycles_v8';
@@ -388,12 +311,28 @@ function normalizeData(cycles) {
   return cycles;
 }
 
+function isLegacyDemoCycle(c) {
+  if (!c || typeof c !== 'object') return false;
+  return (
+    (c.id === 1 && c.name === 'دورة أغسطس' && c.start === '2026-08-01') ||
+    (c.id === 2 && c.name === 'دورة أكتوبر' && c.start === '2026-10-01')
+  );
+}
+
 function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      hasLocalSavedData = true;
-      C = normalizeData(JSON.parse(saved));
+      const parsed = normalizeData(JSON.parse(saved));
+      const filtered = parsed.filter(c => !isLegacyDemoCycle(c));
+      if (filtered.length !== parsed.length) {
+        C = filtered;
+        hasLocalSavedData = filtered.length > 0;
+        saveData({ skipCloud: true, keepInitialFlag: filtered.length === 0 });
+      } else {
+        hasLocalSavedData = true;
+        C = parsed;
+      }
       return;
     }
 
@@ -483,22 +422,22 @@ function resetDataPrompt() {
   if (typeof showConfirmModal === 'function') {
     showConfirmModal({
       icon: '⚠️',
-      title: 'استعادة البيانات الافتراضية',
-      subtitle: 'هل أنت متأكد من رغبتك في استعادة البيانات الافتراضية؟ سيتم مسح أي تعديلات محلية قمت بها.',
-      itemIcon: '🔄',
-      itemTitle: 'إعادة ضبط المصنع للبيانات',
-      itemMeta: 'سيتم استرجاع الدورات التجريبية الافتراضية وتحديث الصفحة.',
-      confirmBtnText: 'نعم، استعادة البيانات الافتراضية',
+      title: 'مسح جميع البيانات',
+      subtitle: 'هل أنت متأكد من رغبتك في مسح جميع الدورات والبيانات؟ لا يمكن التراجع عن هذه الخطوة.',
+      itemIcon: '🗑️',
+      itemTitle: 'بدء دفتر جديد فارغ',
+      itemMeta: 'سيتم حذف جميع الدورات المسجلة محلياً وسحابياً.',
+      confirmBtnText: 'نعم، امسح جميع البيانات',
       onConfirm: () => {
-        C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
-        if (saveAndNotify('تمت استعادة البيانات الافتراضية بنجاح')) {
+        C = [];
+        if (saveAndNotify('تم مسح جميع البيانات بنجاح')) {
           render();
         }
       }
     });
-  } else if (confirm('هل أنت متأكد من استعادة البيانات الافتراضية؟ سيتم مسح التعديلات المحلية.')) {
-    C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
-    if (saveAndNotify('تمت استعادة البيانات الافتراضية بنجاح')) {
+  } else if (confirm('هل أنت متأكد من مسح جميع الدورات والبيانات؟')) {
+    C = [];
+    if (saveAndNotify('تم مسح جميع البيانات بنجاح')) {
       render();
     }
   }

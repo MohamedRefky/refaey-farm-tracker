@@ -181,9 +181,11 @@
         }
         initialHydrationDone = true;
       } else {
-        // First-ever connection: seed Firestore with current local cycles
+        // First-ever connection: only seed Firestore if the user actually has cycles
         initialHydrationDone = true;
-        await pushCyclesToFirestore(C);
+        if (Array.isArray(C) && C.length > 0) {
+          await pushCyclesToFirestore(C);
+        }
         if (typeof clearPendingSync === 'function') clearPendingSync();
       }
 
