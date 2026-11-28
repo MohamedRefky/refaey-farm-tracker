@@ -849,6 +849,8 @@ label {
 
 input, select, textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
@@ -962,12 +964,16 @@ select option {
 /* Toast Notifications */
 #toast {
   position: fixed;
-  bottom: 24px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%) translateY(100px);
+  max-width: calc(100vw - 24px);
+  width: max-content;
+  text-align: center;
+  line-height: 1.45;
   background: var(--gradient-brand);
   color: #fff;
-  padding: 12px 24px;
+  padding: 12px 20px;
   border-radius: var(--radius-pill);
   font-weight: 700;
   font-size: 14px;
@@ -975,7 +981,7 @@ select option {
   opacity: 0;
   pointer-events: none;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 100;
+  z-index: 120;
 }
 
 #toast.show {
@@ -987,12 +993,14 @@ select option {
 .footer-note {
   text-align: center;
   margin-top: 40px;
+  padding: 0 8px;
   font-size: 13px;
   color: var(--text-dim);
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 .footer-note button {
   background: none;
@@ -1395,6 +1403,7 @@ select option {
     gap: 8px;
     margin-bottom: 12px;
     padding-bottom: 10px;
+    flex-wrap: wrap;
   }
   .brand-wrapper {
     gap: 10px;
@@ -1840,12 +1849,14 @@ select option {
     max-width: 100% !important;
     width: 100% !important;
     max-height: 90vh !important;
+    max-height: 90dvh !important;
+    -webkit-overflow-scrolling: touch;
     border-radius: 20px 20px 0 0 !important;
     border-bottom: none !important;
     box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6) !important;
   }
   #m form {
-    padding: 14px 16px 28px;
+    padding: 14px 16px max(28px, env(safe-area-inset-bottom));
   }
   #m form::before {
     content: "";
