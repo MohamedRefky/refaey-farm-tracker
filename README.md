@@ -53,15 +53,28 @@ You can host this project online for free with GitHub Pages:
 
 ```text
 refaey-farm-tracker/
-├── index.html            # Clean semantic HTML entry point
-├── css/
-│   └── style.css         # Modern design tokens, responsive layout & animations
-├── js/
-│   ├── data.js           # Dataset, localStorage persistence & helpers
-│   ├── calculations.js   # Poultry KPIs, cost/profit formulas & charts
-│   └── app.js            # UI controller, 1-tap quick actions, modal & themes
+├── index.html                    # Clean semantic HTML entry point
 ├── README.md
-└── .gitignore
+├── firebase.json                 # Firebase CLI configuration
+├── .firebaserc                   # Active Firebase project alias
+├── .gitignore
+├── firebase/
+│   ├── firestore.rules           # Cloud Firestore security rules
+│   └── firestore.indexes.json    # Cloud Firestore composite indexes
+└── src/
+    ├── styles/
+    │   └── style.css             # Modern design tokens, responsive layout & animations
+    └── js/
+        ├── core/
+        │   ├── data.js           # Dataset, localStorage persistence & sync hooks
+        │   ├── calculations.js   # Poultry KPIs, cost/profit formulas & charts
+        │   └── firebase-sync.js  # Cloud Firestore real-time & offline-first sync
+        ├── ui/
+        │   ├── ui-core.js        # Theme, live clock, privacy shield & modals
+        │   ├── forms.js          # Transaction, batch & cycle form handlers
+        │   ├── tabs.js           # Cycle detail tabs & filters
+        │   └── views.js          # List, summary & cycle detail renderers
+        └── app.js                # Main application controller & events
 ```
 
 ---

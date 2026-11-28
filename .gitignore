@@ -8,3 +8,8 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Firebase Local Cache & Debug Logs
+.firebase/
+firebase-debug.log
+firestore-debug.log
