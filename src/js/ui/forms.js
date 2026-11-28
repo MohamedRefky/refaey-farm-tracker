@@ -18,7 +18,7 @@ function closeM() {
   if (modal) modal.classList.remove('on');
 }
 
-// Helper: Show formatted validation alert in modal/page (plus bottom alert when present)
+// Helper: Show formatted validation alert in modal/page (top + bottom near Save button)
 function showFormError(msg, fieldId) {
   const alertHtml = `
     <div class="form-error-alert">
@@ -28,7 +28,7 @@ function showFormError(msg, fieldId) {
   `;
   const container = document.getElementById('form_error_container');
   if (container) container.innerHTML = alertHtml;
-  const bottomContainer = document.getElementById('rs_bottom_error_container');
+  const bottomContainer = document.getElementById('form_bottom_error_container');
   if (bottomContainer) bottomContainer.innerHTML = alertHtml;
   if (fieldId) {
     const el = document.getElementById(fieldId);
@@ -43,8 +43,11 @@ function showFormError(msg, fieldId) {
 function clearFormErrors() {
   const container = document.getElementById('form_error_container');
   if (container) container.innerHTML = '';
-  const bottomContainer = document.getElementById('rs_bottom_error_container');
+  const bottomContainer = document.getElementById('form_bottom_error_container');
   if (bottomContainer) bottomContainer.innerHTML = '';
+  const feedChoiceErr = document.getElementById('new_feed_choice_error');
+  if (feedChoiceErr) feedChoiceErr.style.display = 'none';
+  document.querySelectorAll('.choice-error').forEach(el => el.classList.remove('choice-error'));
   document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
 }
 
@@ -293,13 +296,11 @@ function openForm(kind, editIndex = null, prefillData = null) {
   } else if (kind === 'inc') {
     // Simplified Sales Form: Flock Type Buttons + Count + Sale Amount + Optional Buyer
     const flocks = cycle.flocks || [];
-    const availFlocks = flocks.filter(fl => flockAvailability(cycle, fl.id, 'inc', editIndex) > 0);
     let selectedFlockId = isEdit && existing && existing.flockId
       ? existing.flockId
       : (prefillData && prefillData.flockId ? prefillData.flockId : '');
-    if (!selectedFlockId) {
-      if (flocks.length === 1) selectedFlockId = flocks[0].id;
-      else if (availFlocks.length === 1) selectedFlockId = availFlocks[0].id;
+    if (!selectedFlockId && flocks.length === 1) {
+      selectedFlockId = flocks[0].id;
     }
 
     const cntVal = isEdit && existing ? existing.cnt : '';
@@ -331,13 +332,11 @@ function openForm(kind, editIndex = null, prefillData = null) {
   } else if (kind === 'dead') {
     // Simplified Mortality Form: Flock Type Buttons + Dead Count only
     const flocks = cycle.flocks || [];
-    const availFlocks = flocks.filter(fl => flockAvailability(cycle, fl.id, 'dead', editIndex) > 0);
     let selectedFlockId = isEdit && existing && existing.flockId
       ? existing.flockId
       : (prefillData && prefillData.flockId ? prefillData.flockId : '');
-    if (!selectedFlockId) {
-      if (flocks.length === 1) selectedFlockId = flocks[0].id;
-      else if (availFlocks.length === 1) selectedFlockId = availFlocks[0].id;
+    if (!selectedFlockId && flocks.length === 1) {
+      selectedFlockId = flocks[0].id;
     }
     const nVal = isEdit && existing ? existing.n : '';
 
@@ -371,9 +370,11 @@ function openForm(kind, editIndex = null, prefillData = null) {
 
   h += `
     <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">${isEdit ? 'حفظ التعديلات' : 'حفظ البيانات'}</button>
+      <button id="f_submit_btn" class="btn btn-primary" style="flex: 2;" type="submit" data-default-label="${isEdit ? 'حفظ التعديلات' : 'حفظ البيانات'}">${isEdit ? 'حفظ التعديلات' : 'حفظ البيانات'}</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
+    <div id="form_bottom_hint" style="margin-top: 10px;"></div>
+    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
   `;
 
   formEl.innerHTML = h;
@@ -381,6 +382,7 @@ function openForm(kind, editIndex = null, prefillData = null) {
   // Trigger live calculation hints
   if (kind === 'inc') updateSaleCalculations();
   if (isUnified) updateFeedLiveHint();
+  if (kind === 'inc' || kind === 'dead') updateFormSubmitState(kind);
 
   // Form Submit Handler with Solid Validation
   formEl.onsubmit = ev => {
@@ -414,6 +416,10 @@ function openForm(kind, editIndex = null, prefillData = null) {
     // Run strict validation
     const valRes = validateTransaction(isUnified ? 'exp' : kind, dataObj, isEdit, editIndex, cycle);
     if (!valRes.valid) {
+      if ((kind === 'inc' || kind === 'dead') && !valRes.field) {
+        const gridEl = document.getElementById('f_flock_grid');
+        if (gridEl) gridEl.classList.add('input-error');
+      }
       showFormError(valRes.message, valRes.field);
       return;
     }
@@ -627,10 +633,14 @@ function buildFlockPickerHtml(cycle, selectedFlockId, kind, editIndex) {
     `;
   }
 
+  const selectedName = selectedFlockId ? flockName(cycle, +selectedFlockId) : '';
   return `
     <label>${labelText}</label>
     <input type="hidden" id="f_flock" value="${selectedFlockId || ''}">
-    <div class="flock-picker-grid">
+    <div id="f_flock_status" class="restock-choice-status ${selectedFlockId ? 'selected-yes' : 'pending'}">
+      <span>${selectedFlockId ? `✓ النوع المختار: ${esc(selectedName)}` : '⏳ لسه مختارتش النوع — اضغط على اسم النوع تحت'}</span>
+    </div>
+    <div id="f_flock_grid" class="flock-picker-grid">
       ${flocks.map(fl => {
         const avail = flockAvailability(cycle, fl.id, kind, editIndex);
         const isActive = String(selectedFlockId) === String(fl.id);
@@ -639,6 +649,8 @@ function buildFlockPickerHtml(cycle, selectedFlockId, kind, editIndex) {
           <button type="button"
             class="flock-pick-btn ${isActive ? 'active' : ''}"
             data-flock-id="${fl.id}"
+            data-flock-name="${esc(fl.name)}"
+            aria-pressed="${isActive ? 'true' : 'false'}"
             ${isDisabled ? 'disabled' : ''}
             onclick="selectFlockOption(${fl.id}, '${kind}', ${avail})">
             <span class="flock-pick-name">🐣 ${esc(fl.name)}</span>
@@ -650,13 +662,42 @@ function buildFlockPickerHtml(cycle, selectedFlockId, kind, editIndex) {
   `;
 }
 
+function updateFormSubmitState(kind) {
+  const flockVal = document.getElementById('f_flock')?.value || '';
+  const needsFlock = (kind === 'inc' || kind === 'dead') && !flockVal;
+  const btn = document.getElementById('f_submit_btn');
+  if (btn) {
+    btn.textContent = needsFlock
+      ? '⚠️ اختر نوع الفراخ أولاً (من فوق)'
+      : (btn.dataset.defaultLabel || 'حفظ البيانات');
+  }
+  const bottomHint = document.getElementById('form_bottom_hint');
+  if (bottomHint) {
+    bottomHint.innerHTML = needsFlock
+      ? `<div class="restock-choice-status pending" style="margin: 0;"><span>⚠️ تنبيه: لسه مختارتش نوع الفراخ — اطلع فوق واضغط على اسم النوع الأول.</span></div>`
+      : '';
+  }
+}
+
 function selectFlockOption(flockId, kind, avail) {
+  clearFormErrors();
   const inputEl = document.getElementById('f_flock');
   if (inputEl) inputEl.value = flockId;
 
+  let selectedName = '';
   document.querySelectorAll('.flock-pick-btn').forEach(btn => {
-    btn.classList.toggle('active', String(btn.dataset.flockId) === String(flockId));
+    const isMatch = String(btn.dataset.flockId) === String(flockId);
+    btn.classList.toggle('active', isMatch);
+    btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+    if (isMatch) selectedName = btn.dataset.flockName || '';
   });
+
+  const statusEl = document.getElementById('f_flock_status');
+  if (statusEl) {
+    statusEl.className = 'restock-choice-status selected-yes';
+    statusEl.innerHTML = `<span>✓ النوع المختار: ${esc(selectedName || 'تم التحديد')}</span>`;
+  }
+  updateFormSubmitState(kind);
 
   if (kind === 'inc') {
     const row = document.getElementById('sell_all_flock_row');
@@ -863,6 +904,7 @@ function openPaymentModal(debtIndex, paymentIndex = null) {
       <button class="btn btn-primary" style="flex: 2;" type="submit">${isEditPayment ? 'حفظ تعديل الدفعة' : 'تسجيل السداد والحفظ'}</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
+    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
   `;
 
   formEl.onsubmit = ev => {
@@ -1022,6 +1064,7 @@ function openFeedStocktakeModal(editIndex = null, closing = false) {
       <button class="btn btn-primary" style="flex:2;" type="submit">${closing ? 'حفظ الجرد وتحديث تكلفة الكتاكيت' : (editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك')}</button>
       <button class="btn btn-outline" style="flex:1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
+    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
   `;
 
   formEl.onsubmit = ev => {
@@ -1463,6 +1506,7 @@ function editCyclePage(a, c) {
           <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديلات الدورة</button>
           <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeEditCyclePage()">إلغاء</button>
         </div>
+        <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
 
         <div style="margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 14px; text-align: center;">
           <button type="button" class="btn btn-sm btn-danger" onclick="deleteCycle(${c.id})">
@@ -1659,8 +1703,8 @@ function restockPage(a, c) {
           </button>
           <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeRestockPage()">إلغاء</button>
         </div>
-        <div id="rs_bottom_hint" style="margin-top: 10px;"></div>
-        <div id="rs_bottom_error_container" style="margin-top: 10px;"></div>
+        <div id="form_bottom_hint" style="margin-top: 10px;"></div>
+        <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
       </form>
     </div>
   `;
@@ -1789,7 +1833,7 @@ function updateRestockSubmitState() {
     }
   }
 
-  const bottomHint = document.getElementById('rs_bottom_hint');
+  const bottomHint = document.getElementById('form_bottom_hint');
   if (bottomHint) {
     if (needsFlockPick && hasOldChoice) {
       bottomHint.innerHTML = `
@@ -1920,6 +1964,7 @@ function openEditBatchModal(flockId, batchIdx) {
       <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديل الدفعة</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
+    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
   `;
 
   formEl.onsubmit = ev => {
@@ -2038,6 +2083,7 @@ function openFlockModal(flockId = null) {
       <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ التعديلات</button>
       <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
     </div>
+    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
   `;
 
   formEl.onsubmit = ev => {
@@ -2212,7 +2258,23 @@ function closeNewCyclePage() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function updateNewCycleBottomHint() {
+  const feedChoice = document.getElementById('new_has_old_feed')?.value || '';
+  const hasFeedChoice = feedChoice === 'yes' || feedChoice === 'no';
+  const btn = document.getElementById('nc_submit_btn');
+  if (btn) {
+    btn.textContent = hasFeedChoice ? 'إنشاء الدورة ✓' : '⚠️ اختار رصيد العلف القديم أولاً';
+  }
+  const bottomHint = document.getElementById('form_bottom_hint');
+  if (bottomHint) {
+    bottomHint.innerHTML = !hasFeedChoice
+      ? `<div class="restock-choice-status pending" style="margin: 0;"><span>⚠️ تنبيه: لسه مختارتش هل فيه رصيد علف قديم في الخطوة (٢) فوق.</span></div>`
+      : '';
+  }
+}
+
 function toggleNewCycleOpeningFeed(value) {
+  clearFormErrors();
   const hidden = document.getElementById('new_has_old_feed');
   const fields = document.getElementById('new_old_feed_fields');
   if (!hidden || !fields) return;
@@ -2234,12 +2296,20 @@ function toggleNewCycleOpeningFeed(value) {
   if (choices) choices.classList.remove('choice-error');
   const choiceHint = document.getElementById('new_feed_choice_error');
   if (choiceHint) choiceHint.style.display = 'none';
+  const statusEl = document.getElementById('new_feed_status');
+  if (statusEl) {
+    statusEl.className = `restock-choice-status ${value === 'yes' ? 'selected-yes' : 'selected-no'}`;
+    statusEl.innerHTML = value === 'yes'
+      ? '<span>✓ اختيارك: أيوة، فيه رصيد علف قديم مُرحّل</span>'
+      : '<span>✓ اختيارك: لا، مفيش علف قديم</span>';
+  }
   document.querySelectorAll('.new-opening-feed-choice').forEach(btn => {
     const active = btn.dataset.val === value;
     btn.classList.toggle('active', active);
     btn.classList.remove('input-error');
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
+  updateNewCycleBottomHint();
 }
 
 function newCyclePage(a) {
@@ -2275,6 +2345,9 @@ function newCyclePage(a) {
           <input type="hidden" id="new_feed_carryover_source" value="${pendingCarryover ? pendingCarryover.sourceCycleId : ''}">
           ${pendingCarryover ? `<div class="form-hint-banner amber">📦 متبقي من «${esc(pendingCarryover.sourceCycleName)}»: <b>${fp(carryoverQty)} ${esc(pendingCarryover.unit)}</b> (${fp(pendingCarryover.kg)} كجم)، بقيمة تقديرية <b>${fp(pendingCarryover.value)} جنيه</b>. لو هتستخدمه، رحّله عشان يتحسب كمخزون بداية، ويتحمّل على تكلفة الدورة بقدر المستهلك فقط.</div>` : ''}
           <input type="hidden" id="new_has_old_feed" value="">
+          <div id="new_feed_status" class="restock-choice-status pending">
+            <span>⏳ لسه مختارتش — اضغط على واحد من الاختيارين تحت</span>
+          </div>
           <div class="restock-mode-tabs new-opening-feed-choices">
             <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="no" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('no')">${pendingCarryover ? 'لا، مش هرحّله للدورة دي' : 'لا، مفيش علف قديم'}</button>
             <button type="button" class="restock-mode-btn new-opening-feed-choice" data-val="yes" aria-pressed="false" onclick="toggleNewCycleOpeningFeed('yes')">${pendingCarryover ? 'أيوة، رحّل الرصيد' : 'أيوة، فيه رصيد مُرحّل'}</button>
@@ -2299,15 +2372,18 @@ function newCyclePage(a) {
         </section>
 
         <div class="new-cycle-actions">
-          <button class="btn btn-primary" type="submit">إنشاء الدورة</button>
+          <button id="nc_submit_btn" class="btn btn-primary" type="submit">إنشاء الدورة</button>
           <button class="btn btn-outline" type="button" onclick="closeNewCyclePage()">إلغاء</button>
         </div>
+        <div id="form_bottom_hint" style="margin-top: 10px;"></div>
+        <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
       </form>
     </div>
   `;
 
   refreshFlockRowLabels('new_flocks_list');
   updateFlocksModalSummary();
+  updateNewCycleBottomHint();
   const form = document.getElementById('new_cycle_form');
   if (!form) return;
   form.addEventListener('input', ev => ev.target.classList.remove('input-error'));
@@ -2332,10 +2408,10 @@ function newCyclePage(a) {
       if (choices) {
         choices.classList.add('choice-error');
         choices.querySelectorAll('.new-opening-feed-choice').forEach(btn => btn.classList.add('input-error'));
-        choices.querySelector('.new-opening-feed-choice')?.focus();
       }
       const choiceHint = document.getElementById('new_feed_choice_error');
       if (choiceHint) choiceHint.style.display = 'block';
+      showFormError('لم يتم إنشاء الدورة: اختار أولاً في الخطوة (٢) هل فيه رصيد علف قديم ولا مفيش.', null);
       return;
     }
     const pendingSourceId = +document.getElementById('new_feed_carryover_source').value || 0;
