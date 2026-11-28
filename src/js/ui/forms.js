@@ -51,6 +51,29 @@ function clearFormErrors() {
   document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
 }
 
+// Shared sticky footer for all forms/modals so Save remains visible above mobile keyboards
+function buildStickyFormFooter({
+  submitId = '',
+  submitLabel = 'حفظ',
+  cancelOnclick = 'closeM()',
+  cancelLabel = 'إلغاء',
+  disabled = false,
+  defaultLabel = '',
+  actionsClass = 'form-actions-row',
+  flexSubmit = true
+} = {}) {
+  return `
+    <div class="form-sticky-footer">
+      <div id="form_bottom_hint"></div>
+      <div id="form_bottom_error_container"></div>
+      <div class="${actionsClass}">
+        <button ${submitId ? `id="${submitId}"` : ''} class="btn btn-primary" ${flexSubmit ? 'style="flex: 2;"' : ''} type="submit" ${defaultLabel ? `data-default-label="${esc(defaultLabel)}"` : ''} ${disabled ? 'disabled aria-disabled="true"' : ''}>${submitLabel}</button>
+        <button class="btn btn-outline" ${flexSubmit ? 'style="flex: 1;"' : ''} type="button" onclick="${cancelOnclick}">${cancelLabel}</button>
+      </div>
+    </div>
+  `;
+}
+
 // Validation function returning detailed error message or null if valid
 function validateTransaction(kind, data, isEdit, editIndex, cycle) {
   const k = calc(cycle);
@@ -368,14 +391,12 @@ function openForm(kind, editIndex = null, prefillData = null) {
     `;
   }
 
-  h += `
-    <div class="form-actions-row">
-      <button id="f_submit_btn" class="btn btn-primary" style="flex: 2;" type="submit" data-default-label="${isEdit ? 'حفظ التعديلات' : 'حفظ البيانات'}">${isEdit ? 'حفظ التعديلات' : 'حفظ البيانات'}</button>
-      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
-    </div>
-    <div id="form_bottom_hint" style="margin-top: 10px;"></div>
-    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
-  `;
+  h += buildStickyFormFooter({
+    submitId: 'f_submit_btn',
+    submitLabel: isEdit ? 'حفظ التعديلات' : 'حفظ البيانات',
+    defaultLabel: isEdit ? 'حفظ التعديلات' : 'حفظ البيانات',
+    cancelOnclick: 'closeM()'
+  });
 
   formEl.innerHTML = h;
 
@@ -900,11 +921,10 @@ function openPaymentModal(debtIndex, paymentIndex = null) {
       </div>
     ` : ''}
 
-    <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">${isEditPayment ? 'حفظ تعديل الدفعة' : 'تسجيل السداد والحفظ'}</button>
-      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
-    </div>
-    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
+    ${buildStickyFormFooter({
+      submitLabel: isEditPayment ? 'حفظ تعديل الدفعة' : 'تسجيل السداد والحفظ',
+      cancelOnclick: 'closeM()'
+    })}
   `;
 
   formEl.onsubmit = ev => {
@@ -1060,11 +1080,10 @@ function openFeedStocktakeModal(editIndex = null, closing = false) {
         <option value="كيلوجرام (كجم)" ${unit.includes('كيلو') ? 'selected' : ''}>كيلوجرام</option>
       </select>
     </div>
-    <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex:2;" type="submit">${closing ? 'حفظ الجرد وتحديث تكلفة الكتاكيت' : (editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك')}</button>
-      <button class="btn btn-outline" style="flex:1;" type="button" onclick="closeM()">إلغاء</button>
-    </div>
-    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
+    ${buildStickyFormFooter({
+      submitLabel: closing ? 'حفظ الجرد وتحديث تكلفة الكتاكيت' : (editing ? 'حفظ الجرد' : 'حفظ الجرد وحساب المستهلك'),
+      cancelOnclick: 'closeM()'
+    })}
   `;
 
   formEl.onsubmit = ev => {
@@ -1502,11 +1521,10 @@ function editCyclePage(a, c) {
 
         <div class="flock-total-bar" id="flocks_modal_summary"></div>
 
-        <div class="form-actions-row">
-          <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديلات الدورة</button>
-          <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeEditCyclePage()">إلغاء</button>
-        </div>
-        <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
+        ${buildStickyFormFooter({
+          submitLabel: 'حفظ تعديلات الدورة',
+          cancelOnclick: 'closeEditCyclePage()'
+        })}
 
         <div style="margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 14px; text-align: center;">
           <button type="button" class="btn btn-sm btn-danger" onclick="deleteCycle(${c.id})">
@@ -1697,14 +1715,12 @@ function restockPage(a, c) {
           </div>
         ` : `<input type="hidden" id="rs_include_old" value="no">`}
 
-        <div class="form-actions-row">
-          <button id="rs_submit_btn" class="btn btn-primary" style="flex: 2;" type="submit" ${isSubmitBlocked ? 'disabled aria-disabled="true"' : ''}>
-            ${initialSubmitLabel}
-          </button>
-          <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeRestockPage()">إلغاء</button>
-        </div>
-        <div id="form_bottom_hint" style="margin-top: 10px;"></div>
-        <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
+        ${buildStickyFormFooter({
+          submitId: 'rs_submit_btn',
+          submitLabel: initialSubmitLabel,
+          cancelOnclick: 'closeRestockPage()',
+          disabled: isSubmitBlocked
+        })}
       </form>
     </div>
   `;
@@ -1960,11 +1976,10 @@ function openEditBatchModal(flockId, batchIdx) {
       </div>
     ` : ''}
 
-    <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ تعديل الدفعة</button>
-      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
-    </div>
-    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
+    ${buildStickyFormFooter({
+      submitLabel: 'حفظ تعديل الدفعة',
+      cancelOnclick: 'closeM()'
+    })}
   `;
 
   formEl.onsubmit = ev => {
@@ -2079,11 +2094,10 @@ function openFlockModal(flockId = null) {
       <input id="af_cost" type="number" inputmode="decimal" step="any" value="${existingFlock.cost}" placeholder="مثلاً: 3800">
     `}
 
-    <div class="form-actions-row">
-      <button class="btn btn-primary" style="flex: 2;" type="submit">حفظ التعديلات</button>
-      <button class="btn btn-outline" style="flex: 1;" type="button" onclick="closeM()">إلغاء</button>
-    </div>
-    <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
+    ${buildStickyFormFooter({
+      submitLabel: 'حفظ التعديلات',
+      cancelOnclick: 'closeM()'
+    })}
   `;
 
   formEl.onsubmit = ev => {
@@ -2371,12 +2385,13 @@ function newCyclePage(a) {
           <div class="flock-total-bar" id="flocks_modal_summary"></div>
         </section>
 
-        <div class="new-cycle-actions">
-          <button id="nc_submit_btn" class="btn btn-primary" type="submit">إنشاء الدورة</button>
-          <button class="btn btn-outline" type="button" onclick="closeNewCyclePage()">إلغاء</button>
-        </div>
-        <div id="form_bottom_hint" style="margin-top: 10px;"></div>
-        <div id="form_bottom_error_container" style="margin-top: 10px;"></div>
+        ${buildStickyFormFooter({
+          submitId: 'nc_submit_btn',
+          submitLabel: 'إنشاء الدورة',
+          cancelOnclick: 'closeNewCyclePage()',
+          actionsClass: 'new-cycle-actions',
+          flexSubmit: false
+        })}
       </form>
     </div>
   `;

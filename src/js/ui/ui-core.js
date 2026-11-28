@@ -223,8 +223,55 @@ function updateSyncStatusBanner() {
   banner.style.display = 'none';
 }
 
+// Keep modals & sticky Save bars above the mobile keyboard (iOS & Android)
+function setupMobileKeyboardViewport() {
+  const root = document.documentElement;
+  let baselineHeight = window.innerHeight || 0;
+
+  const syncViewport = () => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    if (vv.height > baselineHeight - 40) {
+      baselineHeight = Math.max(baselineHeight, vv.height, window.innerHeight || 0);
+    }
+    const vvHeight = Math.round(vv.height);
+    const vvTop = Math.round(vv.offsetTop);
+    const kbOffset = Math.max(0, Math.round((window.innerHeight || vvHeight) - vv.height - vv.offsetTop));
+    const isKeyboardOpen = (baselineHeight - vvHeight > 120) || kbOffset > 120;
+
+    root.style.setProperty('--vv-height', `${vvHeight}px`);
+    root.style.setProperty('--vv-top', `${vvTop}px`);
+    root.style.setProperty('--kb-offset', `${kbOffset}px`);
+    if (document.body) {
+      document.body.classList.toggle('keyboard-open', isKeyboardOpen);
+    }
+  };
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewport);
+    window.visualViewport.addEventListener('scroll', syncViewport);
+    syncViewport();
+  }
+
+  document.addEventListener('focusin', ev => {
+    const target = ev.target;
+    if (!target || !target.matches || !target.matches('input, select, textarea')) return;
+    setTimeout(() => {
+      syncViewport();
+      if (typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }, 260);
+  });
+
+  document.addEventListener('focusout', () => {
+    setTimeout(syncViewport, 120);
+  });
+}
+
 // Initialize UI Core Events & Observers
 document.addEventListener('DOMContentLoaded', () => {
+  setupMobileKeyboardViewport();
   updateLiveClock();
   setInterval(updateLiveClock, 10000);
   updateSyncStatusBanner();

@@ -851,6 +851,7 @@ input, select, textarea {
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  scroll-margin-bottom: 130px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
@@ -1375,6 +1376,23 @@ select option {
   margin-top: 20px;
 }
 
+.form-sticky-footer {
+  margin-top: 16px;
+}
+
+.form-sticky-footer .form-actions-row {
+  margin-top: 0;
+}
+
+#form_bottom_hint:not(:empty),
+#form_bottom_error_container:not(:empty) {
+  margin-bottom: 10px;
+}
+
+.card:has(.form-sticky-footer) {
+  overflow: visible;
+}
+
 
 
 /* --------------------------------------------------------------------------
@@ -1840,23 +1858,63 @@ select option {
     flex-shrink: 0;
   }
 
-  /* Modal Dialog (Native Mobile Bottom-Sheet) */
+  /* Modal Dialog (Native Mobile Bottom-Sheet, Keyboard-Aware) */
   #m, .confirm-modal-overlay {
     padding: 0;
     align-items: flex-end;
+    top: var(--vv-top, 0px);
+    height: var(--vv-height, 100vh);
+    height: var(--vv-height, 100dvh);
+    bottom: auto;
   }
   #m form, .confirm-box, .guide-box {
     max-width: 100% !important;
     width: 100% !important;
-    max-height: 90vh !important;
-    max-height: 90dvh !important;
+    max-height: calc(var(--vv-height, 100vh) - 12px) !important;
+    max-height: calc(var(--vv-height, 100dvh) - 12px) !important;
     -webkit-overflow-scrolling: touch;
     border-radius: 20px 20px 0 0 !important;
     border-bottom: none !important;
     box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6) !important;
   }
   #m form {
-    padding: 14px 16px max(28px, env(safe-area-inset-bottom));
+    padding: 14px 16px 0;
+  }
+  #m form .form-sticky-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 14px -16px 0;
+    padding: 10px 16px max(14px, env(safe-area-inset-bottom));
+    background: var(--bg-surface-elevated);
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.22);
+  }
+  .card .form-sticky-footer,
+  .new-cycle-form .form-sticky-footer {
+    position: sticky;
+    bottom: var(--kb-offset, 0px);
+    z-index: 20;
+    margin: 14px -12px 0;
+    padding: 10px 12px max(12px, env(safe-area-inset-bottom));
+    background: var(--bg-surface-elevated);
+    border-top: 1px solid var(--border-subtle);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.25);
+  }
+  .new-cycle-form .form-sticky-footer {
+    margin: 8px 0 0;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+  }
+  .new-cycle-form .new-cycle-actions {
+    padding-bottom: 0;
+  }
+  body.keyboard-open .w {
+    padding-bottom: calc(140px + var(--kb-offset, 0px));
+  }
+  body.keyboard-open #toast {
+    bottom: calc(76px + var(--kb-offset, 0px));
   }
   #m form::before {
     content: "";
