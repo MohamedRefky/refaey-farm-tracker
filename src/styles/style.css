@@ -785,7 +785,11 @@ body::after {
 /* Modal Overlay */
 #m {
   position: fixed;
-  inset: 0;
+  top: var(--vv-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--vv-height, 100vh);
+  height: var(--vv-height, 100dvh);
   background: rgba(4, 7, 13, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -813,8 +817,10 @@ body::after {
   width: 100%;
   max-width: 520px;
   padding: 28px;
-  max-height: 90vh;
+  max-height: calc(var(--vv-height, 100vh) - 24px);
+  max-height: calc(var(--vv-height, 100dvh) - 24px);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: var(--shadow-modal), var(--shadow-glow);
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1377,6 +1383,7 @@ select option {
 }
 
 .form-sticky-footer {
+  position: static;
   margin-top: 16px;
 }
 
@@ -1389,8 +1396,12 @@ select option {
   margin-bottom: 10px;
 }
 
-.card:has(.form-sticky-footer) {
-  overflow: visible;
+body.keyboard-open .w {
+  padding-bottom: calc(120px + var(--kb-offset, 0px));
+}
+
+body.keyboard-open #toast {
+  bottom: calc(16px + var(--kb-offset, 0px));
 }
 
 
@@ -1862,10 +1873,6 @@ select option {
   #m, .confirm-modal-overlay {
     padding: 0;
     align-items: flex-end;
-    top: var(--vv-top, 0px);
-    height: var(--vv-height, 100vh);
-    height: var(--vv-height, 100dvh);
-    bottom: auto;
   }
   #m form, .confirm-box, .guide-box {
     max-width: 100% !important;
@@ -1879,17 +1886,6 @@ select option {
   }
   #m form {
     padding: 14px 16px max(24px, env(safe-area-inset-bottom));
-  }
-  .form-sticky-footer {
-    position: static;
-    margin: 16px 0 0;
-    padding: 0;
-  }
-  body.keyboard-open .w {
-    padding-bottom: calc(120px + var(--kb-offset, 0px));
-  }
-  body.keyboard-open #toast {
-    bottom: calc(16px + var(--kb-offset, 0px));
   }
   #m form::before {
     content: "";
