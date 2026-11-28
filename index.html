@@ -51,7 +51,7 @@
     <footer class="footer-note">
       <span>Refaey Farm Tracker © 2026</span>
       <span>•</span>
-      <span>يتم الحفظ تلقائياً في جهازك</span>
+      <span>حفظ محلي + مزامنة سحابية (Firebase)</span>
       <span>•</span>
       <button type="button" onclick="resetDataPrompt()">استعادة البيانات الافتراضية</button>
     </footer>
@@ -65,13 +65,18 @@
   <!-- Reusable Custom Confirmation Warning Dialog -->
   <div id="cm" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true"></div>
 
+  <!-- Firebase Compat SDK (works both online & via file://) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
   <!-- Modular Scripts Architecture -->
-  <script src="js/data.js?v=18"></script>
+  <script src="js/data.js?v=19"></script>
   <script src="js/calculations.js?v=24"></script>
   <script src="js/ui-core.js?v=12"></script>
   <script src="js/forms.js?v=35"></script>
   <script src="js/tabs.js?v=24"></script>
   <script src="js/views.js?v=46"></script>
   <script src="js/app.js?v=20"></script>
+  <script src="js/firebase-sync.js?v=1"></script>
 </body>
 </html>

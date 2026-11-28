@@ -103,6 +103,7 @@ const LEGACY_STORAGE_KEYS = [];
 let C = [];
 let storageWriteFailed = false;
 let hasPendingSync = false;
+let hasLocalSavedData = false;
 let cloudSyncHandler = null; // Future Firebase hook: setCloudSyncHandler(fn)
 
 try {
@@ -391,6 +392,7 @@ function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
+      hasLocalSavedData = true;
       C = normalizeData(JSON.parse(saved));
       return;
     }
@@ -410,25 +412,33 @@ function loadData() {
       }
     }
 
+    hasLocalSavedData = Boolean(raw);
     C = normalizeData(raw || JSON.parse(JSON.stringify(initialCycles)));
-    saveData();
+    saveData({ skipCloud: true, keepInitialFlag: !raw });
   } catch (e) {
     C = normalizeData(JSON.parse(JSON.stringify(initialCycles)));
   }
 }
 
-function saveData() {
+function saveData(options = {}) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(C));
     storageWriteFailed = false;
+    if (!options.keepInitialFlag) {
+      hasLocalSavedData = true;
+    }
 
-    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
-    if (isOffline) {
-      markPendingSync();
-    } else if (typeof cloudSyncHandler === 'function') {
-      Promise.resolve(cloudSyncHandler(C))
-        .then(() => clearPendingSync())
-        .catch(() => markPendingSync());
+    if (!options.skipCloud) {
+      const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (isOffline) {
+        markPendingSync();
+      } else if (typeof cloudSyncHandler === 'function') {
+        Promise.resolve(cloudSyncHandler(C))
+          .then(() => clearPendingSync())
+          .catch(() => markPendingSync());
+      } else if (typeof updateSyncStatusBanner === 'function') {
+        updateSyncStatusBanner();
+      }
     } else if (typeof updateSyncStatusBanner === 'function') {
       updateSyncStatusBanner();
     }
@@ -442,6 +452,21 @@ function saveData() {
     }
     return false;
   }
+}
+
+function applyRemoteCycles(remoteCycles) {
+  const normalized = normalizeData(Array.isArray(remoteCycles) ? remoteCycles : []);
+  const nextJson = JSON.stringify(normalized);
+  const currentJson = JSON.stringify(C);
+  if (nextJson === currentJson) return false;
+
+  C = normalized;
+  hasLocalSavedData = true;
+  saveData({ skipCloud: true });
+  clearPendingSync();
+  updateNid();
+  if (typeof render === 'function') render();
+  return true;
 }
 
 function saveAndNotify(successMsg) {

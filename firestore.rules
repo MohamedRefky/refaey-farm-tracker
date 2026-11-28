@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Scoped to Refaey Farm Tracker collections only.
+    // Firebase Authentication is intentionally omitted per user request.
+    match /cycles/{cycleId} {
+      allow read, write: if true;
+    }
+
+    match /app_meta/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
